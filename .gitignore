@@ -1,0 +1,22 @@
+node_modules
+.env
+
+.idea
+
+.vercel
+.next
+.turbo
+
+.DS_Store
+
+# Yarn
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Local Netlify folder
+.netlify
+
+.turbo

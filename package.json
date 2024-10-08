@@ -4,7 +4,7 @@
   "repository": "https://github.com/Hanaverse/warpx-frontend",
   "license": "MIT",
   "scripts": {
-    "build": "yarn generate:defs && yarn generate:meta",
+    "codegen": "yarn generate:defs && yarn generate:meta",
     "generate:defs": "tsx node_modules/.bin/polkadot-types-from-defs --package sample-polkadotjs-typegen/interfaces --input ./src/interfaces --package ./warpx.json",
     "generate:meta": "tsx node_modules/.bin/polkadot-types-from-chain --package sample-polkadotjs-typegen/interfaces --endpoint ./warpx.json --output ./src/interfaces",
     "lint": "tsc --noEmit --pretty"

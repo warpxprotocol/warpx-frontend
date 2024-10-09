@@ -14,5 +14,5 @@ const customAnimation = keyframes`
 `;
 
 export const Reveal: React.FC<RevealProps> = (props) => (
-  <BaseReveal cascade damping={0.1} duration={600} keyframes={customAnimation} {...props} />
+  <BaseReveal cascade damping={0.2} duration={600} keyframes={customAnimation} {...props} />
 );

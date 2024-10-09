@@ -2,6 +2,7 @@ import { AppProps } from 'next/app';
 import React from 'react';
 
 import { MetaHead } from '@/components/MetaHead';
+import '@/styles/reset.css';
 
 const meta = {
   title: 'WarpX - Swap with warping speed',
@@ -22,6 +23,11 @@ function MyApp({ Component, pageProps }: AppProps) {
         html,
         body {
           scroll-behavior: smooth;
+        }
+
+        img {
+          user-select: none;
+          -webkit-user-drag: none;
         }
 
         html {

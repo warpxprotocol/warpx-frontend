@@ -1,21 +1,10 @@
 {
   "name": "warpx-frontend",
   "version": "1.0.0",
+  "private": true,
   "repository": "https://github.com/Hanaverse/warpx-frontend",
   "license": "MIT",
-  "scripts": {
-    "codegen": "yarn generate:defs && yarn generate:meta",
-    "generate:defs": "tsx node_modules/.bin/polkadot-types-from-defs --package sample-polkadotjs-typegen/interfaces --input ./src/interfaces --package ./warpx.json",
-    "generate:meta": "tsx node_modules/.bin/polkadot-types-from-chain --package sample-polkadotjs-typegen/interfaces --endpoint ./warpx.json --output ./src/interfaces",
-    "lint": "tsc --noEmit --pretty"
-  },
-  "dependencies": {
-    "@polkadot/api": "^14.0.1"
-  },
-  "devDependencies": {
-    "@polkadot/typegen": "^14.0.1",
-    "ts-node": "^8.6.2",
-    "tsx": "^4.19.1",
-    "typescript": "^4.0.2"
-  }
+  "workspaces": [
+    "packages/*"
+  ]
 }

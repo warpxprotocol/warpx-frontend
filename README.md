@@ -2,6 +2,10 @@
 
 ## SDK
 
+```
+cd packages/sdk
+```
+
 ```bash
 ./target/release/warpx-node \
 --rpc-port 9945 \
@@ -16,4 +20,8 @@ curl -H "Content-Type: application/json" \
 
 ```bash
 yarn codegen
+
+# or
+
+yarn workspace @warpx/sdk codegen
 ```

@@ -1,4 +1,5 @@
 import styled from '@emotion/styled';
+import { motion } from 'framer-motion';
 import Image from 'next/image';
 
 import warpxHeroIllust from '@/assets/warpx-hero.jpg';
@@ -7,7 +8,19 @@ import { albertSans, unbounded } from '@/styles/font';
 export const HeroSection: React.FC = () => {
   return (
     <Container>
-      <Illust src={warpxHeroIllust} alt="" width={720} height={405} />
+      <motion.div
+        style={{ display: 'flex', zIndex: -1 }}
+        initial={{ transform: `translate3d(0, -40px, 0)` }}
+        animate={{ transform: `translate3d(0, 0px, 0)` }}
+        transition={{
+          ease: 'easeInOut',
+          repeat: Infinity,
+          repeatType: 'mirror',
+          duration: 2,
+        }}
+      >
+        <Illust src={warpxHeroIllust} alt="" width={720} height={405} />
+      </motion.div>
       <Title>
         Swap with <br />
         Warping Speed
@@ -29,6 +42,7 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
+  z-index: 0;
 `;
 const Illust = styled(Image)`
   width: 454px;
@@ -36,7 +50,7 @@ const Illust = styled(Image)`
 `;
 
 const Title = styled.h1`
-  margin-top: -38px;
+  margin-top: -72px;
 
   color: #fff;
   text-align: center;

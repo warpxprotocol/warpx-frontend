@@ -29,8 +29,8 @@ export const HeroSection: React.FC = () => {
           Warping Speed
         </Title>
         <Description>
-          A Simple and Secure Hybrid Exchange <br />
-          Using both AMM and Orderbook
+          Settle Lightning-Fast Onchain Trades with Top-Tier Prices. <br />
+          WarpX, the Cutting Edge Decentralized Exchange and AppChain.
         </Description>
 
         <PoweredByContainer>

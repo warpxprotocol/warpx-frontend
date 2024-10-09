@@ -9,6 +9,7 @@ import { albertSans, unbounded } from '@/styles/font';
 export const HeroSection: React.FC = () => {
   return (
     <Container>
+      <HeroOverlay src="/assets/hero-overlay.svg" alt="" width={1150} height={838} />
       <motion.div
         style={{ display: 'flex', zIndex: -1 }}
         initial={{ transform: `translate3d(0, -80px, 0)` }}
@@ -52,6 +53,14 @@ const Container = styled.div`
   flex-direction: column;
   align-items: center;
   z-index: 0;
+`;
+const HeroOverlay = styled(Image)`
+  width: 1150px;
+  min-width: 1150px;
+  height: 838px;
+  min-height: 838px;
+  position: absolute;
+  top: -120px;
 `;
 const Illust = styled(Image)`
   width: 550px;

@@ -29,8 +29,9 @@ export const HeroSection: React.FC = () => {
           Warping Speed
         </Title>
         <Description>
-          Settle Lightning-Fast Onchain Trades with Top-Tier Prices. <br />
-          WarpX, the Cutting Edge Decentralized Exchange and AppChain.
+          Settle <IB>Lightning-Fast</IB> <IB>Onchain Trades</IB>{' '}
+          <IB>with Top-Tier Prices.</IB> <br />
+          WarpX, the Cutting Edge Decentralized Exchange <IB>and AppChain.</IB>
         </Description>
 
         <PoweredByContainer>
@@ -59,6 +60,7 @@ export const HeroSection: React.FC = () => {
 
 const Container = styled.div`
   width: 100%;
+  padding: 0 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -74,7 +76,10 @@ const HeroOverlay = styled(Image)`
 `;
 const Illust = styled(Image)`
   width: 550px;
+  min-width: 550px;
   height: 500px;
+  min-height: 500px;
+
   margin-bottom: -140px;
 `;
 const Title = styled.h1`
@@ -86,6 +91,10 @@ const Title = styled.h1`
   line-height: 120%;
   letter-spacing: 2px;
   text-transform: uppercase;
+
+  @media screen and (max-width: 700px) {
+    font-size: 36px;
+  }
 `;
 const Description = styled.p`
   margin-top: 20px;
@@ -96,6 +105,11 @@ const Description = styled.p`
   font-size: 20px;
   font-weight: 400;
   line-height: 130%;
+
+  @media screen and (max-width: 700px) {
+    font-size: 16px;
+    line-height: 145%;
+  }
 `;
 
 const PoweredByContainer = styled.div`
@@ -111,13 +125,24 @@ const PoweredByText = styled.p`
   font-family: ${unbounded.style.fontFamily};
   font-size: 18px;
   font-weight: 400;
+
+  @media screen and (max-width: 700px) {
+    font-size: 16px;
+    line-height: 145%;
+  }
 `;
 const PoweredByLogoList = styled.div`
   width: 100%;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 48px;
 `;
 const PoweredByLogo = styled(Image)`
   object-fit: contain;
+`;
+
+const IB = styled.span`
+  display: inline-block;
 `;

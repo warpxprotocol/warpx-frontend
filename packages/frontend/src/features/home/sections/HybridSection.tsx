@@ -62,6 +62,12 @@ const IllustContainer = styled.div`
   @media screen and (max-width: 725px) {
     transform: scale(0.85);
     margin: -16px 0;
+    margin-right: -20px;
+  }
+
+  @media screen and (max-width: 600px) {
+    transform: scale(0.6);
+    margin: -100px 0;
   }
 `;
 const Stack1 = styled(Image)`
@@ -114,5 +120,9 @@ const Title = styled.h1`
 
   @media screen and (max-width: 1070px) {
     text-align: center;
+  }
+
+  @media screen and (max-width: 600px) {
+    font-size: 24px;
   }
 `;

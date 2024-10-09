@@ -4,7 +4,14 @@
   "private": true,
   "repository": "https://github.com/Hanaverse/warpx-frontend",
   "license": "MIT",
+  "scripts": {
+    "format": "prettier --write ."
+  },
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "devDependencies": {
+    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+    "prettier": "^3.2.5"
+  }
 }

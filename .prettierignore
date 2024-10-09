@@ -1,0 +1,7 @@
+.yarn
+build
+.vercel
+
+# web
+.next
+static

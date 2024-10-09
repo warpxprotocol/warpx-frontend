@@ -1,12 +1,21 @@
 // Auto-generated via `yarn polkadot-types-from-chain`, do not edit
-/* eslint-disable */
 
+/* eslint-disable */
 // import type lookup before we augment - in some environments
 // this is required to allow for ambient/previous definitions
-import '@polkadot/api-base/types/events';
-
 import type { ApiTypes, AugmentedEvent } from '@polkadot/api-base/types';
-import type { Bytes, Null, Option, Result, Vec, bool, u32, u64, u8 } from '@polkadot/types-codec';
+import '@polkadot/api-base/types/events';
+import type {
+  Bytes,
+  Null,
+  Option,
+  Result,
+  Vec,
+  bool,
+  u8,
+  u32,
+  u64,
+} from '@polkadot/types-codec';
 import type { ITuple } from '@polkadot/types-codec/types';
 import type { AccountId32, H256, Permill } from '@polkadot/types/interfaces/runtime';
 
@@ -18,19 +27,35 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * Accounts were destroyed for given asset.
        **/
-      AccountsDestroyed: AugmentedEvent<ApiType, [assetId: u32, accountsDestroyed: u32, accountsRemaining: u32], { assetId: u32, accountsDestroyed: u32, accountsRemaining: u32 }>;
+      AccountsDestroyed: AugmentedEvent<
+        ApiType,
+        [assetId: u32, accountsDestroyed: u32, accountsRemaining: u32],
+        { assetId: u32; accountsDestroyed: u32; accountsRemaining: u32 }
+      >;
       /**
        * An approval for account `delegate` was cancelled by `owner`.
        **/
-      ApprovalCancelled: AugmentedEvent<ApiType, [assetId: u32, owner: AccountId32, delegate: AccountId32], { assetId: u32, owner: AccountId32, delegate: AccountId32 }>;
+      ApprovalCancelled: AugmentedEvent<
+        ApiType,
+        [assetId: u32, owner: AccountId32, delegate: AccountId32],
+        { assetId: u32; owner: AccountId32; delegate: AccountId32 }
+      >;
       /**
        * Approvals were destroyed for given asset.
        **/
-      ApprovalsDestroyed: AugmentedEvent<ApiType, [assetId: u32, approvalsDestroyed: u32, approvalsRemaining: u32], { assetId: u32, approvalsDestroyed: u32, approvalsRemaining: u32 }>;
+      ApprovalsDestroyed: AugmentedEvent<
+        ApiType,
+        [assetId: u32, approvalsDestroyed: u32, approvalsRemaining: u32],
+        { assetId: u32; approvalsDestroyed: u32; approvalsRemaining: u32 }
+      >;
       /**
        * (Additional) funds have been approved for transfer to a destination account.
        **/
-      ApprovedTransfer: AugmentedEvent<ApiType, [assetId: u32, source: AccountId32, delegate: AccountId32, amount: u64], { assetId: u32, source: AccountId32, delegate: AccountId32, amount: u64 }>;
+      ApprovedTransfer: AugmentedEvent<
+        ApiType,
+        [assetId: u32, source: AccountId32, delegate: AccountId32, amount: u64],
+        { assetId: u32; source: AccountId32; delegate: AccountId32; amount: u64 }
+      >;
       /**
        * Some asset `asset_id` was frozen.
        **/
@@ -38,7 +63,11 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * The min_balance of an asset has been updated by the asset owner.
        **/
-      AssetMinBalanceChanged: AugmentedEvent<ApiType, [assetId: u32, newMinBalance: u64], { assetId: u32, newMinBalance: u64 }>;
+      AssetMinBalanceChanged: AugmentedEvent<
+        ApiType,
+        [assetId: u32, newMinBalance: u64],
+        { assetId: u32; newMinBalance: u64 }
+      >;
       /**
        * An asset has had its attributes changed by the `Force` origin.
        **/
@@ -50,15 +79,27 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * Some account `who` was blocked.
        **/
-      Blocked: AugmentedEvent<ApiType, [assetId: u32, who: AccountId32], { assetId: u32, who: AccountId32 }>;
+      Blocked: AugmentedEvent<
+        ApiType,
+        [assetId: u32, who: AccountId32],
+        { assetId: u32; who: AccountId32 }
+      >;
       /**
        * Some assets were destroyed.
        **/
-      Burned: AugmentedEvent<ApiType, [assetId: u32, owner: AccountId32, balance: u64], { assetId: u32, owner: AccountId32, balance: u64 }>;
+      Burned: AugmentedEvent<
+        ApiType,
+        [assetId: u32, owner: AccountId32, balance: u64],
+        { assetId: u32; owner: AccountId32; balance: u64 }
+      >;
       /**
        * Some asset class was created.
        **/
-      Created: AugmentedEvent<ApiType, [assetId: u32, creator: AccountId32, owner: AccountId32], { assetId: u32, creator: AccountId32, owner: AccountId32 }>;
+      Created: AugmentedEvent<
+        ApiType,
+        [assetId: u32, creator: AccountId32, owner: AccountId32],
+        { assetId: u32; creator: AccountId32; owner: AccountId32 }
+      >;
       /**
        * An asset class was destroyed.
        **/
@@ -70,15 +111,27 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * Some asset class was force-created.
        **/
-      ForceCreated: AugmentedEvent<ApiType, [assetId: u32, owner: AccountId32], { assetId: u32, owner: AccountId32 }>;
+      ForceCreated: AugmentedEvent<
+        ApiType,
+        [assetId: u32, owner: AccountId32],
+        { assetId: u32; owner: AccountId32 }
+      >;
       /**
        * Some account `who` was frozen.
        **/
-      Frozen: AugmentedEvent<ApiType, [assetId: u32, who: AccountId32], { assetId: u32, who: AccountId32 }>;
+      Frozen: AugmentedEvent<
+        ApiType,
+        [assetId: u32, who: AccountId32],
+        { assetId: u32; who: AccountId32 }
+      >;
       /**
        * Some assets were issued.
        **/
-      Issued: AugmentedEvent<ApiType, [assetId: u32, owner: AccountId32, amount: u64], { assetId: u32, owner: AccountId32, amount: u64 }>;
+      Issued: AugmentedEvent<
+        ApiType,
+        [assetId: u32, owner: AccountId32, amount: u64],
+        { assetId: u32; owner: AccountId32; amount: u64 }
+      >;
       /**
        * Metadata has been cleared for an asset.
        **/
@@ -86,32 +139,72 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * New metadata has been set for an asset.
        **/
-      MetadataSet: AugmentedEvent<ApiType, [assetId: u32, name: Bytes, symbol_: Bytes, decimals: u8, isFrozen: bool], { assetId: u32, name: Bytes, symbol: Bytes, decimals: u8, isFrozen: bool }>;
+      MetadataSet: AugmentedEvent<
+        ApiType,
+        [assetId: u32, name: Bytes, symbol_: Bytes, decimals: u8, isFrozen: bool],
+        { assetId: u32; name: Bytes; symbol: Bytes; decimals: u8; isFrozen: bool }
+      >;
       /**
        * The owner changed.
        **/
-      OwnerChanged: AugmentedEvent<ApiType, [assetId: u32, owner: AccountId32], { assetId: u32, owner: AccountId32 }>;
+      OwnerChanged: AugmentedEvent<
+        ApiType,
+        [assetId: u32, owner: AccountId32],
+        { assetId: u32; owner: AccountId32 }
+      >;
       /**
        * The management team changed.
        **/
-      TeamChanged: AugmentedEvent<ApiType, [assetId: u32, issuer: AccountId32, admin: AccountId32, freezer: AccountId32], { assetId: u32, issuer: AccountId32, admin: AccountId32, freezer: AccountId32 }>;
+      TeamChanged: AugmentedEvent<
+        ApiType,
+        [assetId: u32, issuer: AccountId32, admin: AccountId32, freezer: AccountId32],
+        { assetId: u32; issuer: AccountId32; admin: AccountId32; freezer: AccountId32 }
+      >;
       /**
        * Some account `who` was thawed.
        **/
-      Thawed: AugmentedEvent<ApiType, [assetId: u32, who: AccountId32], { assetId: u32, who: AccountId32 }>;
+      Thawed: AugmentedEvent<
+        ApiType,
+        [assetId: u32, who: AccountId32],
+        { assetId: u32; who: AccountId32 }
+      >;
       /**
        * Some account `who` was created with a deposit from `depositor`.
        **/
-      Touched: AugmentedEvent<ApiType, [assetId: u32, who: AccountId32, depositor: AccountId32], { assetId: u32, who: AccountId32, depositor: AccountId32 }>;
+      Touched: AugmentedEvent<
+        ApiType,
+        [assetId: u32, who: AccountId32, depositor: AccountId32],
+        { assetId: u32; who: AccountId32; depositor: AccountId32 }
+      >;
       /**
        * Some assets were transferred.
        **/
-      Transferred: AugmentedEvent<ApiType, [assetId: u32, from: AccountId32, to: AccountId32, amount: u64], { assetId: u32, from: AccountId32, to: AccountId32, amount: u64 }>;
+      Transferred: AugmentedEvent<
+        ApiType,
+        [assetId: u32, from: AccountId32, to: AccountId32, amount: u64],
+        { assetId: u32; from: AccountId32; to: AccountId32; amount: u64 }
+      >;
       /**
        * An `amount` was transferred in its entirety from `owner` to `destination` by
        * the approved `delegate`.
        **/
-      TransferredApproved: AugmentedEvent<ApiType, [assetId: u32, owner: AccountId32, delegate: AccountId32, destination: AccountId32, amount: u64], { assetId: u32, owner: AccountId32, delegate: AccountId32, destination: AccountId32, amount: u64 }>;
+      TransferredApproved: AugmentedEvent<
+        ApiType,
+        [
+          assetId: u32,
+          owner: AccountId32,
+          delegate: AccountId32,
+          destination: AccountId32,
+          amount: u64,
+        ],
+        {
+          assetId: u32;
+          owner: AccountId32;
+          delegate: AccountId32;
+          destination: AccountId32;
+          amount: u64;
+        }
+      >;
       /**
        * Generic event
        **/
@@ -121,28 +214,52 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * A balance was set by root.
        **/
-      BalanceSet: AugmentedEvent<ApiType, [who: AccountId32, free: u64], { who: AccountId32, free: u64 }>;
+      BalanceSet: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, free: u64],
+        { who: AccountId32; free: u64 }
+      >;
       /**
        * Some amount was burned from an account.
        **/
-      Burned: AugmentedEvent<ApiType, [who: AccountId32, amount: u64], { who: AccountId32, amount: u64 }>;
+      Burned: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, amount: u64],
+        { who: AccountId32; amount: u64 }
+      >;
       /**
        * Some amount was deposited (e.g. for transaction fees).
        **/
-      Deposit: AugmentedEvent<ApiType, [who: AccountId32, amount: u64], { who: AccountId32, amount: u64 }>;
+      Deposit: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, amount: u64],
+        { who: AccountId32; amount: u64 }
+      >;
       /**
        * An account was removed whose balance was non-zero but below ExistentialDeposit,
        * resulting in an outright loss.
        **/
-      DustLost: AugmentedEvent<ApiType, [account: AccountId32, amount: u64], { account: AccountId32, amount: u64 }>;
+      DustLost: AugmentedEvent<
+        ApiType,
+        [account: AccountId32, amount: u64],
+        { account: AccountId32; amount: u64 }
+      >;
       /**
        * An account was created with some free balance.
        **/
-      Endowed: AugmentedEvent<ApiType, [account: AccountId32, freeBalance: u64], { account: AccountId32, freeBalance: u64 }>;
+      Endowed: AugmentedEvent<
+        ApiType,
+        [account: AccountId32, freeBalance: u64],
+        { account: AccountId32; freeBalance: u64 }
+      >;
       /**
        * Some balance was frozen.
        **/
-      Frozen: AugmentedEvent<ApiType, [who: AccountId32, amount: u64], { who: AccountId32, amount: u64 }>;
+      Frozen: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, amount: u64],
+        { who: AccountId32; amount: u64 }
+      >;
       /**
        * Total issuance was increased by `amount`, creating a credit to be balanced.
        **/
@@ -150,11 +267,19 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * Some balance was locked.
        **/
-      Locked: AugmentedEvent<ApiType, [who: AccountId32, amount: u64], { who: AccountId32, amount: u64 }>;
+      Locked: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, amount: u64],
+        { who: AccountId32; amount: u64 }
+      >;
       /**
        * Some amount was minted into an account.
        **/
-      Minted: AugmentedEvent<ApiType, [who: AccountId32, amount: u64], { who: AccountId32, amount: u64 }>;
+      Minted: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, amount: u64],
+        { who: AccountId32; amount: u64 }
+      >;
       /**
        * Total issuance was decreased by `amount`, creating a debt to be balanced.
        **/
@@ -162,44 +287,94 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * Some balance was reserved (moved from free to reserved).
        **/
-      Reserved: AugmentedEvent<ApiType, [who: AccountId32, amount: u64], { who: AccountId32, amount: u64 }>;
+      Reserved: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, amount: u64],
+        { who: AccountId32; amount: u64 }
+      >;
       /**
        * Some balance was moved from the reserve of the first account to the second account.
        * Final argument indicates the destination balance type.
        **/
-      ReserveRepatriated: AugmentedEvent<ApiType, [from: AccountId32, to: AccountId32, amount: u64, destinationStatus: FrameSupportTokensMiscBalanceStatus], { from: AccountId32, to: AccountId32, amount: u64, destinationStatus: FrameSupportTokensMiscBalanceStatus }>;
+      ReserveRepatriated: AugmentedEvent<
+        ApiType,
+        [
+          from: AccountId32,
+          to: AccountId32,
+          amount: u64,
+          destinationStatus: FrameSupportTokensMiscBalanceStatus,
+        ],
+        {
+          from: AccountId32;
+          to: AccountId32;
+          amount: u64;
+          destinationStatus: FrameSupportTokensMiscBalanceStatus;
+        }
+      >;
       /**
        * Some amount was restored into an account.
        **/
-      Restored: AugmentedEvent<ApiType, [who: AccountId32, amount: u64], { who: AccountId32, amount: u64 }>;
+      Restored: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, amount: u64],
+        { who: AccountId32; amount: u64 }
+      >;
       /**
        * Some amount was removed from the account (e.g. for misbehavior).
        **/
-      Slashed: AugmentedEvent<ApiType, [who: AccountId32, amount: u64], { who: AccountId32, amount: u64 }>;
+      Slashed: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, amount: u64],
+        { who: AccountId32; amount: u64 }
+      >;
       /**
        * Some amount was suspended from an account (it can be restored later).
        **/
-      Suspended: AugmentedEvent<ApiType, [who: AccountId32, amount: u64], { who: AccountId32, amount: u64 }>;
+      Suspended: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, amount: u64],
+        { who: AccountId32; amount: u64 }
+      >;
       /**
        * Some balance was thawed.
        **/
-      Thawed: AugmentedEvent<ApiType, [who: AccountId32, amount: u64], { who: AccountId32, amount: u64 }>;
+      Thawed: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, amount: u64],
+        { who: AccountId32; amount: u64 }
+      >;
       /**
        * The `TotalIssuance` was forcefully changed.
        **/
-      TotalIssuanceForced: AugmentedEvent<ApiType, [old: u64, new_: u64], { old: u64, new_: u64 }>;
+      TotalIssuanceForced: AugmentedEvent<
+        ApiType,
+        [old: u64, new_: u64],
+        { old: u64; new_: u64 }
+      >;
       /**
        * Transfer succeeded.
        **/
-      Transfer: AugmentedEvent<ApiType, [from: AccountId32, to: AccountId32, amount: u64], { from: AccountId32, to: AccountId32, amount: u64 }>;
+      Transfer: AugmentedEvent<
+        ApiType,
+        [from: AccountId32, to: AccountId32, amount: u64],
+        { from: AccountId32; to: AccountId32; amount: u64 }
+      >;
       /**
        * Some balance was unlocked.
        **/
-      Unlocked: AugmentedEvent<ApiType, [who: AccountId32, amount: u64], { who: AccountId32, amount: u64 }>;
+      Unlocked: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, amount: u64],
+        { who: AccountId32; amount: u64 }
+      >;
       /**
        * Some balance was unreserved (moved from reserved to free).
        **/
-      Unreserved: AugmentedEvent<ApiType, [who: AccountId32, amount: u64], { who: AccountId32, amount: u64 }>;
+      Unreserved: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, amount: u64],
+        { who: AccountId32; amount: u64 }
+      >;
       /**
        * An account was upgraded.
        **/
@@ -207,7 +382,11 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * Some amount was withdrawn from the account (e.g. for transaction fees).
        **/
-      Withdraw: AugmentedEvent<ApiType, [who: AccountId32, amount: u64], { who: AccountId32, amount: u64 }>;
+      Withdraw: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, amount: u64],
+        { who: AccountId32; amount: u64 }
+      >;
       /**
        * Generic event
        **/
@@ -217,7 +396,11 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * New authority set has been applied.
        **/
-      NewAuthorities: AugmentedEvent<ApiType, [authoritySet: Vec<ITuple<[SpConsensusGrandpaAppPublic, u64]>>], { authoritySet: Vec<ITuple<[SpConsensusGrandpaAppPublic, u64]>> }>;
+      NewAuthorities: AugmentedEvent<
+        ApiType,
+        [authoritySet: Vec<ITuple<[SpConsensusGrandpaAppPublic, u64]>>],
+        { authoritySet: Vec<ITuple<[SpConsensusGrandpaAppPublic, u64]>> }
+      >;
       /**
        * Current authority set has been paused.
        **/
@@ -235,19 +418,135 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * A limit order has been placed.
        **/
-      LimitOrder: AugmentedEvent<ApiType, [poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, maker: AccountId32, orderPrice: u64, orderQuantity: u64, isBid: bool], { poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, maker: AccountId32, orderPrice: u64, orderQuantity: u64, isBid: bool }>;
+      LimitOrder: AugmentedEvent<
+        ApiType,
+        [
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >,
+          maker: AccountId32,
+          orderPrice: u64,
+          orderQuantity: u64,
+          isBid: bool,
+        ],
+        {
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >;
+          maker: AccountId32;
+          orderPrice: u64;
+          orderQuantity: u64;
+          isBid: bool;
+        }
+      >;
       /**
        * A limit order has been placed.
        **/
-      LimitOrderPlaced: AugmentedEvent<ApiType, [maker: AccountId32, orderPrice: u64, poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, orderId: u64, orderQuantity: u64, isBid: bool], { maker: AccountId32, orderPrice: u64, poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, orderId: u64, orderQuantity: u64, isBid: bool }>;
+      LimitOrderPlaced: AugmentedEvent<
+        ApiType,
+        [
+          maker: AccountId32,
+          orderPrice: u64,
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >,
+          orderId: u64,
+          orderQuantity: u64,
+          isBid: bool,
+        ],
+        {
+          maker: AccountId32;
+          orderPrice: u64;
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >;
+          orderId: u64;
+          orderQuantity: u64;
+          isBid: bool;
+        }
+      >;
       /**
        * A successful call of the `AddLiquidity` extrinsic will create this event.
        **/
-      LiquidityAdded: AugmentedEvent<ApiType, [who: AccountId32, mintTo: AccountId32, poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, baseAssetProvided: u64, quoteAssetProvided: u64, lpToken: u32, lpTokenMinted: u64], { who: AccountId32, mintTo: AccountId32, poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, baseAssetProvided: u64, quoteAssetProvided: u64, lpToken: u32, lpTokenMinted: u64 }>;
+      LiquidityAdded: AugmentedEvent<
+        ApiType,
+        [
+          who: AccountId32,
+          mintTo: AccountId32,
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >,
+          baseAssetProvided: u64,
+          quoteAssetProvided: u64,
+          lpToken: u32,
+          lpTokenMinted: u64,
+        ],
+        {
+          who: AccountId32;
+          mintTo: AccountId32;
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >;
+          baseAssetProvided: u64;
+          quoteAssetProvided: u64;
+          lpToken: u32;
+          lpTokenMinted: u64;
+        }
+      >;
       /**
        * A successful call of the `RemoveLiquidity` extrinsic will create this event.
        **/
-      LiquidityRemoved: AugmentedEvent<ApiType, [who: AccountId32, withdrawTo: AccountId32, poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, baseAssetAmount: u64, quoteAssetAmount: u64, lpToken: u32, lpTokenBurned: u64, withdrawalFee: Permill], { who: AccountId32, withdrawTo: AccountId32, poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, baseAssetAmount: u64, quoteAssetAmount: u64, lpToken: u32, lpTokenBurned: u64, withdrawalFee: Permill }>;
+      LiquidityRemoved: AugmentedEvent<
+        ApiType,
+        [
+          who: AccountId32,
+          withdrawTo: AccountId32,
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >,
+          baseAssetAmount: u64,
+          quoteAssetAmount: u64,
+          lpToken: u32,
+          lpTokenBurned: u64,
+          withdrawalFee: Permill,
+        ],
+        {
+          who: AccountId32;
+          withdrawTo: AccountId32;
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >;
+          baseAssetAmount: u64;
+          quoteAssetAmount: u64;
+          lpToken: u32;
+          lpTokenBurned: u64;
+          withdrawalFee: Permill;
+        }
+      >;
       /**
        * A market order has been placed.
        **/
@@ -255,25 +554,129 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * An order has been cancelled.
        **/
-      OrderCancelled: AugmentedEvent<ApiType, [poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, owner: AccountId32, orderId: u64], { poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, owner: AccountId32, orderId: u64 }>;
-      OrderMatched: AugmentedEvent<ApiType, [orderer: AccountId32, filled: u64, isBid: bool], { orderer: AccountId32, filled: u64, isBid: bool }>;
+      OrderCancelled: AugmentedEvent<
+        ApiType,
+        [
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >,
+          owner: AccountId32,
+          orderId: u64,
+        ],
+        {
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >;
+          owner: AccountId32;
+          orderId: u64;
+        }
+      >;
+      OrderMatched: AugmentedEvent<
+        ApiType,
+        [orderer: AccountId32, filled: u64, isBid: bool],
+        { orderer: AccountId32; filled: u64; isBid: bool }
+      >;
       /**
        * A successful call of the `CreatePool` extrinsic will create this event.
        **/
-      PoolCreated: AugmentedEvent<ApiType, [creator: AccountId32, poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, poolAccount: AccountId32, lpToken: u32, takerFeeRate: Permill, tickSize: u64, lotSize: u64], { creator: AccountId32, poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, poolAccount: AccountId32, lpToken: u32, takerFeeRate: Permill, tickSize: u64, lotSize: u64 }>;
+      PoolCreated: AugmentedEvent<
+        ApiType,
+        [
+          creator: AccountId32,
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >,
+          poolAccount: AccountId32,
+          lpToken: u32,
+          takerFeeRate: Permill,
+          tickSize: u64,
+          lotSize: u64,
+        ],
+        {
+          creator: AccountId32;
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >;
+          poolAccount: AccountId32;
+          lpToken: u32;
+          takerFeeRate: Permill;
+          tickSize: u64;
+          lotSize: u64;
+        }
+      >;
       /**
        * Assets have been converted from one to another.
        **/
-      SwapCreditExecuted: AugmentedEvent<ApiType, [amountIn: u64, amountOut: u64, path: Vec<ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, u64]>>], { amountIn: u64, amountOut: u64, path: Vec<ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, u64]>> }>;
+      SwapCreditExecuted: AugmentedEvent<
+        ApiType,
+        [
+          amountIn: u64,
+          amountOut: u64,
+          path: Vec<ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, u64]>>,
+        ],
+        {
+          amountIn: u64;
+          amountOut: u64;
+          path: Vec<ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, u64]>>;
+        }
+      >;
       /**
        * Assets have been converted from one to another. Both `SwapExactTokenForToken`
        * and `SwapTokenForExactToken` will generate this event.
        **/
-      SwapExecuted: AugmentedEvent<ApiType, [who: AccountId32, sendTo: AccountId32, amountIn: u64, amountOut: u64, path: Vec<ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, u64]>>], { who: AccountId32, sendTo: AccountId32, amountIn: u64, amountOut: u64, path: Vec<ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, u64]>> }>;
+      SwapExecuted: AugmentedEvent<
+        ApiType,
+        [
+          who: AccountId32,
+          sendTo: AccountId32,
+          amountIn: u64,
+          amountOut: u64,
+          path: Vec<ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, u64]>>,
+        ],
+        {
+          who: AccountId32;
+          sendTo: AccountId32;
+          amountIn: u64;
+          amountOut: u64;
+          path: Vec<ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, u64]>>;
+        }
+      >;
       /**
        * Pool has been touched in order to fulfill operational requirements.
        **/
-      Touched: AugmentedEvent<ApiType, [poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, who: AccountId32], { poolId: ITuple<[FrameSupportTokensFungibleUnionOfNativeOrWithId, FrameSupportTokensFungibleUnionOfNativeOrWithId]>, who: AccountId32 }>;
+      Touched: AugmentedEvent<
+        ApiType,
+        [
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >,
+          who: AccountId32,
+        ],
+        {
+          poolId: ITuple<
+            [
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+              FrameSupportTokensFungibleUnionOfNativeOrWithId,
+            ]
+          >;
+          who: AccountId32;
+        }
+      >;
       /**
        * Generic event
        **/
@@ -283,19 +686,35 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * Accounts were destroyed for given asset.
        **/
-      AccountsDestroyed: AugmentedEvent<ApiType, [assetId: u32, accountsDestroyed: u32, accountsRemaining: u32], { assetId: u32, accountsDestroyed: u32, accountsRemaining: u32 }>;
+      AccountsDestroyed: AugmentedEvent<
+        ApiType,
+        [assetId: u32, accountsDestroyed: u32, accountsRemaining: u32],
+        { assetId: u32; accountsDestroyed: u32; accountsRemaining: u32 }
+      >;
       /**
        * An approval for account `delegate` was cancelled by `owner`.
        **/
-      ApprovalCancelled: AugmentedEvent<ApiType, [assetId: u32, owner: AccountId32, delegate: AccountId32], { assetId: u32, owner: AccountId32, delegate: AccountId32 }>;
+      ApprovalCancelled: AugmentedEvent<
+        ApiType,
+        [assetId: u32, owner: AccountId32, delegate: AccountId32],
+        { assetId: u32; owner: AccountId32; delegate: AccountId32 }
+      >;
       /**
        * Approvals were destroyed for given asset.
        **/
-      ApprovalsDestroyed: AugmentedEvent<ApiType, [assetId: u32, approvalsDestroyed: u32, approvalsRemaining: u32], { assetId: u32, approvalsDestroyed: u32, approvalsRemaining: u32 }>;
+      ApprovalsDestroyed: AugmentedEvent<
+        ApiType,
+        [assetId: u32, approvalsDestroyed: u32, approvalsRemaining: u32],
+        { assetId: u32; approvalsDestroyed: u32; approvalsRemaining: u32 }
+      >;
       /**
        * (Additional) funds have been approved for transfer to a destination account.
        **/
-      ApprovedTransfer: AugmentedEvent<ApiType, [assetId: u32, source: AccountId32, delegate: AccountId32, amount: u64], { assetId: u32, source: AccountId32, delegate: AccountId32, amount: u64 }>;
+      ApprovedTransfer: AugmentedEvent<
+        ApiType,
+        [assetId: u32, source: AccountId32, delegate: AccountId32, amount: u64],
+        { assetId: u32; source: AccountId32; delegate: AccountId32; amount: u64 }
+      >;
       /**
        * Some asset `asset_id` was frozen.
        **/
@@ -303,7 +722,11 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * The min_balance of an asset has been updated by the asset owner.
        **/
-      AssetMinBalanceChanged: AugmentedEvent<ApiType, [assetId: u32, newMinBalance: u64], { assetId: u32, newMinBalance: u64 }>;
+      AssetMinBalanceChanged: AugmentedEvent<
+        ApiType,
+        [assetId: u32, newMinBalance: u64],
+        { assetId: u32; newMinBalance: u64 }
+      >;
       /**
        * An asset has had its attributes changed by the `Force` origin.
        **/
@@ -315,15 +738,27 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * Some account `who` was blocked.
        **/
-      Blocked: AugmentedEvent<ApiType, [assetId: u32, who: AccountId32], { assetId: u32, who: AccountId32 }>;
+      Blocked: AugmentedEvent<
+        ApiType,
+        [assetId: u32, who: AccountId32],
+        { assetId: u32; who: AccountId32 }
+      >;
       /**
        * Some assets were destroyed.
        **/
-      Burned: AugmentedEvent<ApiType, [assetId: u32, owner: AccountId32, balance: u64], { assetId: u32, owner: AccountId32, balance: u64 }>;
+      Burned: AugmentedEvent<
+        ApiType,
+        [assetId: u32, owner: AccountId32, balance: u64],
+        { assetId: u32; owner: AccountId32; balance: u64 }
+      >;
       /**
        * Some asset class was created.
        **/
-      Created: AugmentedEvent<ApiType, [assetId: u32, creator: AccountId32, owner: AccountId32], { assetId: u32, creator: AccountId32, owner: AccountId32 }>;
+      Created: AugmentedEvent<
+        ApiType,
+        [assetId: u32, creator: AccountId32, owner: AccountId32],
+        { assetId: u32; creator: AccountId32; owner: AccountId32 }
+      >;
       /**
        * An asset class was destroyed.
        **/
@@ -335,15 +770,27 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * Some asset class was force-created.
        **/
-      ForceCreated: AugmentedEvent<ApiType, [assetId: u32, owner: AccountId32], { assetId: u32, owner: AccountId32 }>;
+      ForceCreated: AugmentedEvent<
+        ApiType,
+        [assetId: u32, owner: AccountId32],
+        { assetId: u32; owner: AccountId32 }
+      >;
       /**
        * Some account `who` was frozen.
        **/
-      Frozen: AugmentedEvent<ApiType, [assetId: u32, who: AccountId32], { assetId: u32, who: AccountId32 }>;
+      Frozen: AugmentedEvent<
+        ApiType,
+        [assetId: u32, who: AccountId32],
+        { assetId: u32; who: AccountId32 }
+      >;
       /**
        * Some assets were issued.
        **/
-      Issued: AugmentedEvent<ApiType, [assetId: u32, owner: AccountId32, amount: u64], { assetId: u32, owner: AccountId32, amount: u64 }>;
+      Issued: AugmentedEvent<
+        ApiType,
+        [assetId: u32, owner: AccountId32, amount: u64],
+        { assetId: u32; owner: AccountId32; amount: u64 }
+      >;
       /**
        * Metadata has been cleared for an asset.
        **/
@@ -351,32 +798,72 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * New metadata has been set for an asset.
        **/
-      MetadataSet: AugmentedEvent<ApiType, [assetId: u32, name: Bytes, symbol_: Bytes, decimals: u8, isFrozen: bool], { assetId: u32, name: Bytes, symbol: Bytes, decimals: u8, isFrozen: bool }>;
+      MetadataSet: AugmentedEvent<
+        ApiType,
+        [assetId: u32, name: Bytes, symbol_: Bytes, decimals: u8, isFrozen: bool],
+        { assetId: u32; name: Bytes; symbol: Bytes; decimals: u8; isFrozen: bool }
+      >;
       /**
        * The owner changed.
        **/
-      OwnerChanged: AugmentedEvent<ApiType, [assetId: u32, owner: AccountId32], { assetId: u32, owner: AccountId32 }>;
+      OwnerChanged: AugmentedEvent<
+        ApiType,
+        [assetId: u32, owner: AccountId32],
+        { assetId: u32; owner: AccountId32 }
+      >;
       /**
        * The management team changed.
        **/
-      TeamChanged: AugmentedEvent<ApiType, [assetId: u32, issuer: AccountId32, admin: AccountId32, freezer: AccountId32], { assetId: u32, issuer: AccountId32, admin: AccountId32, freezer: AccountId32 }>;
+      TeamChanged: AugmentedEvent<
+        ApiType,
+        [assetId: u32, issuer: AccountId32, admin: AccountId32, freezer: AccountId32],
+        { assetId: u32; issuer: AccountId32; admin: AccountId32; freezer: AccountId32 }
+      >;
       /**
        * Some account `who` was thawed.
        **/
-      Thawed: AugmentedEvent<ApiType, [assetId: u32, who: AccountId32], { assetId: u32, who: AccountId32 }>;
+      Thawed: AugmentedEvent<
+        ApiType,
+        [assetId: u32, who: AccountId32],
+        { assetId: u32; who: AccountId32 }
+      >;
       /**
        * Some account `who` was created with a deposit from `depositor`.
        **/
-      Touched: AugmentedEvent<ApiType, [assetId: u32, who: AccountId32, depositor: AccountId32], { assetId: u32, who: AccountId32, depositor: AccountId32 }>;
+      Touched: AugmentedEvent<
+        ApiType,
+        [assetId: u32, who: AccountId32, depositor: AccountId32],
+        { assetId: u32; who: AccountId32; depositor: AccountId32 }
+      >;
       /**
        * Some assets were transferred.
        **/
-      Transferred: AugmentedEvent<ApiType, [assetId: u32, from: AccountId32, to: AccountId32, amount: u64], { assetId: u32, from: AccountId32, to: AccountId32, amount: u64 }>;
+      Transferred: AugmentedEvent<
+        ApiType,
+        [assetId: u32, from: AccountId32, to: AccountId32, amount: u64],
+        { assetId: u32; from: AccountId32; to: AccountId32; amount: u64 }
+      >;
       /**
        * An `amount` was transferred in its entirety from `owner` to `destination` by
        * the approved `delegate`.
        **/
-      TransferredApproved: AugmentedEvent<ApiType, [assetId: u32, owner: AccountId32, delegate: AccountId32, destination: AccountId32, amount: u64], { assetId: u32, owner: AccountId32, delegate: AccountId32, destination: AccountId32, amount: u64 }>;
+      TransferredApproved: AugmentedEvent<
+        ApiType,
+        [
+          assetId: u32,
+          owner: AccountId32,
+          delegate: AccountId32,
+          destination: AccountId32,
+          amount: u64,
+        ],
+        {
+          assetId: u32;
+          owner: AccountId32;
+          delegate: AccountId32;
+          destination: AccountId32;
+          amount: u64;
+        }
+      >;
       /**
        * Generic event
        **/
@@ -386,7 +873,11 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * The sudo key has been updated.
        **/
-      KeyChanged: AugmentedEvent<ApiType, [old: Option<AccountId32>, new_: AccountId32], { old: Option<AccountId32>, new_: AccountId32 }>;
+      KeyChanged: AugmentedEvent<
+        ApiType,
+        [old: Option<AccountId32>, new_: AccountId32],
+        { old: Option<AccountId32>; new_: AccountId32 }
+      >;
       /**
        * The key was permanently removed.
        **/
@@ -394,11 +885,19 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * A sudo call just took place.
        **/
-      Sudid: AugmentedEvent<ApiType, [sudoResult: Result<Null, SpRuntimeDispatchError>], { sudoResult: Result<Null, SpRuntimeDispatchError> }>;
+      Sudid: AugmentedEvent<
+        ApiType,
+        [sudoResult: Result<Null, SpRuntimeDispatchError>],
+        { sudoResult: Result<Null, SpRuntimeDispatchError> }
+      >;
       /**
        * A [sudo_as](Pallet::sudo_as) call just took place.
        **/
-      SudoAsDone: AugmentedEvent<ApiType, [sudoResult: Result<Null, SpRuntimeDispatchError>], { sudoResult: Result<Null, SpRuntimeDispatchError> }>;
+      SudoAsDone: AugmentedEvent<
+        ApiType,
+        [sudoResult: Result<Null, SpRuntimeDispatchError>],
+        { sudoResult: Result<Null, SpRuntimeDispatchError> }
+      >;
       /**
        * Generic event
        **/
@@ -412,15 +911,33 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * An extrinsic failed.
        **/
-      ExtrinsicFailed: AugmentedEvent<ApiType, [dispatchError: SpRuntimeDispatchError, dispatchInfo: FrameSupportDispatchDispatchInfo], { dispatchError: SpRuntimeDispatchError, dispatchInfo: FrameSupportDispatchDispatchInfo }>;
+      ExtrinsicFailed: AugmentedEvent<
+        ApiType,
+        [
+          dispatchError: SpRuntimeDispatchError,
+          dispatchInfo: FrameSupportDispatchDispatchInfo,
+        ],
+        {
+          dispatchError: SpRuntimeDispatchError;
+          dispatchInfo: FrameSupportDispatchDispatchInfo;
+        }
+      >;
       /**
        * An extrinsic completed successfully.
        **/
-      ExtrinsicSuccess: AugmentedEvent<ApiType, [dispatchInfo: FrameSupportDispatchDispatchInfo], { dispatchInfo: FrameSupportDispatchDispatchInfo }>;
+      ExtrinsicSuccess: AugmentedEvent<
+        ApiType,
+        [dispatchInfo: FrameSupportDispatchDispatchInfo],
+        { dispatchInfo: FrameSupportDispatchDispatchInfo }
+      >;
       /**
        * An account was reaped.
        **/
-      KilledAccount: AugmentedEvent<ApiType, [account: AccountId32], { account: AccountId32 }>;
+      KilledAccount: AugmentedEvent<
+        ApiType,
+        [account: AccountId32],
+        { account: AccountId32 }
+      >;
       /**
        * A new account was created.
        **/
@@ -428,11 +945,19 @@ declare module '@polkadot/api-base/types/events' {
       /**
        * On on-chain remark happened.
        **/
-      Remarked: AugmentedEvent<ApiType, [sender: AccountId32, hash_: H256], { sender: AccountId32, hash_: H256 }>;
+      Remarked: AugmentedEvent<
+        ApiType,
+        [sender: AccountId32, hash_: H256],
+        { sender: AccountId32; hash_: H256 }
+      >;
       /**
        * An upgrade was authorized.
        **/
-      UpgradeAuthorized: AugmentedEvent<ApiType, [codeHash: H256, checkVersion: bool], { codeHash: H256, checkVersion: bool }>;
+      UpgradeAuthorized: AugmentedEvent<
+        ApiType,
+        [codeHash: H256, checkVersion: bool],
+        { codeHash: H256; checkVersion: bool }
+      >;
       /**
        * Generic event
        **/
@@ -443,7 +968,11 @@ declare module '@polkadot/api-base/types/events' {
        * A transaction fee `actual_fee`, of which `tip` was added to the minimum inclusion fee,
        * has been paid by `who`.
        **/
-      TransactionFeePaid: AugmentedEvent<ApiType, [who: AccountId32, actualFee: u64, tip: u64], { who: AccountId32, actualFee: u64, tip: u64 }>;
+      TransactionFeePaid: AugmentedEvent<
+        ApiType,
+        [who: AccountId32, actualFee: u64, tip: u64],
+        { who: AccountId32; actualFee: u64; tip: u64 }
+      >;
       /**
        * Generic event
        **/

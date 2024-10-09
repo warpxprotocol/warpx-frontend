@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 
 import warpxHeroIllust from '@/assets/warpx-hero.jpg';
+import { Reveal } from '@/components/Reveal';
 import { albertSans, unbounded } from '@/styles/font';
 
 export const HeroSection: React.FC = () => {
@@ -21,18 +22,25 @@ export const HeroSection: React.FC = () => {
       >
         <Illust src={warpxHeroIllust} alt="" width={720} height={405} />
       </motion.div>
-      <Title>
-        Swap with <br />
-        Warping Speed
-      </Title>
-      <Description>
-        A Simple and Secure AMM <br />& Orderbook-based Hybrid Exchange
-      </Description>
+      <Reveal>
+        <Title>
+          Swap with <br />
+          Warping Speed
+        </Title>
+        <Description>
+          A Simple and Secure AMM <br />& Orderbook-based Hybrid Exchange
+        </Description>
 
-      <PoweredByContainer>
-        <PoweredByText>Powered by</PoweredByText>
-        <PoweredByLogo src="/assets/polkadot.svg" alt="Polkadot" width={218} height={47} />
-      </PoweredByContainer>
+        <PoweredByContainer>
+          <PoweredByText>Powered by</PoweredByText>
+          <PoweredByLogo
+            src="/assets/polkadot.svg"
+            alt="Polkadot"
+            width={218}
+            height={47}
+          />
+        </PoweredByContainer>
+      </Reveal>
     </Container>
   );
 };

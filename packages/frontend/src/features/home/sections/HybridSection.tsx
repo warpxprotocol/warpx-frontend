@@ -41,12 +41,28 @@ const Container = styled.div`
   justify-content: center;
   align-items: center;
   z-index: 0;
+
+  @media screen and (max-width: 1070px) {
+    flex-direction: column;
+    gap: 20px;
+    padding: 0;
+  }
 `;
 const IllustContainer = styled.div`
   width: 696px;
   height: 529px;
   position: relative;
   z-index: 0;
+
+  &,
+  * {
+    transition: all 0.2s ease;
+  }
+
+  @media screen and (max-width: 725px) {
+    transform: scale(0.85);
+    margin: -16px 0;
+  }
 `;
 const Stack1 = styled(Image)`
   width: 696px;
@@ -95,4 +111,8 @@ const Title = styled.h1`
   font-style: normal;
   font-weight: 400;
   line-height: normal;
+
+  @media screen and (max-width: 1070px) {
+    text-align: center;
+  }
 `;

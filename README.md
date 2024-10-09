@@ -1,8 +1,14 @@
 # warpx-frontend
 
+## Frontend
+
+```bash
+yarn workspace @warpx/frontend dev
+```
+
 ## SDK
 
-```
+```bash
 cd packages/sdk
 ```
 

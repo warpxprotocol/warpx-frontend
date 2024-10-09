@@ -1,5 +1,6 @@
 {
   "name": "@warpx/sdk",
+  "version": "1.0.0",
   "license": "MIT",
   "scripts": {
     "codegen": "yarn generate:defs && yarn generate:meta",

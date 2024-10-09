@@ -35,12 +35,22 @@ export const HeroSection: React.FC = () => {
 
         <PoweredByContainer>
           <PoweredByText>Powered by</PoweredByText>
-          <PoweredByLogo
-            src="/assets/polkadot.svg"
-            alt="Polkadot"
-            width={218}
-            height={47}
-          />
+          <PoweredByLogoList>
+            <PoweredByLogo
+              src="/assets/polkadot.svg"
+              alt="Polkadot"
+              width={218}
+              height={47}
+              style={{ marginTop: 8 }}
+            />
+            <PoweredByLogo src="/assets/tanssi.png" alt="Tanssi" width={152} height={47} />
+            <PoweredByLogo
+              src="/assets/w3f.png"
+              alt="Web3 Foundation"
+              width={119}
+              height={47}
+            />
+          </PoweredByLogoList>
         </PoweredByContainer>
       </Reveal>
     </Container>
@@ -102,8 +112,12 @@ const PoweredByText = styled.p`
   font-size: 18px;
   font-weight: 400;
 `;
+const PoweredByLogoList = styled.div`
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 48px;
+`;
 const PoweredByLogo = styled(Image)`
-  width: 218px;
-  height: 47px;
   object-fit: contain;
 `;

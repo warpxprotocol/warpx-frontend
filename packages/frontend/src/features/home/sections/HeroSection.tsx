@@ -11,13 +11,13 @@ export const HeroSection: React.FC = () => {
     <Container>
       <motion.div
         style={{ display: 'flex', zIndex: -1 }}
-        initial={{ transform: `translate3d(0, -40px, 0)` }}
-        animate={{ transform: `translate3d(0, 0px, 0)` }}
+        initial={{ transform: `translate3d(0, -80px, 0)` }}
+        animate={{ transform: `translate3d(0, -50px, 0)` }}
         transition={{
-          ease: 'easeInOut',
+          ease: 'linear',
           repeat: Infinity,
           repeatType: 'mirror',
-          duration: 2,
+          duration: 3,
         }}
       >
         <Illust src={warpxHeroIllust} alt="" width={720} height={405} />
@@ -28,7 +28,8 @@ export const HeroSection: React.FC = () => {
           Warping Speed
         </Title>
         <Description>
-          A Simple and Secure AMM <br />& Orderbook-based Hybrid Exchange
+          A Simple and Secure Hybrid Exchange <br />
+          Using both AMM and Orderbook
         </Description>
 
         <PoweredByContainer>
@@ -53,13 +54,11 @@ const Container = styled.div`
   z-index: 0;
 `;
 const Illust = styled(Image)`
-  width: 454px;
-  height: 440px;
+  width: 550px;
+  height: 500px;
+  margin-bottom: -140px;
 `;
-
 const Title = styled.h1`
-  margin-top: -72px;
-
   color: #fff;
   text-align: center;
   font-family: ${unbounded.style.fontFamily};

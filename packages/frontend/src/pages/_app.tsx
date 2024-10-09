@@ -6,7 +6,8 @@ import '@/styles/reset.css';
 
 const meta = {
   title: 'WarpX - Swap with warping speed',
-  description: 'A Simple and Secure AMM & Orderbook-based Hybrid Exchange',
+  description:
+    'A Simple and Secure AMM & Orderbook-based Hybrid Exchange. Settle Lightning-Fast Onchain Trades with Top-Tier Prices.',
   // image: 'https://warpx.space/og-image.jpg',
   // url: 'https://warpx.space',
   // canonical: 'https://warpx.space',

@@ -109,7 +109,7 @@ const Stack3 = styled(Image)`
 
   filter: drop-shadow(0px 16px 32px rgba(0, 0, 0, 0.54));
 `;
-const Title = styled.h1`
+const Title = styled.h2`
   color: #fff;
   text-align: right;
   font-family: ${unbounded.style.fontFamily};

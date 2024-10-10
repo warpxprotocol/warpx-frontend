@@ -61,6 +61,9 @@ export const HeroSection: React.FC = () => {
 const Container = styled.div`
   width: 100%;
   max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+
   padding: 0 20px;
   display: flex;
   flex-direction: column;

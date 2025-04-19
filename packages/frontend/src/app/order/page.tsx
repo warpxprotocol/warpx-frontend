@@ -1,3 +1,9 @@
+import OrderBook from '../features/orderbook/components/OrderBook';
+
 export default function OrderPage() {
-  return <div>Order</div>;
+  return (
+    <div>
+      <OrderBook />
+    </div>
+  );
 }

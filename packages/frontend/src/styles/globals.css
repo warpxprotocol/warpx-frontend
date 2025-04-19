@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 기존 스타일 유지하면서 Tailwind CSS와 함께 사용 */
+@import './reset.css';
+
+/* 글로벌 스타일 */
+html,
+body {
+  scroll-behavior: smooth;
+}
+
+img {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+html {
+  background-color: #09090b;
+  color: white;
+}
+
+::selection {
+  background-color: rgba(255, 255, 255, 0.85);
+  color: rgba(0, 0, 0, 0.75);
+}

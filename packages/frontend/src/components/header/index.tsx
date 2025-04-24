@@ -1,20 +1,16 @@
 'use client';
 
 import { motion } from 'framer-motion';
-// Next.js에서 서버 사이드 렌더링 시 window 객체가 없는 문제를 해결하기 위한 클라이언트 측 코드
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-// useWalletStore를 사용하기 위한 래퍼 컴포넌트
 const WalletConnector = () => {
   const [mounted, setMounted] = useState(false);
 
-  // 클라이언트 사이드에서만 wallet store를 import
   const { connected, selectedAccount, balance, connect, disconnect } =
     require('@/app/features/wallet/hooks/useWalletStore').useWalletStore();
 
-  // 컴포넌트가 마운트된 후에만 렌더링
   useEffect(() => {
     setMounted(true);
   }, []);

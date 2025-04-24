@@ -2,10 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 기존 스타일 유지하면서 Tailwind CSS와 함께 사용 */
 @import './reset.css';
 
-/* 글로벌 스타일 */
 html,
 body {
   scroll-behavior: smooth;

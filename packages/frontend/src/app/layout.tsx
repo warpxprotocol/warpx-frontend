@@ -1,6 +1,7 @@
 import { Inter } from 'next/font/google';
 
 import '../styles/globals.css';
+import ClientLayout from './ClientLayout';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -29,7 +30,9 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="bg-[#09090B] text-white scroll-smooth">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <ClientLayout>{children}</ClientLayout>
+      </body>
     </html>
   );
 }

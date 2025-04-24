@@ -4,12 +4,19 @@ module.exports = {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/features/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
-      screens: {
-        xs: '400px', // 400px 이하의 디바이스용 브레이크포인트
+      colors: {
+        primary: '#3B82F6',
+        secondary: '#10B981',
+        dark: {
+          900: '#111827',
+          800: '#1F2937',
+          700: '#374151',
+          600: '#4B5563',
+          500: '#6B7280',
+        },
       },
     },
   },

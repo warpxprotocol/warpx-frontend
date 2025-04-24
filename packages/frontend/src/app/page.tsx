@@ -1,7 +1,7 @@
+import Header from '@/components/header';
 import { HeroSection } from '@/components/main/sections/HeroSection';
 import { HybridSection } from '@/components/main/sections/HybridSection';
 import { SwapSection } from '@/components/main/sections/SwapSection';
-import Header from '@/components/header';
 
 export default function HomePage() {
   return (

@@ -3,8 +3,10 @@
 import { Keyring } from '@polkadot/keyring';
 import { useEffect, useState } from 'react';
 
+import { useTxToast } from '@/components/toast/useTxToast';
 import { DEFAULT_ACCOUNTS } from '@/constants/accounts';
 import { useApi } from '@/hooks/useApi';
+import { useExtrinsic } from '@/hooks/useExtrinsic';
 
 interface Asset {
   id: string;
@@ -25,6 +27,8 @@ export const AssetsTab = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [connectionStatus, setConnectionStatus] = useState('');
+  const { showTxToast } = useTxToast();
+  const { handleExtrinsic } = useExtrinsic();
 
   // 에셋 생성 폼 상태
   const [newAssetId, setNewAssetId] = useState('1');
@@ -92,36 +96,58 @@ export const AssetsTab = () => {
   }, [api]);
 
   const handleCreateAsset = async () => {
-    if (!api || !isConnected || !selectedAccount) return;
+    if (!api || !isConnected || !selectedAccount) {
+      showTxToast('error', 'Please check network connection and account');
+      return;
+    }
 
     try {
       setIsLoading(true);
       setError('');
 
-      const keyring = new Keyring({ type: 'sr25519' });
-      let pair;
+      // 파라미터 타입 변환
+      const assetId = api.createType('Compact<u32>', newAssetId);
+      const minBalanceAmount = api.createType('u128', minBalance);
 
-      // //Alice 계정인 경우
+      const keyring = new Keyring({ type: 'sr25519' });
+      let signerAccount;
+      let adminAddress;
+
+      // 개발 계정 또는 일반 계정 처리
       if (selectedAccount === '//Alice') {
-        pair = keyring.addFromUri('//Alice');
+        signerAccount = keyring.addFromUri('//Alice');
+        adminAddress = signerAccount.address; // 실제 주소 사용
+
+        await handleExtrinsic(
+          api.tx.assets.create(assetId, adminAddress, minBalanceAmount),
+          { useDev: true },
+          {
+            pending: 'Creating asset...',
+            success: 'Asset created successfully',
+            error: 'Failed to create asset',
+          },
+        );
       } else {
-        // 일반 계정인 경우
         const account = DEFAULT_ACCOUNTS.find((acc) => acc.address === selectedAccount);
         if (!account) throw new Error('Account not found');
-        pair = keyring.addFromMnemonic(account.mnemonic);
+
+        adminAddress = selectedAccount; // 선택된 계정 주소 사용
+
+        await handleExtrinsic(
+          api.tx.assets.create(assetId, adminAddress, minBalanceAmount),
+          {
+            account: selectedAccount,
+            signer: account.mnemonic,
+          },
+          {
+            pending: 'Creating asset...',
+            success: 'Asset created successfully',
+            error: 'Failed to create asset',
+          },
+        );
       }
-
-      const createTx = api.tx.assets.create(1, pair.address, '10000');
-      const info = await createTx.paymentInfo(pair);
-      console.log('Create asset fee:', info.partialFee.toHuman());
-
-      await createTx.signAndSend(pair, { tip: 1000 }, ({ status, events }) => {
-        if (status.isInBlock) {
-          console.log('Asset created in block:', status.asInBlock.toHex());
-        }
-      });
     } catch (error) {
-      console.error('Failed to create asset:', error);
+      console.error('Create asset error:', error);
       setError(error instanceof Error ? error.message : 'Failed to create asset');
     } finally {
       setIsLoading(false);
@@ -163,7 +189,11 @@ export const AssetsTab = () => {
                 <input
                   type="number"
                   value={newAssetId}
-                  onChange={(e) => setNewAssetId(e.target.value)}
+                  onChange={(e) => {
+                    const value = Math.max(0, parseInt(e.target.value) || 0);
+                    setNewAssetId(value.toString());
+                  }}
+                  min="0"
                   placeholder="Enter asset ID"
                   className="w-full p-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -213,7 +243,11 @@ export const AssetsTab = () => {
                 <input
                   type="number"
                   value={minBalance}
-                  onChange={(e) => setMinBalance(e.target.value)}
+                  onChange={(e) => {
+                    const value = Math.max(0, parseInt(e.target.value) || 0);
+                    setMinBalance(value.toString());
+                  }}
+                  min="0"
                   placeholder="Enter minimum balance"
                   className="w-full p-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />

@@ -1,5 +1,7 @@
 import { Inter } from 'next/font/google';
 
+import { TxToastProvider } from '@/components/toast/TxToastProvider';
+
 import '../styles/globals.css';
 import ClientLayout from './ClientLayout';
 
@@ -29,9 +31,11 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="bg-[#09090B] text-white scroll-smooth">
-      <body className={inter.className}>
-        <ClientLayout>{children}</ClientLayout>
+    <html lang="en">
+      <body className={inter.className} style={{ backgroundColor: '#09090B' }}>
+        <TxToastProvider>
+          <ClientLayout>{children}</ClientLayout>
+        </TxToastProvider>
       </body>
     </html>
   );

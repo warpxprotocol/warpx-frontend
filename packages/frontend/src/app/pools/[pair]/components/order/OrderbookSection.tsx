@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 
+import TradesTable from '../trade/TradesTable';
 import OrderbookTable from './OrderbookTable';
-import TradesTable from './TradesTable';
 
 export default function OrderbookSection() {
   const [activeTab, setActiveTab] = useState<'orderbook' | 'trades'>('orderbook');

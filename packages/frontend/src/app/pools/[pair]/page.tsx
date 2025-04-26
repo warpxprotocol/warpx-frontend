@@ -2,9 +2,9 @@ import React from 'react';
 
 import ChartSection from './ChartSection';
 import FundsActionSection from './FundsActionSection';
-import OrderTableSection from './OrderTableSection';
-import OrderbookSection from './OrderbookSection';
-import TradeSection from './TradeSection';
+import OrderTableSection from './components/order/OrderTableSection';
+import OrderbookSection from './components/order/OrderbookSection';
+import TradeSection from './components/trade';
 
 export default async function PoolDetailPage({ params }: { params: { pair: string } }) {
   const awaitedParams = await params;

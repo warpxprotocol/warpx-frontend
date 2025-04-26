@@ -140,19 +140,19 @@ export const MintTab = () => {
 
   return (
     <div className="space-y-4">
-      <h4 className="text-lg font-medium text-zinc-900">Token Minting</h4>
-      <div className="bg-zinc-100/80 rounded-lg p-4 border border-zinc-200">
+      <h4 className="text-lg font-medium text-white">Token Minting</h4>
+      <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
         <div className="space-y-4">
-          <div className="text-sm text-zinc-600">{connectionStatus}</div>
+          <div className="text-sm text-gray-400">{connectionStatus}</div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Select Account
             </label>
             <select
               value={selectedAccount}
               onChange={(e) => setSelectedAccount(e.target.value)}
-              className="w-full p-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
             >
               <option value="">Select an account</option>
               {DEFAULT_ACCOUNTS.map((account) => (
@@ -165,26 +165,26 @@ export const MintTab = () => {
 
           {selectedAccount && (
             <div className="space-y-1">
-              <div className="text-sm text-zinc-600">
+              <div className="text-sm text-gray-400">
                 Free Balance: {Number(accountBalance) / 1000000000000} WAR
               </div>
-              <div className="text-sm text-zinc-600">
+              <div className="text-sm text-gray-400">
                 Reserved: {Number(accountReserved) / 1000000000000} WAR
               </div>
             </div>
           )}
 
           {accountAssets.length > 0 && (
-            <div className="space-y-4 border-t border-zinc-200 pt-4 mt-4">
-              <h5 className="text-md font-medium text-zinc-800">Mint Asset</h5>
+            <div className="space-y-4 border-t border-gray-700 pt-4 mt-4">
+              <h5 className="text-md font-medium text-gray-300">Mint Asset</h5>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Select Asset
                 </label>
                 <select
                   value={selectedAsset}
                   onChange={(e) => setSelectedAsset(e.target.value)}
-                  className="w-full p-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
                 >
                   <option value="">Select an asset</option>
                   {accountAssets.map((asset) => (
@@ -197,7 +197,7 @@ export const MintTab = () => {
 
               {selectedAsset && (
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Amount
                   </label>
                   <input
@@ -205,19 +205,19 @@ export const MintTab = () => {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="Enter amount"
-                    className="w-full p-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
                   />
                 </div>
               )}
 
-              {error && <div className="text-red-500 text-sm">{error}</div>}
+              {error && <div className="text-red-400 text-sm">{error}</div>}
 
               <button
                 onClick={handleMint}
                 disabled={
                   !selectedAccount || !selectedAsset || !amount || isLoading || !isConnected
                 }
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 bg-blue-900/50 text-blue-400 rounded-lg hover:bg-blue-900/70 transition-colors border border-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Minting...' : 'Mint Token'}
               </button>

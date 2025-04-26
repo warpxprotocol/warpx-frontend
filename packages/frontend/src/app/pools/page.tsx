@@ -20,18 +20,15 @@ interface Pool {
 // PoolRow 컴포넌트: 각 풀 정보를 한 줄로 렌더링
 function PoolRow({ pool }: { pool: Pool }) {
   return (
-    <tr
-      className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors cursor-pointer"
-      onClick={() => {}}
-    >
-      <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="contents">
+    <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="contents">
+      <tr className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors cursor-pointer">
         <td className="py-3 px-4 font-medium text-white">{pool.name}</td>
         <td className="py-3 px-4 text-gray-300">{pool.protocol}</td>
         <td className="py-3 px-4 text-gray-300">{pool.feeTier}</td>
         <td className="py-3 px-4 text-gray-300">{pool.tvl}</td>
         <td className="py-3 px-4 text-gray-300">{pool.apr}</td>
-      </Link>
-    </tr>
+      </tr>
+    </Link>
   );
 }
 

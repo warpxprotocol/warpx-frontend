@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-import AMMInfoBox from './AMMInfoBox';
+import AMMInfoBox from '../../AMMInfoBox';
 
 // 오더북 데이터 타입
 interface Order {
@@ -24,10 +24,16 @@ function getRandomOrders(type: 'ask' | 'bid', count = 10): Order[] {
 }
 
 export default function OrderbookTable() {
-  const [asks, setAsks] = useState<Order[]>(getRandomOrders('ask', 10));
-  const [bids, setBids] = useState<Order[]>(getRandomOrders('bid', 10));
+  const [mounted, setMounted] = useState(false);
+  const [asks, setAsks] = useState<Order[]>([]);
+  const [bids, setBids] = useState<Order[]>([]);
 
   useEffect(() => {
+    setMounted(true);
+    // Initial data
+    setAsks(getRandomOrders('ask', 10));
+    setBids(getRandomOrders('bid', 10));
+
     const interval = setInterval(() => {
       setAsks(getRandomOrders('ask', 10));
       setBids(getRandomOrders('bid', 10));
@@ -38,6 +44,11 @@ export default function OrderbookTable() {
   // 최대 total 값 계산 (각각)
   const maxAskTotal = Math.max(...asks.map((a) => a.total), 1);
   const maxBidTotal = Math.max(...bids.map((b) => b.total), 1);
+
+  // Don't render anything until mounted to avoid hydration mismatch
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div className="bg-[#18181C] border border-gray-800 px-2 py-2 w-full h-full max-w-md mx-auto rounded-none flex flex-col justify-start min-h-[260px]">

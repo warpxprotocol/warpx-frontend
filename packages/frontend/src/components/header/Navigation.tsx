@@ -2,7 +2,11 @@
 
 import Link from 'next/link';
 
-export default function Navigation() {
+interface NavigationProps {
+  onDexClick: () => void;
+}
+
+export default function Navigation({ onDexClick }: NavigationProps) {
   return (
     <nav className="flex gap-6">
       <Link
@@ -17,6 +21,12 @@ export default function Navigation() {
       >
         Test
       </Link>
+      <button
+        onClick={onDexClick}
+        className="text-sm text-gray-300 hover:text-white transition-colors duration-200"
+      >
+        DEX
+      </button>
     </nav>
   );
 }

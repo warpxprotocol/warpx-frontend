@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function OrderTableSection() {
   return (
-    <section className="bg-[#23232A] border border-gray-900 flex flex-col overflow-hidden">
+    <section className="bg-[#23232A] border border-gray-900 flex flex-col overflow-hidden h-full">
       {/* 탭 */}
       <div className="flex flex-wrap gap-2 border-b border-gray-800 px-4 pt-2 pb-0 text-xs h-8 items-end">
         <button className="text-white font-semibold border-b-2 border-blue-500 pb-0.5">

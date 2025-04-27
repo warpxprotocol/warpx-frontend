@@ -10,7 +10,7 @@ export const TxToastContext = createContext<TxToastContextType | undefined>(unde
 
 export const TxToastProvider = ({ children }: { children: ReactNode }) => {
   const showTxToast = (status: TxStatus, message: string, options?: TxToastOptions) => {
-    const duration = options?.duration ?? Infinity;
+    const duration = options?.autoClose ?? options?.duration ?? Infinity;
     const toastOptions = {
       duration,
       dismissible: true,
@@ -27,13 +27,13 @@ export const TxToastProvider = ({ children }: { children: ReactNode }) => {
           ...toastOptions,
           description: options?.txHash ? `Transaction Hash: ${options.txHash}` : undefined,
         });
-        break;
+        return undefined;
       case 'error':
         if (options?.loadingToastId) {
           toast.dismiss(options.loadingToastId);
         }
         toast.error(message, toastOptions);
-        break;
+        return undefined;
     }
   };
 

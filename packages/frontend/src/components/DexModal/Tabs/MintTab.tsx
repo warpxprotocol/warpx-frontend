@@ -1,10 +1,15 @@
 'use client';
 
-import { Keyring } from '@polkadot/keyring';
+import { web3Accounts, web3Enable } from '@polkadot/extension-dapp';
+import { InjectedAccountWithMeta } from '@polkadot/extension-inject/types';
 import { useEffect, useState } from 'react';
 
-import { DEFAULT_ACCOUNTS, TestAccount } from '@/constants/accounts';
 import { useApi } from '@/hooks/useApi';
+import { useExtrinsic } from '@/hooks/useExtrinsic';
+
+interface Web3Account extends InjectedAccountWithMeta {
+  signer?: any;
+}
 
 interface Asset {
   id: string;
@@ -12,10 +17,17 @@ interface Asset {
   admin: string;
   minBalance: string;
   status: string;
+  supply: string;
+  metadata?: {
+    name: string;
+    symbol: string;
+    decimals: string | number;
+  };
 }
 
 export const MintTab = () => {
   const { api, isConnected } = useApi();
+  const { handleExtrinsic } = useExtrinsic();
   const [amount, setAmount] = useState('');
   const [selectedAccount, setSelectedAccount] = useState('');
   const [selectedAsset, setSelectedAsset] = useState('');
@@ -25,6 +37,44 @@ export const MintTab = () => {
   const [accountBalance, setAccountBalance] = useState('0');
   const [accountReserved, setAccountReserved] = useState('0');
   const [accountAssets, setAccountAssets] = useState<Asset[]>([]);
+  const [assetBalances, setAssetBalances] = useState<Record<string, string>>({});
+  const [availableWeb3Accounts, setAvailableWeb3Accounts] = useState<Web3Account[]>([]);
+
+  useEffect(() => {
+    const loadWeb3Accounts = async () => {
+      try {
+        const extensions = await web3Enable('polkadex');
+        if (extensions.length === 0) {
+          throw new Error('No web3 extension found');
+        }
+
+        const allAccounts = await web3Accounts();
+        console.log('Loaded web3 accounts:', allAccounts);
+
+        // Verify each account has a signer
+        const accountsWithSigners = allAccounts.map((account) => {
+          const accountWithSigner: Web3Account = {
+            ...account,
+            signer: extensions[0].signer,
+          };
+          if (!accountWithSigner.signer) {
+            console.warn(`Account ${account.address} has no signer`);
+          }
+          return accountWithSigner;
+        });
+
+        setAvailableWeb3Accounts(accountsWithSigners);
+        if (accountsWithSigners.length > 0) {
+          setSelectedAccount(accountsWithSigners[0].address);
+        }
+      } catch (error) {
+        console.error('Error loading web3 accounts:', error);
+        setError('Failed to load web3 accounts');
+      }
+    };
+
+    loadWeb3Accounts();
+  }, []);
 
   useEffect(() => {
     if (api && isConnected) {
@@ -37,14 +87,31 @@ export const MintTab = () => {
   const fetchAccountInfo = async () => {
     if (!api || !isConnected || !selectedAccount) {
       setAccountAssets([]);
+      setAssetBalances({});
       return;
     }
 
     try {
       // 계정 잔액 조회
       const accountInfo = await api.query.system.account(selectedAccount);
-      setAccountBalance(accountInfo.data.free.toString());
-      setAccountReserved(accountInfo.data.reserved.toString());
+      const accountInfoHuman = accountInfo.toHuman() as {
+        data: {
+          free: string | { toString: () => string };
+          reserved: string | { toString: () => string };
+        };
+      };
+
+      const freeBalance =
+        typeof accountInfoHuman.data.free === 'string'
+          ? accountInfoHuman.data.free
+          : accountInfoHuman.data.free.toString();
+      const reservedBalance =
+        typeof accountInfoHuman.data.reserved === 'string'
+          ? accountInfoHuman.data.reserved
+          : accountInfoHuman.data.reserved.toString();
+
+      setAccountBalance(freeBalance);
+      setAccountReserved(reservedBalance);
 
       console.log('Fetching assets for account:', selectedAccount);
 
@@ -53,6 +120,7 @@ export const MintTab = () => {
       console.log('Total asset metadatas found:', assetMetadatas.length);
 
       const assets: Asset[] = [];
+      const balances: Record<string, string> = {};
 
       for (const [key, metadata] of assetMetadatas) {
         const assetId = key.args[0].toString();
@@ -61,20 +129,64 @@ export const MintTab = () => {
         const assetInfo = await api.query.assets.asset(assetId);
         console.log('Asset info:', assetInfo.toHuman());
 
-        if (assetInfo.isSome) {
-          const details = assetInfo.unwrap();
-          console.log('Asset details:', details.toHuman());
-          const { owner, admin, minBalance } = details;
+        const assetInfoHuman = assetInfo.toHuman() as {
+          owner: string;
+          issuer: string;
+          admin: string;
+          freezer: string;
+          supply: string;
+          deposit: string;
+          minBalance: string;
+          isSufficient: boolean;
+          accounts: number;
+          sufficients: number;
+          approvals: number;
+          status: string;
+        } | null;
+
+        if (assetInfoHuman) {
+          const { owner, admin, minBalance, supply } = assetInfoHuman;
 
           // 해당 계정이 admin인 에셋만 필터링
-          if (admin.toString() === selectedAccount) {
+          if (admin === selectedAccount) {
             console.log('Found matching asset:', assetId);
+
+            // 에셋 메타데이터 조회
+            const metadata = await api.query.assets.metadata(assetId);
+            const metadataHuman = metadata.toHuman() as {
+              name?: string;
+              symbol?: string;
+              decimals?: string | number;
+            } | null;
+
+            // 에셋 잔액 조회
+            const balance = await api.query.assets.account(assetId, selectedAccount);
+            const balanceHuman = balance.toHuman() as {
+              balance: string;
+            } | null;
+
+            if (balanceHuman) {
+              balances[assetId] = balanceHuman.balance;
+            }
+
             assets.push({
               id: assetId,
-              owner: owner.toString(),
-              admin: admin.toString(),
-              minBalance: minBalance.toString(),
-              status: details.status.toString(),
+              owner,
+              admin,
+              minBalance,
+              status: assetInfoHuman.status,
+              supply: assetInfoHuman.supply,
+              metadata: metadataHuman
+                ? {
+                    name: metadataHuman.name || `Asset #${assetId}`,
+                    symbol: metadataHuman.symbol || `ASSET${assetId}`,
+                    decimals: metadataHuman.decimals || 12,
+                  }
+                : {
+                    name: `Asset #${assetId}`,
+                    symbol: `ASSET${assetId}`,
+                    decimals: 12,
+                  },
             });
           }
         }
@@ -82,6 +194,7 @@ export const MintTab = () => {
 
       console.log('Final assets list:', assets);
       setAccountAssets(assets);
+      setAssetBalances(balances);
     } catch (error) {
       console.error('Failed to fetch account info:', error);
     }
@@ -98,33 +211,35 @@ export const MintTab = () => {
       setIsLoading(true);
       setError('');
 
-      const account = DEFAULT_ACCOUNTS.find((acc) => acc.address === selectedAccount);
-      if (!account) throw new Error('Account not found');
+      const selectedWeb3Account = availableWeb3Accounts.find(
+        (account) => account.address === selectedAccount,
+      );
 
-      const keyring = new Keyring({ type: 'sr25519' });
-      const pair = keyring.addFromMnemonic(account.mnemonic);
+      if (!selectedWeb3Account) {
+        throw new Error('Selected account not found');
+      }
+
+      if (!selectedWeb3Account.signer) {
+        throw new Error('No signer available for the selected account');
+      }
 
       // Mint 토큰
       console.log('Minting tokens...');
       const mintTx = api.tx.assets.mint(selectedAsset, selectedAccount, amount);
 
-      await new Promise<void>((resolve, reject) => {
-        mintTx
-          .signAndSend(pair, { nonce: -1 }, ({ status, events = [] }) => {
-            console.log('Transaction status:', status.type);
+      await handleExtrinsic(
+        mintTx,
+        {
+          signer: selectedWeb3Account.signer,
+          account: selectedAccount,
+        },
+        {
+          pending: 'Minting tokens...',
+          success: 'Tokens minted successfully',
+          error: 'Failed to mint tokens',
+        },
+      );
 
-            if (status.isInBlock) {
-              console.log('Included at block hash', status.asInBlock.toHex());
-              events.forEach(({ event: { data, method, section } }) => {
-                console.log('Event:', section, method, data.toString());
-              });
-              resolve();
-            }
-          })
-          .catch(reject);
-      });
-
-      console.log('Tokens minted successfully');
       // 에셋 목록 새로고침
       fetchAccountInfo();
 
@@ -155,9 +270,10 @@ export const MintTab = () => {
               className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
             >
               <option value="">Select an account</option>
-              {DEFAULT_ACCOUNTS.map((account) => (
+              {availableWeb3Accounts.map((account) => (
                 <option key={account.address} value={account.address}>
-                  {account.name} ({account.address.slice(0, 16)}...)
+                  {account.meta.name || 'Unnamed Account'} ({account.address.slice(0, 16)}
+                  ...)
                 </option>
               ))}
             </select>
@@ -166,10 +282,18 @@ export const MintTab = () => {
           {selectedAccount && (
             <div className="space-y-1">
               <div className="text-sm text-gray-400">
-                Free Balance: {Number(accountBalance) / 1000000000000} WAR
+                Free Balance:{' '}
+                {accountBalance
+                  ? (Number(accountBalance.replace(/,/g, '')) / 1000000000000).toFixed(4)
+                  : '0'}{' '}
+                WARP
               </div>
               <div className="text-sm text-gray-400">
-                Reserved: {Number(accountReserved) / 1000000000000} WAR
+                Reserved:{' '}
+                {accountReserved
+                  ? (Number(accountReserved.replace(/,/g, '')) / 1000000000000).toFixed(4)
+                  : '0'}{' '}
+                WARP
               </div>
             </div>
           )}
@@ -189,25 +313,87 @@ export const MintTab = () => {
                   <option value="">Select an asset</option>
                   {accountAssets.map((asset) => (
                     <option key={asset.id} value={asset.id}>
-                      Asset #{asset.id}
+                      {asset.metadata?.name} ({asset.metadata?.symbol})
                     </option>
                   ))}
                 </select>
               </div>
 
               {selectedAsset && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Amount
-                  </label>
-                  <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="Enter amount"
-                    className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
-                  />
-                </div>
+                <>
+                  <div className="text-sm text-gray-400">
+                    Total Supply:{' '}
+                    {(() => {
+                      const asset = accountAssets.find((a) => a.id === selectedAsset);
+                      const decimals = asset?.metadata?.decimals
+                        ? parseInt(asset.metadata.decimals.toString())
+                        : 12;
+                      const rawSupply = asset?.supply || '0';
+
+                      console.log('Supply calculation:', {
+                        asset,
+                        decimals,
+                        rawSupply,
+                        supplyWithoutCommas: rawSupply.replace(/,/g, ''),
+                      });
+
+                      try {
+                        const supplyValue = BigInt(rawSupply.replace(/,/g, ''));
+                        const divisor = BigInt(10 ** decimals);
+
+                        // 나눗셈 결과를 문자열로 처리
+                        const result = (
+                          Number(supplyValue) / Math.pow(10, decimals)
+                        ).toString();
+
+                        return Number(result).toLocaleString(undefined, {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: decimals,
+                        });
+                      } catch (err) {
+                        console.error('Error calculating supply:', err);
+                        return '0';
+                      }
+                    })()}
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    Account Balance:{' '}
+                    {(() => {
+                      const asset = accountAssets.find((a) => a.id === selectedAsset);
+                      const decimals = asset?.metadata?.decimals
+                        ? parseInt(asset.metadata.decimals.toString())
+                        : 12;
+                      const rawBalance = assetBalances[selectedAsset] || '0';
+
+                      try {
+                        const balanceValue = BigInt(rawBalance.replace(/,/g, ''));
+                        const result = (
+                          Number(balanceValue) / Math.pow(10, decimals)
+                        ).toString();
+
+                        return Number(result).toLocaleString(undefined, {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: decimals,
+                        });
+                      } catch (err) {
+                        console.error('Error calculating balance:', err);
+                        return '0';
+                      }
+                    })()}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Amount
+                    </label>
+                    <input
+                      type="number"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="Enter amount"
+                      className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
+                    />
+                  </div>
+                </>
               )}
 
               {error && <div className="text-red-400 text-sm">{error}</div>}

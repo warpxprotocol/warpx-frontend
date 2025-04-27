@@ -2,10 +2,11 @@
 
 import { Option } from '@polkadot/types-codec';
 import { ITuple } from '@polkadot/types-codec/types';
-import { FrameSupportTokensFungibleUnionOfNativeOrWithId } from '@polkadot/types/lookup';
+import type { FrameSupportTokensFungibleUnionOfNativeOrWithId } from '@warpx/sdk';
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 
+import { CreatePoolButton } from '@/components/ui/create-pool-button';
 import { useApi } from '@/hooks/useApi';
 
 interface Pool {
@@ -20,15 +21,33 @@ interface Pool {
 // PoolRow 컴포넌트: 각 풀 정보를 한 줄로 렌더링
 function PoolRow({ pool }: { pool: Pool }) {
   return (
-    <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="contents">
-      <tr className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors cursor-pointer">
-        <td className="py-3 px-4 font-medium text-white">{pool.name}</td>
-        <td className="py-3 px-4 text-gray-300">{pool.protocol}</td>
-        <td className="py-3 px-4 text-gray-300">{pool.feeTier}</td>
-        <td className="py-3 px-4 text-gray-300">{pool.tvl}</td>
-        <td className="py-3 px-4 text-gray-300">{pool.apr}</td>
-      </tr>
-    </Link>
+    <tr className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
+      <td className="py-3 px-4 font-medium text-white">
+        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
+          {pool.name}
+        </Link>
+      </td>
+      <td className="py-3 px-4 text-gray-300">
+        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
+          {pool.protocol}
+        </Link>
+      </td>
+      <td className="py-3 px-4 text-gray-300">
+        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
+          {pool.feeTier}
+        </Link>
+      </td>
+      <td className="py-3 px-4 text-gray-300">
+        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
+          {pool.tvl}
+        </Link>
+      </td>
+      <td className="py-3 px-4 text-gray-300">
+        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
+          {pool.apr}
+        </Link>
+      </td>
+    </tr>
   );
 }
 
@@ -39,9 +58,9 @@ function PoolList({ pools }: { pools: Pool[] }) {
       <table className="min-w-full text-sm">
         <thead>
           <tr className="bg-[#23232A] text-gray-400">
-            <th className="py-3 px-4 text-left font-semibold">풀 이름</th>
-            <th className="py-3 px-4 text-left font-semibold">프로토콜</th>
-            <th className="py-3 px-4 text-left font-semibold">수수료 등급</th>
+            <th className="py-3 px-4 text-left font-semibold">POOL</th>
+            <th className="py-3 px-4 text-left font-semibold">PROTOCOL</th>
+            <th className="py-3 px-4 text-left font-semibold">FEE TIER</th>
             <th className="py-3 px-4 text-left font-semibold">TVL</th>
             <th className="py-3 px-4 text-left font-semibold">APR</th>
           </tr>
@@ -94,8 +113,13 @@ export default function PoolsPage() {
             const baseAssetMetadata = await api.query.assets.metadata(baseAssetId);
             const quoteAssetMetadata = await api.query.assets.metadata(quoteAssetId);
 
-            const baseSymbol = baseAssetMetadata.symbol.toHuman();
-            const quoteSymbol = quoteAssetMetadata.symbol.toHuman();
+            // 메타데이터에서 심볼을 가져오거나 ID를 사용
+            const baseSymbol =
+              (baseAssetMetadata?.toHuman() as { symbol?: string })?.symbol ||
+              `Asset ${baseAssetId}`;
+            const quoteSymbol =
+              (quoteAssetMetadata?.toHuman() as { symbol?: string })?.symbol ||
+              `Asset ${quoteAssetId}`;
 
             // 수수료 비율 계산 (Permill을 퍼센트로 변환)
             const takerFeeRate = poolInfo.takerFeeRate.toNumber() / 10000;
@@ -139,8 +163,15 @@ export default function PoolsPage() {
 
   return (
     <main className="max-w-4xl mx-auto py-12 px-4">
-      <h1 className="text-2xl font-bold text-white mb-2">풀 리스트</h1>
-      <p className="text-gray-400 mb-6">TVL, APR 등 다양한 정보를 한눈에 확인하세요.</p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white mb-2">POOL LIST</h1>
+          <p className="text-gray-400">
+            Check various information such as TVL, APR at a glance.
+          </p>
+        </div>
+        <CreatePoolButton />
+      </div>
       <PoolList pools={pools} />
     </main>
   );

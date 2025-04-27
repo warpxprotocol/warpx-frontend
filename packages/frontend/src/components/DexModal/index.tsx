@@ -3,10 +3,9 @@ import { createPortal } from 'react-dom';
 
 import { AdminTab } from './Tabs/AdminTab';
 import { AssetsTab } from './Tabs/AssetsTab';
-import { LiquidityTab } from './Tabs/LiquidityTab';
 import { MintTab } from './Tabs/MintTab';
 
-type TabType = 'assets' | 'mint' | 'liquidity' | 'admin';
+type TabType = 'assets' | 'mint' | 'admin';
 
 interface DexModalProps {
   isOpen: boolean;
@@ -20,7 +19,6 @@ export const DexModal = ({ isOpen, onClose }: DexModalProps) => {
     () => [
       { id: 'assets', label: 'Assets', component: <AssetsTab /> },
       { id: 'mint', label: 'Mint', component: <MintTab /> },
-      { id: 'liquidity', label: 'Liquidity', component: <LiquidityTab /> },
       { id: 'admin', label: 'Admin', component: <AdminTab /> },
     ],
     [],

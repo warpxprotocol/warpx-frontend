@@ -53,37 +53,74 @@ export const useExtrinsic = () => {
               if (dispatchError.isModule) {
                 const decoded = extrinsic.registry.findMetaError(dispatchError.asModule);
                 errorMessage = `${decoded.section}.${decoded.name}: ${decoded.docs}`;
+              } else if (dispatchError.isToken) {
+                errorMessage = `Token error: ${dispatchError.asToken.type}`;
+              } else {
+                errorMessage = `Error: ${dispatchError.toString()}`;
               }
               showTxToast('error', errorMessage, { loadingToastId });
               reject(new Error(errorMessage));
               return;
             }
 
+            // 트랜잭션 이벤트 로깅
+            console.log(
+              'Transaction events:',
+              events.map(({ event }) => ({
+                section: event.section,
+                method: event.method,
+                data: event.data.toHuman(),
+              })),
+            );
+
             const successEvent = events.find(
               ({ event }) =>
-                (event.section === 'assets' && event.method === 'Created') ||
+                (event.section === 'assets' &&
+                  (event.method === 'Created' ||
+                    event.method === 'Minted' ||
+                    event.method === 'Transferred')) ||
                 (event.section === 'system' && event.method === 'ExtrinsicSuccess'),
             );
 
             if (successEvent) {
+              const txHash = status.isFinalized
+                ? status.asFinalized.toString()
+                : status.asInBlock.toString();
+
+              console.log('Transaction successful:', {
+                hash: txHash,
+                event: {
+                  section: successEvent.event.section,
+                  method: successEvent.event.method,
+                },
+              });
+
               showTxToast('success', messages.success || 'Transaction completed', {
-                txHash: status.isFinalized
-                  ? status.asFinalized.toString()
-                  : status.asInBlock.toString(),
+                txHash,
                 loadingToastId,
+                autoClose: 5000, // 5초 후 자동으로 닫힘
               });
               resolve({ status, events });
+            } else {
+              const errorMessage = 'Transaction completed but no success event found';
+              console.error(errorMessage, events);
+              showTxToast('error', errorMessage, { loadingToastId, autoClose: 5000 });
+              reject(new Error(errorMessage));
             }
+          } else if (status.isInvalid || status.isDropped || status.isUsurped) {
+            const errorMessage = `Transaction failed with status: ${status.type}`;
+            console.error(errorMessage, status);
+            showTxToast('error', errorMessage, { loadingToastId, autoClose: 5000 });
+            reject(new Error(errorMessage));
           }
         })
         .catch((error) => {
+          console.error('Transaction error:', error);
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           showTxToast(
             'error',
             `${messages.error || 'Transaction failed'}: ${errorMessage}`,
-            {
-              loadingToastId,
-            },
+            { loadingToastId, autoClose: 5000 },
           );
           reject(error);
         });

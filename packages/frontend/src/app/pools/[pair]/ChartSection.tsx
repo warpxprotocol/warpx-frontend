@@ -1,12 +1,13 @@
 import React from 'react';
 
 export default function ChartSection({ pair }: { pair: string }) {
+  const decodedPair = decodeURIComponent(pair);
   return (
     <section className="bg-[#23232A] h-full flex flex-col border border-gray-900 overflow-hidden">
       {/* 심볼/정보 바 */}
       <div className="flex flex-wrap items-center gap-3 px-6 py-2 border-b border-gray-800 bg-[#202027] text-xs min-h-[38px]">
         <span className="font-bold text-white text-base tracking-tight">
-          {pair.replace(/-/g, ' / ')}
+          {decodedPair.replace(/-/g, ' / ')}
         </span>
         <span className="bg-[#18181B] text-green-400 px-2 py-0.5 rounded text-xs">
           Spot

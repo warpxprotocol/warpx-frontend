@@ -4,6 +4,7 @@ export interface TxToastOptions {
   txHash?: string;
   duration?: number;
   loadingToastId?: string | number;
+  autoClose?: number;
 }
 
 export interface TxToastContextType {

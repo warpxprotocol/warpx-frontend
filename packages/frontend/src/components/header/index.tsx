@@ -3,7 +3,6 @@
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 
-import { DexModal } from '../DexModal';
 import Logo from './Logo';
 import Navigation from './Navigation';
 
@@ -11,6 +10,13 @@ import Navigation from './Navigation';
 const DynamicWalletConnector = dynamic(() => import('./WalletConnector'), {
   ssr: false,
 });
+
+const DynamicDexModal = dynamic<{ isOpen: boolean; onClose: () => void }>(
+  () => import('../DexModal').then((mod) => mod.DexModal),
+  {
+    ssr: false,
+  },
+);
 
 // 메인 헤더 컴포넌트 - 기본 UI는 서버에서 렌더링하고, 지갑 연결 부분만 클라이언트에서 렌더링
 export default function Header() {
@@ -23,7 +29,7 @@ export default function Header() {
         <Navigation onDexClick={() => setIsDexModalOpen(true)} />
         <DynamicWalletConnector />
       </header>
-      <DexModal isOpen={isDexModalOpen} onClose={() => setIsDexModalOpen(false)} />
+      <DynamicDexModal isOpen={isDexModalOpen} onClose={() => setIsDexModalOpen(false)} />
     </>
   );
 }

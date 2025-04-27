@@ -3,10 +3,12 @@ import { Keyring } from '@polkadot/keyring';
 import { useState } from 'react';
 
 import { useApi } from '../../../hooks/useApi';
+import { useExtrinsic } from '../../../hooks/useExtrinsic';
 import { useTxToast } from '../../toast/useTxToast';
 
 export const AdminTab = () => {
   const { api, isLoading, error: apiError, isConnected } = useApi();
+  const { handleExtrinsic } = useExtrinsic();
   const { showTxToast } = useTxToast();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
@@ -77,31 +79,27 @@ export const AdminTab = () => {
       // Create and send the transaction
       const tx = api.tx.balances.transferKeepAlive(selectedAccount, planks);
 
-      // Use Alice account to sign and send the transaction
-      const result = await tx.signAndSend(alice, ({ status, events = [] }) => {
-        if (status.isInBlock) {
-          console.log('Transaction included in block:', status.asInBlock.toHex());
-          setTransferStatus('Transaction in block...');
-          showTxToast('pending', 'Transfer in progress - Transaction included in block');
-        } else if (status.isFinalized) {
-          console.log('Transaction finalized in block:', status.asFinalized.toHex());
-          setTransferStatus('Transaction finalized!');
-          showTxToast('success', 'Transfer completed successfully');
-          setIsTransferring(false);
-        } else if (status.isReady) {
-          setTransferStatus('Transaction ready...');
-          showTxToast('pending', 'Transfer initiated - Waiting for block inclusion');
-        }
-      });
+      await handleExtrinsic(
+        tx,
+        {
+          signer: alice,
+          account: alice.address,
+          useDev: true,
+        },
+        {
+          pending: 'Transfer in progress',
+          success: 'Transfer completed successfully',
+          error: 'Transfer failed',
+        },
+      );
 
-      console.log('Initial transaction result:', result.toString());
-      showTxToast('pending', 'Transfer initiated - Waiting for confirmation');
+      setTransferStatus('Transaction finalized!');
     } catch (err) {
       console.error('Transfer error:', err);
       setTransferStatus(
         `Transfer failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
       );
-      showTxToast('error', 'Transfer failed');
+    } finally {
       setIsTransferring(false);
     }
   };

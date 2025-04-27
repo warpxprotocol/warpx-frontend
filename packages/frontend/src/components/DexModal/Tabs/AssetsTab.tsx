@@ -1,7 +1,7 @@
 'use client';
 
 import { web3Accounts, web3Enable } from '@polkadot/extension-dapp';
-import { Keyring } from '@polkadot/keyring';
+import { InjectedAccountWithMeta } from '@polkadot/extension-inject/types';
 import { useEffect, useState } from 'react';
 
 import { useTxToast } from '@/components/toast/useTxToast';
@@ -22,6 +22,10 @@ interface Asset {
   };
 }
 
+interface Web3Account extends InjectedAccountWithMeta {
+  signer?: any;
+}
+
 export const AssetsTab = () => {
   const { api, isConnected } = useApi();
   const [selectedAccount, setSelectedAccount] = useState('');
@@ -30,7 +34,7 @@ export const AssetsTab = () => {
   const [connectionStatus, setConnectionStatus] = useState('');
   const { showTxToast } = useTxToast();
   const { handleExtrinsic } = useExtrinsic();
-  const [availableWeb3Accounts, setAvailableWeb3Accounts] = useState<any[]>([]);
+  const [availableWeb3Accounts, setAvailableWeb3Accounts] = useState<Web3Account[]>([]);
   const [selectedWeb3Account, setSelectedWeb3Account] = useState('');
 
   // 에셋 생성 폼 상태
@@ -53,9 +57,23 @@ export const AssetsTab = () => {
         }
 
         const allAccounts = await web3Accounts();
-        setAvailableWeb3Accounts(allAccounts);
-        if (allAccounts.length > 0) {
-          setSelectedWeb3Account(allAccounts[0].address);
+        console.log('Loaded web3 accounts:', allAccounts);
+
+        // Verify each account has a signer
+        const accountsWithSigners = allAccounts.map((account) => {
+          const accountWithSigner: Web3Account = {
+            ...account,
+            signer: extensions[0].signer,
+          };
+          if (!accountWithSigner.signer) {
+            console.warn(`Account ${account.address} has no signer`);
+          }
+          return accountWithSigner;
+        });
+
+        setAvailableWeb3Accounts(accountsWithSigners);
+        if (accountsWithSigners.length > 0) {
+          setSelectedWeb3Account(accountsWithSigners[0].address);
         }
       } catch (error) {
         console.error('Error loading web3 accounts:', error);
@@ -84,9 +102,23 @@ export const AssetsTab = () => {
       setIsLoading(true);
       setError('');
 
+      const selectedAccount = availableWeb3Accounts.find(
+        (account) => account.address === selectedWeb3Account,
+      );
+
+      if (!selectedAccount) {
+        throw new Error('Selected account not found');
+      }
+
+      if (!selectedAccount.signer) {
+        throw new Error('No signer available for the selected account');
+      }
+
+      // Create asset and set admin sequentially
       await handleExtrinsic(
         api.tx.assets.create(newAssetId, selectedWeb3Account, minBalance),
         {
+          signer: selectedAccount.signer,
           account: selectedWeb3Account,
         },
         {
@@ -96,45 +128,52 @@ export const AssetsTab = () => {
         },
       );
 
-      setCreatedAssetId(newAssetId);
-      setCurrentStep('setAdmin');
-    } catch (error) {
-      console.error('Create asset error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to create asset');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSetAdmin = async () => {
-    if (!api || !isConnected || !selectedWeb3Account || !createdAssetId) {
-      showTxToast('error', 'Please check network connection and web3 account');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError('');
-
       await handleExtrinsic(
         api.tx.assets.setTeam(
-          createdAssetId,
-          selectedWeb3Account,
-          selectedWeb3Account,
-          selectedWeb3Account,
+          newAssetId,
+          selectedWeb3Account, // issuer
+          selectedWeb3Account, // admin
+          selectedWeb3Account, // freezer
         ),
         {
+          signer: selectedAccount.signer,
           account: selectedWeb3Account,
         },
         {
-          pending: 'Setting admin address...',
-          success: 'Admin address set successfully',
-          error: 'Failed to set admin address',
+          pending: 'Setting admin...',
+          success: 'Admin set successfully',
+          error: 'Failed to set admin',
         },
       );
+
+      // Set asset metadata
+      await handleExtrinsic(
+        api.tx.assets.setMetadata(
+          newAssetId,
+          assetName,
+          assetSymbol,
+          parseInt(assetDecimals),
+        ),
+        {
+          signer: selectedAccount.signer,
+          account: selectedWeb3Account,
+        },
+        {
+          pending: 'Setting metadata...',
+          success: 'Metadata set successfully',
+          error: 'Failed to set metadata',
+        },
+      );
+
+      // Reset form after successful creation
+      setNewAssetId('1');
+      setAssetName('');
+      setAssetSymbol('');
+      setAssetDecimals('0');
+      setMinBalance('0');
     } catch (error) {
-      console.error('Set admin error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to set admin address');
+      console.error('Create asset error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to create asset');
     } finally {
       setIsLoading(false);
     }
@@ -168,116 +207,86 @@ export const AssetsTab = () => {
 
           {selectedWeb3Account && (
             <div className="space-y-4">
-              {currentStep === 'create' ? (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Asset ID
-                    </label>
-                    <input
-                      type="number"
-                      value={newAssetId}
-                      onChange={(e) => {
-                        const value = Math.max(0, parseInt(e.target.value) || 0);
-                        setNewAssetId(value.toString());
-                      }}
-                      min="0"
-                      placeholder="Enter asset ID"
-                      className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Asset Name
-                    </label>
-                    <input
-                      type="text"
-                      value={assetName}
-                      onChange={(e) => setAssetName(e.target.value)}
-                      placeholder="Enter asset name"
-                      className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Asset Symbol
-                    </label>
-                    <input
-                      type="text"
-                      value={assetSymbol}
-                      onChange={(e) => setAssetSymbol(e.target.value)}
-                      placeholder="Enter asset symbol"
-                      className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Decimals
-                    </label>
-                    <input
-                      type="number"
-                      value={assetDecimals}
-                      onChange={(e) => setAssetDecimals(e.target.value)}
-                      placeholder="Enter decimals"
-                      min="0"
-                      max="20"
-                      className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Minimum Balance
-                    </label>
-                    <input
-                      type="number"
-                      value={minBalance}
-                      onChange={(e) => {
-                        const value = Math.max(0, parseInt(e.target.value) || 0);
-                        setMinBalance(value.toString());
-                      }}
-                      min="0"
-                      placeholder="Enter minimum balance"
-                      className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
-                    />
-                  </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Asset ID
+                </label>
+                <input
+                  type="number"
+                  value={newAssetId}
+                  onChange={(e) => {
+                    const value = Math.max(0, parseInt(e.target.value) || 0);
+                    setNewAssetId(value.toString());
+                  }}
+                  min="0"
+                  placeholder="Enter asset ID"
+                  className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Asset Name
+                </label>
+                <input
+                  type="text"
+                  value={assetName}
+                  onChange={(e) => setAssetName(e.target.value)}
+                  placeholder="Enter asset name"
+                  className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Asset Symbol
+                </label>
+                <input
+                  type="text"
+                  value={assetSymbol}
+                  onChange={(e) => setAssetSymbol(e.target.value)}
+                  placeholder="Enter asset symbol"
+                  className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Decimals
+                </label>
+                <input
+                  type="number"
+                  value={assetDecimals}
+                  onChange={(e) => setAssetDecimals(e.target.value)}
+                  placeholder="Enter decimals"
+                  min="0"
+                  max="20"
+                  className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Minimum Balance
+                </label>
+                <input
+                  type="number"
+                  value={minBalance}
+                  onChange={(e) => {
+                    const value = Math.max(0, parseInt(e.target.value) || 0);
+                    setMinBalance(value.toString());
+                  }}
+                  min="0"
+                  placeholder="Enter minimum balance"
+                  className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
+                />
+              </div>
 
-                  {error && <div className="text-red-400 text-sm">{error}</div>}
+              {error && <div className="text-red-400 text-sm">{error}</div>}
 
-                  <button
-                    onClick={handleCreateAsset}
-                    disabled={isLoading || !isConnected}
-                    className="w-full px-4 py-2 bg-blue-900/50 text-blue-400 rounded-lg hover:bg-blue-900/70 transition-colors border border-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoading ? 'Creating...' : 'Create Asset'}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="bg-gray-700/30 p-4 rounded-lg">
-                    <p className="text-sm text-gray-300">
-                      Created Asset ID: {createdAssetId}
-                    </p>
-                  </div>
-
-                  {error && <div className="text-red-400 text-sm">{error}</div>}
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      onClick={() => setCurrentStep('create')}
-                      className="w-full px-4 py-2 bg-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-700/70 transition-colors border border-gray-600"
-                    >
-                      Back
-                    </button>
-                    <button
-                      onClick={handleSetAdmin}
-                      disabled={isLoading || !isConnected}
-                      className="w-full px-4 py-2 bg-purple-900/50 text-purple-400 rounded-lg hover:bg-purple-900/70 transition-colors border border-purple-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isLoading ? 'Setting...' : 'Set Admin'}
-                    </button>
-                  </div>
-                </>
-              )}
+              <button
+                onClick={handleCreateAsset}
+                disabled={isLoading || !isConnected}
+                className="w-full px-4 py-2 bg-blue-900/50 text-blue-400 rounded-lg hover:bg-blue-900/70 transition-colors border border-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Creating...' : 'Create Asset'}
+              </button>
             </div>
           )}
         </div>

@@ -8,5 +8,5 @@ export interface TxToastOptions {
 }
 
 export interface TxToastContextType {
-  showTxToast: (status: TxStatus, message: string, options?: TxToastOptions) => void;
+  showTxToast: (status: TxStatus, message: string, options?: TxToastOptions) => string | number | undefined;
 }

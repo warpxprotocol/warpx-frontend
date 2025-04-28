@@ -16,8 +16,8 @@
     "baseUrl": "src",
     "paths": {
       "@/*": ["*"],
-      "@sdk/interfaces": ["../../sdk/src/interfaces"],
-      "@sdk/*": ["../../sdk/src/*"]
+      "@warpx/sdk/*": ["../../sdk/src/interfaces/*"],
+      "@warpx/sdk/interfaces/custom-exports": ["../../sdk/src/interfaces/custom-exports.ts"]
     },
     "incremental": true,
     "plugins": [

@@ -91,6 +91,8 @@ export const MintTab = () => {
       return;
     }
 
+    console.log('[MintTab] fetchAccountInfo: selectedAccount =', selectedAccount);
+
     try {
       // 계정 잔액 조회
       const accountInfo = await api.query.system.account(selectedAccount);
@@ -113,11 +115,12 @@ export const MintTab = () => {
       setAccountBalance(freeBalance);
       setAccountReserved(reservedBalance);
 
-      console.log('Fetching assets for account:', selectedAccount);
+      console.log('[MintTab] Free balance:', freeBalance, 'Reserved:', reservedBalance);
+      console.log('[MintTab] Fetching assets for account:', selectedAccount);
 
       // 계정의 에셋 목록 조회
       const assetMetadatas = await api.query.assets.metadata.entries();
-      console.log('Total asset metadatas found:', assetMetadatas.length);
+      console.log('[MintTab] Total asset metadatas found:', assetMetadatas.length);
 
       const assets: Asset[] = [];
       const balances: Record<string, string> = {};
@@ -126,6 +129,7 @@ export const MintTab = () => {
         const assetId = key.args[0].toString();
         console.log('Checking asset:', assetId);
 
+        console.log('[MintTab] typeof assetId:', typeof assetId, 'assetId:', assetId);
         const assetInfo = await api.query.assets.asset(assetId);
         console.log('Asset info:', assetInfo.toHuman());
 
@@ -144,8 +148,12 @@ export const MintTab = () => {
           status: string;
         } | null;
 
+        console.log('[MintTab] Asset', assetId, 'full info:', assetInfoHuman);
+
         if (assetInfoHuman) {
-          const { owner, admin, minBalance, supply } = assetInfoHuman;
+          const { owner, admin, minBalance, supply, status } = assetInfoHuman;
+
+          console.log('[MintTab] Asset', assetId, 'admin:', admin, 'selectedAccount:', selectedAccount, 'status:', status);
 
           // 해당 계정이 admin인 에셋만 필터링
           if (admin === selectedAccount) {
@@ -160,14 +168,23 @@ export const MintTab = () => {
             } | null;
 
             // 에셋 잔액 조회
+            console.log('[MintTab] typeof selectedAccount:', typeof selectedAccount, 'selectedAccount:', selectedAccount);
             const balance = await api.query.assets.account(assetId, selectedAccount);
-            const balanceHuman = balance.toHuman() as {
-              balance: string;
-            } | null;
-
-            if (balanceHuman) {
-              balances[assetId] = balanceHuman.balance;
+            const balanceJson = balance.toJSON();
+            function extractBalance(json: any): string {
+              if (
+                json &&
+                typeof json === 'object' &&
+                'balance' in json &&
+                typeof json.balance === 'string'
+              ) {
+                return json.balance;
+              }
+              return '0';
             }
+            const actualBalance = extractBalance(balanceJson);
+            console.log('[MintTab] Asset', assetId, 'balance for', selectedAccount, '=', actualBalance);
+            balances[assetId] = actualBalance;
 
             assets.push({
               id: assetId,
@@ -195,6 +212,9 @@ export const MintTab = () => {
       console.log('Final assets list:', assets);
       setAccountAssets(assets);
       setAssetBalances(balances);
+      console.log('[MintTab] setAccountAssets:', assets);
+      console.log('[MintTab] setAssetBalances:', balances);
+      console.log('[MintTab] After fetch: selectedAccount =', selectedAccount, ', selectedAsset =', selectedAsset, ', assetBalances =', balances);
     } catch (error) {
       console.error('Failed to fetch account info:', error);
     }
@@ -206,6 +226,8 @@ export const MintTab = () => {
 
   const handleMint = async () => {
     if (!api || !isConnected || !selectedAccount || !selectedAsset || !amount) return;
+
+    console.log('[MintTab] handleMint: recipient =', selectedAccount, ', asset =', selectedAsset, ', amount =', amount);
 
     try {
       setIsLoading(true);
@@ -223,9 +245,17 @@ export const MintTab = () => {
         throw new Error('No signer available for the selected account');
       }
 
+      // [수정] decimals 가져오기
+      const asset = accountAssets.find((a) => a.id === selectedAsset);
+      const decimals = asset?.metadata?.decimals
+        ? parseInt(asset.metadata.decimals.toString())
+        : 12;
+      // [수정] amount에 decimals 곱하기
+      const mintAmount = BigInt(Math.floor(Number(amount) * 10 ** decimals)).toString();
       // Mint 토큰
-      console.log('Minting tokens...');
-      const mintTx = api.tx.assets.mint(selectedAsset, selectedAccount, amount);
+      console.log('[MintTab] Minting tokens...', { mintAmount, decimals, amount, selectedAccount, selectedAsset });
+      console.log('[MintTab] Minting: assetId =', selectedAsset, 'recipient =', selectedAccount, 'amount =', mintAmount);
+    const mintTx = api.tx.assets.mint(selectedAsset, selectedAccount, mintAmount);
 
       await handleExtrinsic(
         mintTx,
@@ -237,13 +267,11 @@ export const MintTab = () => {
           pending: 'Minting tokens...',
           success: 'Tokens minted successfully',
           error: 'Failed to mint tokens',
-        },
+        }
       );
-
-      // 에셋 목록 새로고침
-      fetchAccountInfo();
-
-      // 폼 초기화
+      // 트랜잭션 완료 후 잔고 fetch
+      console.log('[MintTab] Mint extrinsic finalized, refreshing balances...');
+      await fetchAccountInfo();
       setAmount('');
     } catch (error) {
       console.error('Failed to mint tokens:', error);
@@ -253,12 +281,36 @@ export const MintTab = () => {
     }
   };
 
+  // Helper: print liquidity modal token IDs (for debugging assetId match)
+  const printLiquidityTokenIds = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const win: any = window;
+    if (win && win.getLiquidityModalTokenIds) {
+      const ids = win.getLiquidityModalTokenIds();
+      alert(`Liquidity Modal token0.id: ${ids.token0}, token1.id: ${ids.token1}\nMintTab selectedAsset: ${selectedAsset}`);
+      console.log('Liquidity Modal token0.id:', ids.token0, 'token1.id:', ids.token1, 'MintTab selectedAsset:', selectedAsset);
+    } else {
+      alert('getLiquidityModalTokenIds helper not found on window.');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <h4 className="text-lg font-medium text-white">Token Minting</h4>
       <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
         <div className="space-y-4">
           <div className="text-sm text-gray-400">{connectionStatus}</div>
+          {/* Helper button for debugging assetId match */}
+          <button
+            className="mb-2 px-2 py-1 bg-blue-900/50 text-blue-400 rounded hover:bg-blue-900/70 border border-blue-800 text-xs"
+            onClick={printLiquidityTokenIds}
+            type="button"
+          >
+            Show Liquidity Modal Token IDs
+          </button>
+          <div className="text-xs text-gray-500">
+            MintTab selectedAsset: <b>{selectedAsset}</b>
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -363,14 +415,17 @@ export const MintTab = () => {
                       const decimals = asset?.metadata?.decimals
                         ? parseInt(asset.metadata.decimals.toString())
                         : 12;
-                      const rawBalance = assetBalances[selectedAsset] || '0';
-
+                      // 실제 내 계정의 잔고만 표시 (assetBalances는 반드시 api.query.assets.account(assetId, selectedAccount) 결과)
+                      let rawBalance = '0';
+                      if (asset && selectedAccount) {
+                        // assetBalances가 실제 내 계정의 잔고만 저장하도록 보장
+                        rawBalance = assetBalances[asset.id] || '0';
+                      }
                       try {
                         const balanceValue = BigInt(rawBalance.replace(/,/g, ''));
                         const result = (
                           Number(balanceValue) / Math.pow(10, decimals)
                         ).toString();
-
                         return Number(result).toLocaleString(undefined, {
                           minimumFractionDigits: 0,
                           maximumFractionDigits: decimals,

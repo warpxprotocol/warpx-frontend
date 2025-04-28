@@ -6,18 +6,17 @@ import { useEffect, useState } from 'react';
 
 import { useWalletStore } from '@/app/features/wallet/hooks/useWalletStore';
 import { useTxToast } from '@/components/toast/useTxToast';
-import { useApi } from '@/hooks/useApi';
-import { useExtrinsic } from '@/hooks/useExtrinsic';
-
-import { AssetSelector } from './asset-selector';
-import { Button } from './button';
+import { AssetSelector } from '@/components/ui/asset-selector';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from './dialog';
+} from '@/components/ui/dialog';
+import { useApi } from '@/hooks/useApi';
+import { useExtrinsic } from '@/hooks/useExtrinsic';
 
 interface CreatePoolButtonProps {
   className?: string;

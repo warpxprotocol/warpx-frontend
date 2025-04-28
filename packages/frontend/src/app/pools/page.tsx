@@ -2,80 +2,24 @@
 
 import { Option } from '@polkadot/types-codec';
 import { ITuple } from '@polkadot/types-codec/types';
-import type { FrameSupportTokensFungibleUnionOfNativeOrWithId } from '@warpx/sdk';
-import Link from 'next/link';
+import type { FrameSupportTokensFungibleUnionOfNativeOrWithId } from '@warpx/sdk/interfaces/custom-exports';
+import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
 
-import { CreatePoolButton } from '@/components/ui/create-pool-button';
+import { PoolList } from '@/app/pools/[pair]/components/pools/PoolList';
+import { Pool } from '@/app/pools/[pair]/components/pools/types';
 import { useApi } from '@/hooks/useApi';
 
-interface Pool {
-  id: string;
-  name: string;
-  protocol: string;
-  feeTier: string;
-  tvl: string;
-  apr: string;
-}
+const CreatePoolButton = dynamic(
+  () =>
+    import('@/app/pools/[pair]/components/pools/CreatePoolButton').then(
+      (mod) => mod.CreatePoolButton,
+    ),
+  {
+    ssr: false,
+  },
+);
 
-// PoolRow 컴포넌트: 각 풀 정보를 한 줄로 렌더링
-function PoolRow({ pool }: { pool: Pool }) {
-  return (
-    <tr className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
-      <td className="py-3 px-4 font-medium text-white">
-        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
-          {pool.name}
-        </Link>
-      </td>
-      <td className="py-3 px-4 text-gray-300">
-        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
-          {pool.protocol}
-        </Link>
-      </td>
-      <td className="py-3 px-4 text-gray-300">
-        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
-          {pool.feeTier}
-        </Link>
-      </td>
-      <td className="py-3 px-4 text-gray-300">
-        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
-          {pool.tvl}
-        </Link>
-      </td>
-      <td className="py-3 px-4 text-gray-300">
-        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
-          {pool.apr}
-        </Link>
-      </td>
-    </tr>
-  );
-}
-
-// PoolList 컴포넌트: 테이블 전체
-function PoolList({ pools }: { pools: Pool[] }) {
-  return (
-    <div className="overflow-x-auto rounded-lg border border-gray-800 bg-[#18181B] mt-8">
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr className="bg-[#23232A] text-gray-400">
-            <th className="py-3 px-4 text-left font-semibold">POOL</th>
-            <th className="py-3 px-4 text-left font-semibold">PROTOCOL</th>
-            <th className="py-3 px-4 text-left font-semibold">FEE TIER</th>
-            <th className="py-3 px-4 text-left font-semibold">TVL</th>
-            <th className="py-3 px-4 text-left font-semibold">APR</th>
-          </tr>
-        </thead>
-        <tbody>
-          {pools.map((pool) => (
-            <PoolRow key={pool.id} pool={pool} />
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// PoolsPage: 전체 페이지
 export default function PoolsPage() {
   const { api, isLoading, error } = useApi();
   const [pools, setPools] = useState<Pool[]>([]);
@@ -131,6 +75,18 @@ export default function PoolsPage() {
               feeTier: `${takerFeeRate}%`,
               tvl: '$0', // TODO: 실제 TVL 계산 필요
               apr: '0%', // TODO: 실제 APR 계산 필요
+              token0: {
+                id: baseAssetId,
+                symbol: baseSymbol,
+                iconUrl: '', // TODO: provide icon URL
+                usdPrice: 0,  // TODO: fetch current USD price
+              },
+              token1: {
+                id: quoteAssetId,
+                symbol: quoteSymbol,
+                iconUrl: '', // TODO: provide icon URL
+                usdPrice: 0,  // TODO: fetch current USD price
+              },
             };
           }),
         );

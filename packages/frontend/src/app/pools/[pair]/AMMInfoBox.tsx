@@ -1,77 +1,112 @@
 import { useParams } from 'next/navigation';
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { useWalletStore } from '@/app/features/wallet/hooks/useWalletStore';
+import { usePoolOperations } from '@/app/pools/[pair]/components/pools/usePoolOperations';
 import { useApi } from '@/hooks/useApi';
 
-import { usePoolOperations } from './components/pools/usePoolOperations';
+import { PoolInfo } from './components/pools/poolQueries';
 
 // 인터페이스 및 타입 정의
 interface LpTokenBalanceType {
-  lpTokenId?: number;
-  rawBalance?: string;
-  humanReadableBalance?: number;
-  lpTokenSymbol?: string;
-  lpTokenDecimals?: number;
-  baseAssetId?: number;
-  quoteAssetId?: number;
+  lpTokenId: number;
+  rawBalance: string;
+  humanReadableBalance: number;
+  lpTokenSymbol: string;
+  lpTokenDecimals: number;
+  baseAssetId: number;
+  quoteAssetId: number;
 }
 
-interface PoolInfoType {
-  poolExists?: boolean;
-  feeTier?: number;
-  [key: string]: any;
+// 리팩토링된 PoolInfo 타입을 사용하되, 로컬 처리를 위한 디스플레이 타입 정의
+// UI 표시에 필요한 추가 필드 포함
+interface PoolInfoDisplay extends PoolInfo {
+  // AMMInfoBox에서 표시에 필요한 추가 필드
+  baseAssetSymbol?: string;
+  quoteAssetSymbol?: string;
+  baseAssetDecimals?: number;
+  quoteAssetDecimals?: number;
+  lpTokenSymbol?: string;
+  lpTokenDecimals?: number;
 }
 
 export default function AMMInfoBox() {
   // URL 파라미터 파싱
   const params = useParams();
   const pairParam = params?.pair as string | undefined;
-  
+
   // API 및 계정 정보 가져오기
   const { api } = useApi();
   const { selectedAccount } = useWalletStore();
-  const { getLpTokenBalance, getPoolInfo } = usePoolOperations();
+  const { getLpTokenBalance, getPoolInfoByPair } = usePoolOperations();
 
   // 상태 관리
-  const [lpTokenBalance, setLpTokenBalance] = useState<LpTokenBalanceType | null>(null);
-  const [poolInfo, setPoolInfo] = useState<PoolInfoType | null>(null);
-  const [lpTokenPercentage, setLpTokenPercentage] = useState<number>(0);
+  const [poolInfo, setPoolInfo] = useState<PoolInfoDisplay | null>(null);
   const [token0Symbol, setToken0Symbol] = useState<string>('');
   const [token1Symbol, setToken1Symbol] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // API 및 계정 상태 변경 디버깅
+  useEffect(() => {
+    console.log('API state changed:', !!api, api ? 'connected' : 'disconnected');
+    console.log(
+      'Account state changed:',
+      !!selectedAccount,
+      // 계정 주소 값을 안전하게 처리
+      selectedAccount && typeof selectedAccount === 'object' && 'address' in selectedAccount
+        ? (selectedAccount as { address: string }).address
+        : 'undefined',
+    );
+  }, [api, selectedAccount]);
+
+  // 데이터 갱신 간격 (밀리초 단위)
+  const POLLING_INTERVAL = 5000; // 5초마다 갱신
+
   // 데이터 가져오기
   useEffect(() => {
     let isMounted = true;
-    
+    let retryCount = 0;
+    const maxRetries = 3;
+
     if (!pairParam) {
       setLoading(false);
       return;
     }
-    
-    if (!api || !selectedAccount) {
-      if (isMounted) {
-        setLoading(false);
-        setError('API or account not available');
-      }
-      return;
-    }
 
+    // 실제 데이터 가져오기 함수
     const fetchData = async () => {
-      if (!isMounted) return;
-      
       try {
+        if (!isMounted) return;
+
+        if (!api) {
+          console.error('fetchData called but API is not available');
+          return;
+        }
+
+        // 계정 없음 상태 기록
+        if (!selectedAccount) {
+          console.log('Note: No account connected, will fetch pool info only');
+        }
+
         setLoading(true);
         setError(null);
-        
+
         // URL에서 토큰 ID 추출
-        const pairParts = pairParam.split('-');
+        console.log('Processing pair parameter:', pairParam);
+        // URL 디코딩: %2F는 '/' 문자로 디코딩
+        const decodedParam = decodeURIComponent(pairParam);
+        console.log('Decoded pair parameter:', decodedParam);
+
+        const pairParts = decodedParam.split('/');
+        console.log('Pair parts:', pairParts);
+
         if (pairParts.length !== 2) {
-          throw new Error('Invalid pair format in URL');
+          throw new Error(
+            `Invalid pair format in URL: ${decodedParam} (split result: ${pairParts.join(', ')})`,
+          );
         }
-        
+
         const [baseSymbol, quoteSymbol] = pairParts;
         if (!baseSymbol || !quoteSymbol) {
           throw new Error('Missing token symbols in pair');
@@ -83,12 +118,16 @@ export default function AMMInfoBox() {
         }
 
         // 심볼에 해당하는 토큰 ID 찾기
-        const assetsData = await api.query.assets.metadata.entries();
-        
+        const assetsData = await api?.query.assets.metadata.entries();
+
         if (!isMounted) return;
-        
+
         let baseId: number | null = null;
         let quoteId: number | null = null;
+
+        if (!assetsData) {
+          throw new Error('Failed to fetch asset metadata');
+        }
 
         for (const entry of assetsData) {
           try {
@@ -106,77 +145,74 @@ export default function AMMInfoBox() {
         }
 
         if (!isMounted) return;
-        
+
         if (baseId === null || quoteId === null) {
-          throw new Error(`Could not find token IDs for symbols: ${baseSymbol}, ${quoteSymbol}`);
+          throw new Error(
+            `Could not find token IDs for symbols: ${baseSymbol}, ${quoteSymbol}`,
+          );
         }
 
         // 풀 정보 가져오기
-        let poolInfoData: PoolInfoType | null = null;
+        let poolInfoData: PoolInfo | null = null;
         try {
-          poolInfoData = await getPoolInfo(baseId, quoteId);
-          if (isMounted && poolInfoData) {
-            setPoolInfo(poolInfoData);
+          console.log('Fetching pool info for baseId:', baseId, 'quoteId:', quoteId);
+          poolInfoData = await getPoolInfoByPair(baseId, quoteId);
+          console.log('Pool info data received:', poolInfoData);
+
+          // 풀 정보 정리 - PoolInfo 타입은 이미 알맞게 정의되어 있음
+          if (poolInfoData) {
+            // PoolInfoDisplay 타입에 맞게 변환
+            const cleanedPoolInfo: PoolInfoDisplay = {
+              // PoolInfo의 필수 필드
+              poolExists: poolInfoData.poolExists,
+              baseAssetId: poolInfoData.baseAssetId,
+              quoteAssetId: poolInfoData.quoteAssetId,
+              feeTier: poolInfoData.feeTier,
+              reserve0: poolInfoData.reserve0,
+              reserve1: poolInfoData.reserve1,
+              lpTokenId: poolInfoData.lpTokenId,
+              // 선택적 필드
+              poolIndex: poolInfoData.poolIndex,
+
+              // UI에 필요한 추가 필드는 현재 없지만 필요할 수 있음
+              baseAssetSymbol: token0Symbol,
+              quoteAssetSymbol: token1Symbol,
+              // 나중에 필요하면 추가
+              // baseAssetDecimals: 0,
+              // quoteAssetDecimals: 0,
+              // lpTokenSymbol: '',
+              // lpTokenDecimals: 0,
+            };
+
+            console.log('Pool info:', cleanedPoolInfo);
+            console.log(
+              'Has liquidity:',
+              typeof cleanedPoolInfo.reserve0 === 'number' &&
+                cleanedPoolInfo.reserve0 > 0 &&
+                typeof cleanedPoolInfo.reserve1 === 'number' &&
+                cleanedPoolInfo.reserve1 > 0,
+            );
+            setPoolInfo(cleanedPoolInfo);
           }
         } catch (err) {
           console.error('Error fetching pool info:', err);
-          if (isMounted) {
-            setError('Failed to fetch pool information');
-          }
+          setError(
+            `Failed to fetch pool information: ${err instanceof Error ? err.message || 'Unknown error' : 'Unknown error'}`,
+          );
         }
 
         if (!isMounted) return;
-        
-        // poolInfoData가 존재하고 poolExists가 true인 경우에만 LP 토큰 정보 가져오기
-        if (poolInfoData && poolInfoData.poolExists) {
-          try {
-            // LP 토큰 잔액 가져오기
-            const lpBalance = await getLpTokenBalance(baseId, quoteId, selectedAccount);
-            
-            if (!isMounted) return;
-            
-            if (lpBalance) {
-              setLpTokenBalance(lpBalance);
 
-              // LP 토큰 비율 계산 (lpTokenId가 존재하는 경우만)
-              if (lpBalance.lpTokenId) {
-                try {
-                  const totalSupplyInfo = await api.query.assets.asset(lpBalance.lpTokenId);
-                  
-                  if (!isMounted) return;
-                  
-                  if (totalSupplyInfo) {
-                    const totalSupplyData = totalSupplyInfo.toJSON();
-                    if (
-                      totalSupplyData &&
-                      typeof totalSupplyData === 'object' &&
-                      'supply' in totalSupplyData
-                    ) {
-                      try {
-                        const totalSupply = BigInt(String(totalSupplyData.supply || '0'));
-                        if (totalSupply > 0n) {
-                          const userRawBalance = BigInt(String(lpBalance.rawBalance || '0'));
-                          const percentage = (Number(userRawBalance) / Number(totalSupply)) * 100;
-                          if (isMounted && !isNaN(percentage)) {
-                            setLpTokenPercentage(percentage);
-                          }
-                        }
-                      } catch (err) {
-                        console.error('Error in BigInt conversion:', err);
-                      }
-                    }
-                  }
-                } catch (err) {
-                  console.error('Error calculating LP token percentage:', err);
-                }
-              }
-            }
-          } catch (err) {
-            console.error('Error fetching LP token balance:', err);
-            if (isMounted) {
-              setError('Failed to fetch LP token balance');
-            }
-          }
+        // 계정이 연결되었으나 LP 토큰 정보는 별도 컴포넌트로 분리
+        if (poolInfoData && poolInfoData.poolExists && selectedAccount) {
+          console.log(
+            'Account connected, but LP position info moved to separate component',
+          );
+        }
+
+        // 폴링이 아니라 초기 로드인 경우에만 로딩 상태 해제
+        if (!retryCount) {
+          setLoading(false);
         }
       } catch (error) {
         console.error('Error fetching AMMInfoBox data:', error);
@@ -190,28 +226,52 @@ export default function AMMInfoBox() {
       }
     };
 
-    fetchData();
-    
+    // API나 계정이 준비되지 않았을 때 재시도 로직
+    const attemptFetch = async () => {
+      if (!api) {
+        if (retryCount < maxRetries && isMounted) {
+          retryCount++;
+          console.log(`API not ready, retrying (${retryCount}/${maxRetries})...`);
+          setTimeout(attemptFetch, 1500); // 1.5초 후 재시도
+        } else if (isMounted) {
+          setLoading(false);
+          setError('API not available after multiple attempts');
+        }
+        return;
+      }
+
+      // API만 로드되어도 기본 풀 정보는 가져오기 시도
+      console.log('API is ready, proceeding with or without account');
+
+      // API와 계정이 준비되면 실제 데이터 가져오기 실행
+      try {
+        await fetchData();
+      } catch (error) {
+        console.error('Error during data fetch:', error);
+        if (isMounted) {
+          setError(error instanceof Error ? error.message : 'Unknown error occurred');
+          setLoading(false);
+        }
+      }
+    };
+
+    // 초기 시도 시작
+    attemptFetch();
+
+    // 풀 정보 주기적 갱신 설정
+    const pollingInterval = setInterval(() => {
+      if (isMounted && api) {
+        console.log('Polling for pool info updates...');
+        fetchData();
+      }
+    }, POLLING_INTERVAL);
+
     // Cleanup function to prevent state updates after unmount
     return () => {
       isMounted = false;
+      clearInterval(pollingInterval);
     };
-  }, [api, selectedAccount, pairParam, getLpTokenBalance, getPoolInfo]);
-
-  // LP 토큰 잔액 포맷팅
-  const formattedLpBalance = useMemo(() => {
-    if (!lpTokenBalance || lpTokenBalance.humanReadableBalance === undefined || lpTokenBalance.humanReadableBalance === null) {
-      return '0';
-    }
-    try {
-      return Number(lpTokenBalance.humanReadableBalance).toLocaleString(undefined, {
-        maximumFractionDigits: 6,
-      });
-    } catch (e) {
-      console.error('Error formatting LP balance:', e);
-      return '0';
-    }
-  }, [lpTokenBalance]);
+  }, [api, selectedAccount, pairParam, getLpTokenBalance, getPoolInfoByPair]);
 
   // URL에 페어 정보가 없는 경우 처리
   if (!pairParam) {
@@ -221,16 +281,21 @@ export default function AMMInfoBox() {
       </div>
     );
   }
-  
+
   // 에러 발생 시 처리
   if (error) {
     return (
       <div className="relative bg-[#18181C] rounded-xl px-4 py-3 flex flex-col gap-2 min-w-[260px] w-full">
         <div className="text-red-400 text-sm">Error: {error}</div>
+        {!selectedAccount && (
+          <div className="text-yellow-400 text-sm mt-2">
+            Connect wallet to view your LP position.
+          </div>
+        )}
       </div>
     );
   }
-  
+
   // 메인 렌더링
   return (
     <div className="relative bg-[#18181C] rounded-xl px-4 py-3 flex flex-col gap-2 min-w-[260px] w-full">
@@ -239,81 +304,73 @@ export default function AMMInfoBox() {
         <span className="text-gray-400 text-xs font-medium tracking-widest">PRICE</span>
         <span className="text-gray-400 text-xs font-medium tracking-widest">DEPTH</span>
       </div>
-      
+
       {loading ? (
         <div className="flex flex-col items-center justify-center py-4">
           <span className="text-gray-400 text-sm">Loading pool information...</span>
         </div>
       ) : (
         <>
-          {/* 중앙: 가격/USDT, 우측 페어 */}
+          {/* 중앙: 가격 & 페어 정보 */}
           <div className="flex w-full items-center justify-between mb-1">
-            <div className="flex items-end">
-              <span className="text-xl font-semibold text-white leading-none">4.070676</span>
-              <span className="ml-1 text-xs text-gray-400 font-medium">USDT</span>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <div className="flex items-center gap-1">
-                <span className="bg-gradient-to-r from-pink-500 to-purple-500 rounded px-1.5 py-0.5 flex items-center min-w-[70px] justify-between">
-                  <span className="text-white text-base mr-1">🟣</span>
-                  <span className="text-white font-medium text-xs">2,943.49</span>
+            <div className="flex flex-col">
+              <div className="flex items-end mb-1">
+                <span className="text-xl font-semibold text-white leading-none">
+                  {poolInfo?.poolExists &&
+                  (poolInfo.reserve0 ?? 0) > 0 &&
+                  (poolInfo.reserve1 ?? 0) > 0
+                    ? (poolInfo.reserve1 / poolInfo.reserve0).toFixed(6)
+                    : '-'}
+                </span>
+                <span className="ml-1 text-xs text-gray-400 font-medium">
+                  {token1Symbol}
                 </span>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="bg-gradient-to-r from-cyan-400 to-blue-500 rounded px-1.5 py-0.5 flex items-center min-w-[70px] justify-between">
-                  <span className="text-white text-base mr-1">🟦</span>
-                  <span className="text-white font-medium text-xs">11,980</span>
+              {/* Fee & Pair 정보 */}
+              <div className="flex items-center gap-1.5">
+                {poolInfo?.feeTier !== undefined && (
+                  <span className="text-gray-400 text-xs">
+                    Fee:{' '}
+                    {poolInfo.feeTier === 0 ? '0.00' : (poolInfo.feeTier / 100).toFixed(2)}%
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* 우측 Depth 바 */}
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex flex-col items-end gap-1">
+                <span
+                  className={`${!poolInfo || poolInfo.reserve0 === 0 ? 'bg-gray-700/50' : 'bg-gradient-to-r from-pink-500 to-purple-500'} rounded px-1.5 py-0.5 flex items-center min-w-[70px] justify-between`}
+                >
+                  <span className="text-white text-xs mr-1">{token0Symbol}</span>
+                  <span className="text-white font-medium text-xs">
+                    {typeof poolInfo?.reserve0 === 'number'
+                      ? poolInfo.reserve0.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })
+                      : '0'}
+                  </span>
+                </span>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <span
+                  className={`${!poolInfo || poolInfo.reserve1 === 0 ? 'bg-gray-700/50' : 'bg-gradient-to-r from-cyan-400 to-blue-500'} rounded px-1.5 py-0.5 flex items-center min-w-[70px] justify-between`}
+                >
+                  <span className="text-white text-xs mr-1">{token1Symbol}</span>
+                  <span className="text-white font-medium text-xs">
+                    {typeof poolInfo?.reserve1 === 'number'
+                      ? poolInfo.reserve1.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })
+                      : '0'}
+                  </span>
                 </span>
               </div>
             </div>
           </div>
-
-          {/* LP 토큰 정보 섹션 */}
-          {lpTokenBalance && (
-            <div className="mt-3 border-t border-gray-800 pt-3">
-              <div className="flex justify-between items-center mb-1">
-                <h3 className="text-white text-sm font-medium">Your LP Position</h3>
-                <div className="text-xs text-blue-400">
-                  {token0Symbol}/{token1Symbol}
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-gray-400 text-xs">Balance:</span>
-                <span className="text-white text-sm">
-                  {formattedLpBalance} {lpTokenBalance?.lpTokenSymbol || ''}
-                </span>
-              </div>
-
-              {lpTokenPercentage > 0 && (
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-gray-400 text-xs">Pool Share:</span>
-                  <span className="text-white text-sm">{lpTokenPercentage.toFixed(2)}%</span>
-                </div>
-              )}
-
-              {poolInfo && poolInfo.poolExists && typeof poolInfo.feeTier === 'number' && (
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-gray-400 text-xs">Pool Fee:</span>
-                  <span className="text-white text-sm">
-                    {(poolInfo.feeTier / 100).toFixed(2)}%
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
         </>
       )}
-
-      {/* 하단: AMM, V2 뱃지 */}
-      <div className="flex w-full mt-0 gap-1">
-        <span className="bg-[#23232A] text-[10px] text-white font-semibold rounded px-1.5 py-0.5">
-          AMM
-        </span>
-        <span className="bg-gray-600 text-[10px] text-white font-semibold rounded px-1.5 py-0.5">
-          V2
-        </span>
-      </div>
     </div>
   );
 }

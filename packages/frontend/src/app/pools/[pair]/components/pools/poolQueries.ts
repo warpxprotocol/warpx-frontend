@@ -35,47 +35,189 @@ export const usePoolQueries = () => {
 
       try {
         const poolsData = await api.query.hybridOrderbook.pools.entries();
+        console.log(
+          '[findPoolIndexByPair] 검색 시작: baseAssetId =',
+          baseAssetId,
+          'quoteAssetId =',
+          quoteAssetId,
+        );
+        console.log(
+          '[findPoolIndexByPair] 총',
+          poolsData.length,
+          '개의 풀 데이터를 조회함',
+        );
+
+        // Make sure baseAssetId and quoteAssetId are valid numbers
+        const id0 = Number(baseAssetId);
+        const id1 = Number(quoteAssetId);
+
+        if (isNaN(id0) || isNaN(id1)) {
+          console.error('[findPoolIndexByPair] Invalid IDs:', baseAssetId, quoteAssetId);
+          return null;
+        }
 
         for (const entry of poolsData as any[]) {
           const key = entry[0];
+          const value = entry[1];
           const valueHuman =
-            typeof entry[1].toHuman === 'function' ? entry[1].toHuman() : undefined;
+            typeof value.toHuman === 'function' ? value.toHuman() : undefined;
 
           // 키에서 풀 인덱스 추출
           const poolIndex = key.args[0].toNumber
             ? key.args[0].toNumber()
             : Number(key.args[0]);
 
-          if (!valueHuman || Object.keys(valueHuman).length === 0) continue;
-
-          // 풀의 baseAssetId와 quoteAssetId 추출
-          const poolBaseAssetId = extractId(
-            valueHuman.baseAssetId || valueHuman.base_asset_id,
-          );
-          const poolQuoteAssetId = extractId(
-            valueHuman.quoteAssetId || valueHuman.quote_asset_id,
-          );
-
+          // 키 구조 자세히 로깅
+          const keyHuman = key.toHuman ? key.toHuman() : null;
           console.log(
-            '[findPoolIndexByPair] Pool',
+            '[findPoolIndexByPair] 풀 인덱스:',
             poolIndex,
-            'has assets:',
-            poolBaseAssetId,
-            poolQuoteAssetId,
-            'Target:',
-            baseAssetId,
-            quoteAssetId,
+            '키 구조:',
+            JSON.stringify(keyHuman),
           );
 
-          // 두 방향 모두 체크 (baseAssetId, quoteAssetId) 또는 (quoteAssetId, baseAssetId)
+          if (keyHuman) {
+            console.log('[findPoolIndexByPair] 키 구조 타입:', typeof keyHuman);
+            if (Array.isArray(keyHuman)) {
+              console.log('[findPoolIndexByPair] 키 배열 길이:', keyHuman.length);
+              if (keyHuman.length > 1) {
+                console.log('[findPoolIndexByPair] 두 번째 요소 타입:', typeof keyHuman[1]);
+                console.log(
+                  '[findPoolIndexByPair] 두 번째 요소 값:',
+                  JSON.stringify(keyHuman[1]),
+                );
+              }
+            }
+          }
+
+          let poolBaseAssetId: number | null = null;
+          let poolQuoteAssetId: number | null = null;
+
+          // 1. 키 구조 방식 1: [Array(2)]에서 두 번째 배열에 WithId 객체 배열로 저장됨
+          if (keyHuman && Array.isArray(keyHuman) && keyHuman.length > 1) {
+            const assetPair = keyHuman[1]; // 두 번째 요소가 자산 쌍
+
+            if (Array.isArray(assetPair) && assetPair.length >= 2) {
+              // WithId 객체에서 ID 추출
+              poolBaseAssetId = extractId(assetPair[0]);
+              poolQuoteAssetId = extractId(assetPair[1]);
+
+              console.log(
+                '[findPoolIndexByPair] 키 구조 방식 1: 풀 인덱스:',
+                poolIndex,
+                'assets:',
+                poolBaseAssetId,
+                poolQuoteAssetId,
+              );
+            }
+          }
+
+          // 2. 키 구조 방식 2: keyHuman에 직접 assets 배열이 있는 경우
+          if (poolBaseAssetId === null && keyHuman && typeof keyHuman === 'object') {
+            for (const prop in keyHuman) {
+              if (Array.isArray(keyHuman[prop]) && keyHuman[prop].length >= 2) {
+                try {
+                  poolBaseAssetId = extractId(keyHuman[prop][0]);
+                  poolQuoteAssetId = extractId(keyHuman[prop][1]);
+                  console.log(
+                    '[findPoolIndexByPair] 키 구조 방식 2: 풀 인덱스:',
+                    poolIndex,
+                    'assets:',
+                    poolBaseAssetId,
+                    poolQuoteAssetId,
+                  );
+                } catch (e) {
+                  console.log('[findPoolIndexByPair] 키 구조 방식 2 처리 중 오류:', e);
+                }
+              }
+            }
+          }
+
+          // 3. 값에서도 추출 시도 (백업 메소드)
+          if ((poolBaseAssetId === null || poolQuoteAssetId === null) && valueHuman) {
+            const baseFromValue = extractId(
+              valueHuman.baseAssetId || valueHuman.base_asset_id,
+            );
+            const quoteFromValue = extractId(
+              valueHuman.quoteAssetId || valueHuman.quote_asset_id,
+            );
+
+            if (baseFromValue && quoteFromValue) {
+              poolBaseAssetId = baseFromValue;
+              poolQuoteAssetId = quoteFromValue;
+              console.log(
+                '[findPoolIndexByPair] 값 구조에서 ID 추출: 풀 인덱스:',
+                poolIndex,
+                'assets:',
+                poolBaseAssetId,
+                poolQuoteAssetId,
+              );
+            }
+          }
+
+          // 4. key.args[1]에 직접 접근해보기 (raw 데이터)
           if (
-            (poolBaseAssetId === baseAssetId && poolQuoteAssetId === quoteAssetId) ||
-            (poolBaseAssetId === quoteAssetId && poolQuoteAssetId === baseAssetId)
+            (poolBaseAssetId === null || poolQuoteAssetId === null) &&
+            key.args &&
+            key.args.length > 1
           ) {
+            try {
+              const rawArgs = key.args[1];
+              console.log('[findPoolIndexByPair] Raw key.args[1]:', typeof rawArgs);
+
+              // 패턴별로 자산 ID 추출 시도
+              if (typeof rawArgs === 'object' && rawArgs !== null) {
+                // 일반적인 객체인 경우
+                if (rawArgs.toHuman) {
+                  const rawArgsHuman = rawArgs.toHuman();
+                  console.log(
+                    '[findPoolIndexByPair] Raw key.args[1].toHuman():',
+                    JSON.stringify(rawArgsHuman),
+                  );
+
+                  if (Array.isArray(rawArgsHuman) && rawArgsHuman.length >= 2) {
+                    poolBaseAssetId = extractId(rawArgsHuman[0]);
+                    poolQuoteAssetId = extractId(rawArgsHuman[1]);
+                  }
+                }
+                // 배열인 경우
+                else if (Array.isArray(rawArgs) && rawArgs.length >= 2) {
+                  poolBaseAssetId = extractId(
+                    rawArgs[0].toHuman ? rawArgs[0].toHuman() : rawArgs[0],
+                  );
+                  poolQuoteAssetId = extractId(
+                    rawArgs[1].toHuman ? rawArgs[1].toHuman() : rawArgs[1],
+                  );
+                }
+
+                if (poolBaseAssetId !== null && poolQuoteAssetId !== null) {
+                  console.log(
+                    '[findPoolIndexByPair] Raw args에서 추출: 풀 인덱스:',
+                    poolIndex,
+                    'assets:',
+                    poolBaseAssetId,
+                    poolQuoteAssetId,
+                  );
+                }
+              }
+            } catch (e) {
+              console.log('[findPoolIndexByPair] Raw args 처리 중 오류:', e);
+            }
+          }
+
+          // 자산 ID 매칭 시도 (순서 상관없이)
+          if (
+            poolBaseAssetId !== null &&
+            poolQuoteAssetId !== null &&
+            ((poolBaseAssetId === id0 && poolQuoteAssetId === id1) ||
+              (poolBaseAssetId === id1 && poolQuoteAssetId === id0))
+          ) {
+            console.log('[findPoolIndexByPair] 매칭되는 풀 찾음! 인덱스:', poolIndex);
             return poolIndex;
           }
         }
 
+        console.log('[findPoolIndexByPair] 매칭되는 풀을 찾지 못함:', id0, id1);
         return null; // 페어에 대한 풀을 찾지 못함
       } catch (error) {
         console.error('[findPoolIndexByPair] Error finding pool index:', error);
@@ -285,30 +427,14 @@ export const usePoolQueries = () => {
 
       if (!api) throw new Error('API not connected');
       if (isNaN(id0) || isNaN(id1)) {
-        console.error('[getPoolPriceRatio] Invalid token IDs:', id0, id1);
+        console.error('[getPoolPriceRatio] Invalid token IDs:', token0Id, token1Id);
         return 1; // 오류 시 기본값
       }
 
       try {
         console.log('[getPoolPriceRatio] token0Id:', id0, 'token1Id:', id1);
 
-        // 페어로 풀 정보 찾기
-        const poolIndex = await findPoolIndexByPair(id0, id1);
-
-        if (poolIndex === null) {
-          console.warn('[getPoolPriceRatio] Pool not found for token pair:', id0, id1);
-          return 1; // 풀을 찾지 못했을 때 기본값
-        }
-
-        // 풀 인덱스로 풀 정보 조회
-        const poolInfo = await getPoolInfo(poolIndex);
-
-        if (!poolInfo || !poolInfo.poolExists) {
-          console.warn('[getPoolPriceRatio] Pool info not available:', id0, id1);
-          return 1; // 풀 정보가 없을 때 기본값
-        }
-
-        // 토큰 소수점 정보 가져오기
+        // 토큰 소수점 정보 가져오기 (항상 필요함)
         const meta0 = await api.query.assets.metadata(id0);
         const meta1 = await api.query.assets.metadata(id1);
         const humanMeta0 = meta0.toHuman();
@@ -317,6 +443,30 @@ export const usePoolQueries = () => {
         // utils의 extractDecimals 함수 사용
         const decimals0 = extractDecimals(humanMeta0);
         const decimals1 = extractDecimals(humanMeta1);
+
+        // 페어로 풀 정보 찾기
+        const poolIndex = await findPoolIndexByPair(id0, id1);
+
+        // 풀이 없는 경우 (신규 풀 생성 등의 경우)
+        if (poolIndex === null) {
+          console.log(
+            '[getPoolPriceRatio] Pool not found for token pair:',
+            id0,
+            id1,
+            '- Using default ratio of 1',
+          );
+          return 1; // 풀을 찾지 못했을 때 기본값
+        }
+
+        // 풀 인덱스로 풀 정보 조회
+        const poolInfo = await getPoolInfo(poolIndex);
+
+        if (!poolInfo || !poolInfo.poolExists || poolInfo.reserve0 === 0) {
+          console.log(
+            '[getPoolPriceRatio] Pool exists but no reserves or invalid data - Using default ratio of 1',
+          );
+          return 1; // 풀 정보가 없거나 유효하지 않을 때 기본값
+        }
 
         console.log(
           '[getPoolPriceRatio] Decimals:',
@@ -327,18 +477,18 @@ export const usePoolQueries = () => {
           poolInfo.reserve1,
         );
 
-        // 단위 변환하여 가격 비율 계산
-        const price0 = poolInfo.reserve0 / Math.pow(10, decimals0);
-        const price1 = poolInfo.reserve1 / Math.pow(10, decimals1);
+        // 단위 변환하여 가격 비율 계산 (reserve1/10^decimals1)/(reserve0/10^decimals0)
+        const normalizedReserve0 = poolInfo.reserve0 / Math.pow(10, decimals0);
+        const normalizedReserve1 = poolInfo.reserve1 / Math.pow(10, decimals1);
 
-        if (price0 === 0) {
-          console.warn(
-            '[getPoolPriceRatio] Zero reserve for token0, returning default ratio',
+        if (normalizedReserve0 === 0) {
+          console.log(
+            '[getPoolPriceRatio] Zero normalized reserve for token0, returning default ratio',
           );
           return 1;
         }
 
-        const ratio = price1 / price0;
+        const ratio = normalizedReserve1 / normalizedReserve0;
         console.log('[getPoolPriceRatio] Calculated ratio:', ratio);
         return ratio;
       } catch (error) {

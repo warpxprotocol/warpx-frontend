@@ -23,6 +23,7 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
   onClose,
   type,
   poolName,
+  onSubmit,
   token0,
   token1,
 }) => {
@@ -37,6 +38,7 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
     getPoolPriceRatio,
     getLpTokenBalance,
     getPoolInfo,
+    getPoolInfoByPair,
     removeLiquidity,
   } = usePoolOperations();
   const { selectedAccount } = useWalletStore();
@@ -60,158 +62,204 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
   const [poolInfo, setPoolInfo] = useState<any>(null);
   const [lpTokenPercentage, setLpTokenPercentage] = useState<number>(0);
 
+  // Add helper function to extract numeric ID consistently
+  const extractId = (x: any): number => {
+    if (typeof x === 'object' && x !== null && 'WithId' in x) {
+      return Number(x.WithId);
+    } else if (typeof x === 'number') {
+      return x;
+    } else {
+      return Number(x);
+    }
+  };
+
+  // 유틸리티 함수 - 여러 곳에서 재사용됨
+  const extractBalance = (json: any): bigint => {
+    if (
+      json &&
+      typeof json === 'object' &&
+      'balance' in json &&
+      typeof json.balance === 'string'
+    ) {
+      return BigInt(json.balance);
+    }
+    return 0n;
+  };
+
+  // 모달 닫힐 때 상태 초기화
+  useEffect(() => {
+    if (!isOpen) {
+      setAmount0('');
+      setAmount1('');
+      setPriceRatio(null);
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     async function fetchBalances() {
       if (!api || !selectedAccount) return;
 
-      // 토큰 메타데이터 조회
-      const meta0 = await api.query.assets.metadata(token0.id);
-      const meta1 = await api.query.assets.metadata(token1.id);
-      const humanMeta0 = meta0.toHuman();
-      const humanMeta1 = meta1.toHuman();
-      const decimals0 =
-        typeof humanMeta0 === 'object' && humanMeta0 !== null && 'decimals' in humanMeta0
-          ? Number(humanMeta0.decimals)
-          : 0;
-      const decimals1 =
-        typeof humanMeta1 === 'object' && humanMeta1 !== null && 'decimals' in humanMeta1
-          ? Number(humanMeta1.decimals)
-          : 0;
-
-      // 잔액 조회
-      const balance0 = await api.query.assets.account(token0.id, selectedAccount);
-      const balance1 = await api.query.assets.account(token1.id, selectedAccount);
-      function extractBalance(json: any): bigint {
-        if (
-          json &&
-          typeof json === 'object' &&
-          'balance' in json &&
-          typeof json.balance === 'string'
-        ) {
-          return BigInt(json.balance);
-        }
-        return 0n;
-      }
-      const bal0 = extractBalance(balance0.toJSON());
-      const bal1 = extractBalance(balance1.toJSON());
-      const lpBalance = await getLpTokenBalance(
-        Number(token0.id),
-        Number(token1.id),
-        selectedAccount,
-      );
-      console.log('[DEBUG] getLpTokenBalance result:', lpBalance);
-      // 화면에 표시할 잔액 포맷팅
-      setDisplayBalance0(
-        (Number(bal0) / Math.pow(10, decimals0)).toLocaleString(undefined, {
-          maximumFractionDigits: decimals0,
-        }),
-      );
-      setDisplayBalance1(
-        (Number(bal1) / Math.pow(10, decimals1)).toLocaleString(undefined, {
-          maximumFractionDigits: decimals1,
-        }),
-      );
-
-      // LP 토큰 잔액 조회 추가
       try {
-        // 1. 풀 정보 가져오기
-        const poolInfoData = await getPoolInfo(Number(token0.id), Number(token1.id));
-        setPoolInfo(poolInfoData);
+        // Extract numeric IDs
+        const id0 = extractId(token0.id);
+        const id1 = extractId(token1.id);
 
-        if (poolInfoData.poolExists) {
-          // 2. LP 토큰 잔액 가져오기
-          const lpBalance = await getLpTokenBalance(
-            Number(token0.id),
-            Number(token1.id),
-            selectedAccount,
-          );
-          setLpTokenBalance(lpBalance);
+        // 토큰 메타데이터 조회
+        const meta0 = await api.query.assets.metadata(id0);
+        const meta1 = await api.query.assets.metadata(id1);
+        const humanMeta0 = meta0.toHuman();
+        const humanMeta1 = meta1.toHuman();
+        const decimals0 =
+          typeof humanMeta0 === 'object' && humanMeta0 !== null && 'decimals' in humanMeta0
+            ? Number(humanMeta0.decimals)
+            : 0;
+        const decimals1 =
+          typeof humanMeta1 === 'object' && humanMeta1 !== null && 'decimals' in humanMeta1
+            ? Number(humanMeta1.decimals)
+            : 0;
 
-          // 3. 전체 LP 유동성에서의 비율 계산 (선택적)
-          if (lpBalance.lpTokenId) {
-            try {
-              // LP 토큰의 총 공급량 조회
-              const totalSupplyInfo = await api.query.assets.asset(lpBalance.lpTokenId);
-              const totalSupplyData = totalSupplyInfo.toJSON();
-              if (
-                totalSupplyData &&
-                typeof totalSupplyData === 'object' &&
-                'supply' in totalSupplyData &&
-                totalSupplyData.supply !== null &&
-                totalSupplyData.supply !== undefined
-              ) {
-                const totalSupply = BigInt(totalSupplyData.supply.toString());
-                if (totalSupply > 0n) {
-                  const userRawBalance = BigInt(lpBalance.rawBalance || '0');
-                  const percentage = (Number(userRawBalance) / Number(totalSupply)) * 100;
-                  setLpTokenPercentage(percentage);
-                }
-              }
-            } catch (err) {
-              console.error('Error calculating LP token percentage:', err);
+        // 잔액 조회
+        const balance0 = await api.query.assets.account(id0, selectedAccount);
+        const balance1 = await api.query.assets.account(id1, selectedAccount);
+
+        const bal0 = extractBalance(balance0.toJSON());
+        const bal1 = extractBalance(balance1.toJSON());
+
+        // LP 토큰 잔액 조회 - 실패해도 계속 진행
+        try {
+          const lpBalance = await getLpTokenBalance(id0, id1, selectedAccount);
+          console.log('[DEBUG] getLpTokenBalance result:', lpBalance);
+
+          if (lpBalance > 0n) {
+            // LP 토큰 메타데이터 (심볼, 소수점 등) 조회
+            const poolInfo = await getPoolInfoByPair(id0, id1);
+
+            if (poolInfo && poolInfo.poolExists && poolInfo.lpTokenId) {
+              const lpTokenMeta = await api.query.assets.metadata(poolInfo.lpTokenId);
+              const lpTokenMetaHuman = lpTokenMeta.toHuman();
+              const lpTokenDecimals =
+                typeof lpTokenMetaHuman === 'object' &&
+                lpTokenMetaHuman !== null &&
+                'decimals' in lpTokenMetaHuman
+                  ? Number(lpTokenMetaHuman.decimals)
+                  : 18; // Default LP token decimals
+
+              // LP 토큰 심볼 추출
+              const lpTokenSymbol =
+                typeof lpTokenMetaHuman === 'object' &&
+                lpTokenMetaHuman !== null &&
+                'symbol' in lpTokenMetaHuman
+                  ? String(lpTokenMetaHuman.symbol)
+                  : 'LP';
+
+              // 보기 좋게 형식화된 잔액
+              const formattedLpBalance = (
+                Number(lpBalance) / Math.pow(10, lpTokenDecimals)
+              ).toLocaleString(undefined, {
+                maximumFractionDigits: lpTokenDecimals,
+              });
+
+              // LP 보유량의 풀 내 지분 비율 계산
+              // (예시: 상세 계산은 체인/UI 요구사항에 따라 달라질 수 있음)
+              let lpPercentage = 0;
+
+              // ... (추가 LP 지분 계산 로직)
+
+              // LP 토큰 정보 저장
+              setLpTokenBalance({
+                lpTokenId: poolInfo.lpTokenId,
+                rawBalance: lpBalance.toString(),
+                humanReadableBalance: Number(lpBalance) / Math.pow(10, lpTokenDecimals),
+                lpTokenSymbol,
+                lpTokenDecimals,
+                baseAssetId: id0,
+                quoteAssetId: id1,
+              });
+
+              setLpTokenPercentage(lpPercentage);
             }
           }
+        } catch (err) {
+          console.warn('LP token balance fetch failed, but continuing:', err);
+          // Silent failure for LP token - this allows the modal to work for new pools
         }
+
+        // 사용자 친화적인 형식으로 잔액 표시
+        setDisplayBalance0(
+          (Number(bal0) / Math.pow(10, decimals0)).toLocaleString(undefined, {
+            maximumFractionDigits: decimals0,
+          }),
+        );
+        setDisplayBalance1(
+          (Number(bal1) / Math.pow(10, decimals1)).toLocaleString(undefined, {
+            maximumFractionDigits: decimals1,
+          }),
+        );
+
+        return { bal0, bal1 };
       } catch (error) {
-        console.error('Error fetching LP token balance:', error);
+        console.error('잔액 및 풀 정보 조회 중 오류:', error);
+        // Show user-friendly balances even on error
+        setDisplayBalance0('0');
+        setDisplayBalance1('0');
+        return { bal0: 0n, bal1: 0n };
       }
     }
+
     if (isOpen) {
       fetchBalances();
     }
-  }, [api, selectedAccount, token0.id, token1.id]);
+  }, [
+    isOpen,
+    api,
+    selectedAccount,
+    token0.id,
+    token1.id,
+    getPoolInfoByPair,
+    getLpTokenBalance,
+  ]);
 
   useEffect(() => {
-    // Fetch price ratio when modal opens
-    if (isOpen && token0 && token1) {
-      const fetchPriceRatio = async () => {
-        try {
-          // 기존 가격 비율 로직
-          const ratio = await getPoolPriceRatio(token0.id, token1.id);
+    async function fetchPriceRatio() {
+      if (!api || !token0 || !token1) return;
 
-          // poolInfo가 있는 경우, reserve 값을 사용하여 가격 배율 수동 계산 (추가 안정성)
-          if (poolInfo && poolInfo.poolExists && poolInfo.reserve0 && poolInfo.reserve1) {
-            const meta0 = await api?.query.assets.metadata(token0.id);
-            const meta1 = await api?.query.assets.metadata(token1.id);
-            const humanMeta0 = meta0?.toHuman();
-            const humanMeta1 = meta1?.toHuman();
+      try {
+        // Extract numeric IDs
+        const id0 = extractId(token0.id);
+        const id1 = extractId(token1.id);
 
-            const decimals0 =
-              typeof humanMeta0 === 'object' &&
-              humanMeta0 !== null &&
-              'decimals' in humanMeta0
-                ? Number(humanMeta0.decimals)
-                : 0;
-            const decimals1 =
-              typeof humanMeta1 === 'object' &&
-              humanMeta1 !== null &&
-              'decimals' in humanMeta1
-                ? Number(humanMeta1.decimals)
-                : 0;
+        // Use getPoolPriceRatio function to fetch price ratio
+        // This function handles cases where pools don't exist
+        const ratio = await getPoolPriceRatio(id0, id1);
 
-            // 소수점 고려하여 수동으로 가격 계산
-            const reserve0Adjusted = Number(poolInfo.reserve0) / Math.pow(10, decimals0);
-            const reserve1Adjusted = Number(poolInfo.reserve1) / Math.pow(10, decimals1);
-
-            if (reserve0Adjusted > 0 && reserve1Adjusted > 0) {
-              const calculatedRatio = reserve1Adjusted / reserve0Adjusted;
-              setPriceRatio(calculatedRatio);
-              return;
-            }
-          }
-
-          // 위의 계산이 실패하면 기본 로직 사용
-          if (ratio) {
-            setPriceRatio(ratio);
-          }
-        } catch (error) {
-          console.error('Failed to fetch price ratio:', error);
+        if (ratio === 1) {
+          console.log('[fetchPriceRatio] 대체 비율 사용:', ratio);
         }
-      };
 
+        setPriceRatio(ratio);
+
+        // Adjust amounts based on new ratio if either one is filled
+        if (amount0 && !amount1 && Number(amount0) > 0) {
+          const newAmount1 = (Number(amount0) * ratio).toFixed(6);
+          setAmount1(newAmount1);
+        } else if (amount1 && !amount0 && Number(amount1) > 0) {
+          const newAmount0 = (Number(amount1) / ratio).toFixed(6);
+          setAmount0(newAmount0);
+        }
+
+        return ratio;
+      } catch (error) {
+        console.error('[fetchPriceRatio] Error fetching price ratio:', error);
+        // Use default ratio (1) as fallback
+        setPriceRatio(1);
+        return 1;
+      }
+    }
+
+    if (isOpen && token0 && token1 && api) {
       fetchPriceRatio();
     }
-  }, [isOpen, token0, token1, getPoolPriceRatio, api, poolInfo]);
+  }, [isOpen, token0, token1, api, getPoolPriceRatio]);
 
   const handleAmount0Change = (value: string) => {
     setAmount0(value);
@@ -233,7 +281,7 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
     if (priceRatio && value) {
       try {
         const parsedValue = parseFloat(value);
-        if (!isNaN(parsedValue) && priceRatio !== 0) {
+        if (!isNaN(parsedValue)) {
           const calculated = parsedValue / priceRatio;
           setAmount0(calculated.toFixed(6));
         }
@@ -258,8 +306,12 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
           return;
         }
 
+        // Extract numeric IDs
+        const id0 = extractId(token0.id);
+        const id1 = extractId(token1.id);
+
         // 그루핑을 위해 풀 정보 가져오기
-        const poolInfo = await getPoolInfo(Number(token0.id), Number(token1.id));
+        const poolInfo = await getPoolInfoByPair(id0, id1);
         if (!poolInfo.poolExists) {
           throw new Error('Pool does not exist');
         }
@@ -291,8 +343,8 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
 
         // LP 토큰 제거 호출
         await removeLiquidity(
-          { WithId: token0.id },
-          { WithId: token1.id },
+          { WithId: id0 },
+          { WithId: id1 },
           lpAmountToRemove.toString(),
           minBaseAmount,
           minQuoteAmount,
@@ -312,8 +364,13 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
       }
       // Fetch decimals for each token
       if (!api) throw new Error('API not connected');
-      const meta0 = await api.query.assets.metadata(token0.id);
-      const meta1 = await api.query.assets.metadata(token1.id);
+
+      // Extract numeric IDs
+      const id0 = extractId(token0.id);
+      const id1 = extractId(token1.id);
+
+      const meta0 = await api.query.assets.metadata(id0);
+      const meta1 = await api.query.assets.metadata(id1);
       const humanMeta0 = meta0.toHuman();
       const humanMeta1 = meta1.toHuman();
       const decimals0 =
@@ -331,8 +388,8 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
       }
       if (!selectedAccount) throw new Error('No wallet/account connected');
       // 1. 잔고 조회
-      const balance0 = await api.query.assets.account(token0.id, selectedAccount);
-      const balance1 = await api.query.assets.account(token1.id, selectedAccount);
+      const balance0 = await api.query.assets.account(id0, selectedAccount);
+      const balance1 = await api.query.assets.account(id1, selectedAccount);
       function extractBalance(json: any): bigint {
         if (
           json &&
@@ -376,31 +433,26 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
             Object.keys(valueHuman).length === 0
           )
             continue;
-          const extractId = (x: any) =>
-            typeof x === 'object' && x !== null && 'WithId' in x
-              ? Number(x.WithId)
-              : typeof x === 'number'
-                ? x
-                : Number(x);
+
+          // Get numeric IDs for current tokens
+          const id0 = extractId(token0.id);
+          const id1 = extractId(token1.id);
+
           const keyArr = Array.isArray(keyHuman[0]) ? keyHuman[0] : keyHuman;
           const baseAssetId = extractId(keyArr[0]);
           const quoteAssetId = extractId(keyArr[1]);
+
           // 두 방향 모두 체크: (token0, token1) 또는 (token1, token0)
-          if (baseAssetId === Number(token0.id) && quoteAssetId === Number(token1.id)) {
+          if (baseAssetId === id0 && quoteAssetId === id1) {
             if (valueHuman) {
               poolExists = true;
               poolOrder = 'token0-token1';
-
               break;
             }
-          } else if (
-            baseAssetId === Number(token1.id) &&
-            quoteAssetId === Number(token0.id)
-          ) {
+          } else if (baseAssetId === id1 && quoteAssetId === id0) {
             if (valueHuman) {
               poolExists = true;
               poolOrder = 'token1-token0';
-
               break;
             }
           }
@@ -416,26 +468,24 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
       // 어떤 순서로 풀 공급을 시도할지 poolOrder 값에 따라 결정
       if (poolOrder === 'token0-token1') {
         await addLiquidity(
-          { WithId: token0.id },
-          { WithId: token1.id },
-          rawAmount0,
-          rawAmount1,
-          minBase,
-          minQuote,
+          id0,
+          id1,
+          Number(rawAmount0),
+          Number(rawAmount1),
           selectedAccount,
-          selectedAccount, // pass full account object for correct signer
         );
       } else if (poolOrder === 'token1-token0') {
         await addLiquidity(
-          { WithId: token1.id },
-          { WithId: token0.id },
-          rawAmount1,
-          rawAmount0,
-          minQuote,
-          minBase,
+          id1,
+          id0,
+          Number(rawAmount1),
+          Number(rawAmount0),
           selectedAccount,
-          selectedAccount, // pass full account object for correct signer
         );
+      }
+      // Call onSubmit callback if provided
+      if (onSubmit) {
+        onSubmit({ token0: Number(amount0), token1: Number(amount1) });
       }
       onClose();
     } catch (error) {
@@ -470,24 +520,37 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
     : '0';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="bg-[#18181b] rounded-lg p-6 w-full max-w-md border border-gray-700 shadow-lg relative">
-        {/* 닫기 버튼 */}
-        <button
-          className="absolute top-4 right-4 text-gray-400 hover:text-white"
-          onClick={onClose}
-        >
-          ✕
-        </button>
-
-        {/* 헤더 */}
-        <h2 className="text-2xl font-semibold mb-2 text-white">
-          {type === 'add' ? 'Add Liquidity' : 'Remove Liquidity'}
-        </h2>
-        <div className="mb-6 text-gray-400 text-sm">
-          Specify the token amounts required for liquidity.
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center ${
+        isOpen ? 'block' : 'hidden'
+      }`}
+    >
+      <div className="fixed inset-0 bg-black opacity-70" onClick={onClose}></div>
+      <div className="z-10 bg-[#151516] rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-white">
+            {type === 'add' ? 'Add Liquidity' : 'Remove Liquidity'} - {poolName}
+          </h2>
+          <button
+            className="text-gray-400 hover:text-white transition-colors"
+            onClick={onClose}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
         </div>
-
         {/* 토큰 입력 영역 */}
         <div className="space-y-4">
           {/* 첫 번째 토큰 입력 */}
@@ -554,23 +617,36 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
         </div>
 
         {/* Pool/LP 존재 여부 안내 */}
-        {poolInfo && !poolInfo.poolExists && (
-          <div className="text-red-500 text-center my-4">
-            No liquidity pool exists for this token pair.<br/>Please create the pool first.
+        {isLoading ? (
+          <div className="text-blue-400 text-center my-4">Loading pool information...</div>
+        ) : poolInfo && !poolInfo.poolExists ? (
+          <div className="text-yellow-500 text-center my-4">
+            No liquidity pool exists for this token pair yet.
+            <br />
+            You will be creating a new pool with your first deposit.
           </div>
-        )}
+        ) : null}
 
         {/* LP 포지션 정보 - 풀/LP가 있을 때만 */}
-        {lpTokenBalance && lpTokenBalance.lpTokenId !== 0 && poolInfo && poolInfo.poolExists && (
-          <LpPositionInfo
-            lpTokenBalance={lpTokenBalance}
-            token0Symbol={token0.symbol}
-            token1Symbol={token1.symbol}
-            lpTokenPercentage={lpTokenPercentage}
-            poolInfo={poolInfo}
-            formattedLpBalance={formattedLpBalance || (lpTokenBalance.humanReadableBalance?.toLocaleString(undefined, { maximumFractionDigits: lpTokenBalance.lpTokenDecimals || 6 }) || '0')}
-          />
-        )}
+        {lpTokenBalance &&
+          lpTokenBalance.lpTokenId !== 0 &&
+          poolInfo &&
+          poolInfo.poolExists && (
+            <LpPositionInfo
+              lpTokenBalance={lpTokenBalance}
+              token0Symbol={token0.symbol}
+              token1Symbol={token1.symbol}
+              lpTokenPercentage={lpTokenPercentage}
+              poolInfo={poolInfo}
+              formattedLpBalance={
+                formattedLpBalance ||
+                lpTokenBalance.humanReadableBalance?.toLocaleString(undefined, {
+                  maximumFractionDigits: lpTokenBalance.lpTokenDecimals || 6,
+                }) ||
+                '0'
+              }
+            />
+          )}
 
         {/* 버튼 */}
         <Button

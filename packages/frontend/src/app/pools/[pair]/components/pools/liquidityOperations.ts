@@ -37,17 +37,12 @@ export const useLiquidityOperations = () => {
       if (!api) throw new Error('API not connected');
 
       try {
-        // 풀 인덱스 찾기
-        const poolIndex = await findPoolIndexByPair(baseAssetId, quoteAssetId);
-
-        if (poolIndex === null) {
-          throw new Error('Pool not found for the given pair');
-        }
-
         console.log(
-          '[addLiquidity] Adding to pool:',
-          'poolIndex:',
-          poolIndex,
+          '[addLiquidity] Adding liquidity:',
+          'baseAssetId:',
+          baseAssetId,
+          'quoteAssetId:',
+          quoteAssetId,
           'baseAmount:',
           baseAmount,
           'quoteAmount:',
@@ -57,56 +52,86 @@ export const useLiquidityOperations = () => {
         // 서명자 가져오기
         const { signer } = await getAccountSigner(address, selectedAccountObj);
 
-        // 유동성 추가 extrinsic 생성
-        const extrinsic = api.tx.hybridOrderbook.addLiquidity(
-          poolIndex,
-          baseAmount,
-          quoteAmount,
+        // 자산 ID를 WithId 형식으로 변환
+        const baseAsset = { WithId: baseAssetId };
+        const quoteAsset = { WithId: quoteAssetId };
+
+        // 모든 금액을 문자열로 변환 (u128에는 문자열로 전달해야 함)
+        const baseAmountStr = baseAmount.toString();
+        const quoteAmountStr = quoteAmount.toString();
+
+        // 슬리피지 방지용 최소 금액 (예: 원하는 금액의 99%)
+        // BigInt를 사용하여 대용량 정수 계산
+        const baseAmountBig = BigInt(baseAmount);
+        const quoteAmountBig = BigInt(quoteAmount);
+        const baseAmountMinStr = ((baseAmountBig * BigInt(99)) / BigInt(100)).toString();
+        const quoteAmountMinStr = ((quoteAmountBig * BigInt(99)) / BigInt(100)).toString();
+
+        console.log(
+          '[addLiquidity] Formatted parameters (as strings):',
+          'baseAsset:',
+          JSON.stringify(baseAsset),
+          'quoteAsset:',
+          JSON.stringify(quoteAsset),
+          'baseAmountDesired:',
+          baseAmountStr,
+          'quoteAmountDesired:',
+          quoteAmountStr,
+          'baseAmountMin:',
+          baseAmountMinStr,
+          'quoteAmountMin:',
+          quoteAmountMinStr,
+          'mintTo:',
+          address,
         );
 
-        // 상태 메시지 정의
-        const txMessages = {
-          pending: 'Adding liquidity...',
-          success: 'Liquidity added successfully',
-          error: 'Failed to add liquidity',
-        };
+        // 유동성 추가 extrinsic 생성 (모든 금액은 문자열로 전달)
+        const extrinsic = api.tx.hybridOrderbook.addLiquidity(
+          baseAsset,
+          quoteAsset,
+          baseAmountStr,
+          quoteAmountStr,
+          baseAmountMinStr,
+          quoteAmountMinStr,
+          address,
+        );
 
-        // 서명 및 전송 직접 호출 (발송된 해시 값 반환)
-        return new Promise((resolve, reject) => {
-          extrinsic
-            .signAndSend(address, { signer }, ({ status, events, dispatchError }) => {
-              if (status.isInBlock || status.isFinalized) {
-                // 트랜잭션 해시 가져오기
-                const txHash = extrinsic.hash.toString();
+        // handleExtrinsic 함수 사용
+        const result = await handleExtrinsic(
+          extrinsic,
+          { signer, account: address },
+          {
+            pending: 'Adding liquidity...',
+            success: 'Liquidity added successfully',
+            error: 'Failed to add liquidity',
+          },
+        );
 
-                // 오류 없이 성공한 경우
-                if (!dispatchError) {
-                  console.log(`[addLiquidity] Transaction included in block with hash: ${txHash}`);
-                  // 성공 처리, 해시 반환
-                  resolve(txHash);
-                } else {
-                  // 오류 처리
-                  let errorMessage = txMessages.error;
-                  if (dispatchError.isModule) {
-                    const decoded = extrinsic.registry.findMetaError(dispatchError.asModule);
-                    errorMessage = `${decoded.section}.${decoded.name}: ${decoded.docs}`;
-                  }
-                  console.error(`[addLiquidity] Transaction error: ${errorMessage}`);
-                  reject(new Error(errorMessage));
-                }
+        // 트랜잭션 해시 반환
+        const blockHash = (
+          result as unknown as {
+            status: { isFinalized: boolean; asFinalized: string; asInBlock: string };
+          }
+        ).status.isFinalized
+          ? (
+              result as unknown as {
+                status: { isFinalized: boolean; asFinalized: string; asInBlock: string };
               }
-            })
-            .catch((error) => {
-              console.error('[addLiquidity] Signing error:', error);
-              reject(error);
-            });
-        });
+            ).status.asFinalized.toString()
+          : (
+              result as unknown as {
+                status: { isFinalized: boolean; asFinalized: string; asInBlock: string };
+              }
+            ).status.asInBlock.toString();
+
+        console.log('[addLiquidity] Transaction successful with hash:', blockHash);
+        return blockHash;
       } catch (error) {
         console.error('[addLiquidity] Error adding liquidity:', error);
         throw new Error(`Failed to add liquidity: ${error}`);
       }
     },
-    [api, findPoolIndexByPair],
+    [api, handleExtrinsic],
   );
 
   /**
@@ -164,14 +189,18 @@ export const useLiquidityOperations = () => {
 
                 // 오류 없이 성공한 경우
                 if (!dispatchError) {
-                  console.log(`[removeLiquidity] Transaction included in block with hash: ${txHash}`);
+                  console.log(
+                    `[removeLiquidity] Transaction included in block with hash: ${txHash}`,
+                  );
                   // 성공 처리, 해시 반환
                   resolve(txHash);
                 } else {
                   // 오류 처리
                   let errorMessage = txMessages.error;
                   if (dispatchError.isModule) {
-                    const decoded = extrinsic.registry.findMetaError(dispatchError.asModule);
+                    const decoded = extrinsic.registry.findMetaError(
+                      dispatchError.asModule,
+                    );
                     errorMessage = `${decoded.section}.${decoded.name}: ${decoded.docs}`;
                   }
                   console.error(`[removeLiquidity] Transaction error: ${errorMessage}`);

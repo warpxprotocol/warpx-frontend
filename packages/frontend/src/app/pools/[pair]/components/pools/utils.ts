@@ -9,16 +9,23 @@ declare global {
   }
 }
 
-// 토큰 ID 추출 유틸리티 함수
-export function extractId(x: any): number {
-  if (typeof x === 'object' && x !== null && 'WithId' in x) {
-    return Number(x.WithId);
-  } else if (typeof x === 'number') {
-    return x;
-  } else {
-    return Number(x);
+export const extractId = (x: any): number => {
+  console.log('extractId input:', x, 'type:', typeof x);
+
+  if (x === undefined || x === null) return NaN;
+
+  if (typeof x === 'object' && x !== null) {
+    if ('WithId' in x) return Number(x.WithId);
+    if ('withId' in x) return Number(x.withId);
   }
-}
+
+  // 숫자나 문자열로 변환 시도
+  const num = Number(x);
+  if (!isNaN(num)) return num;
+
+  console.warn('Failed to extract ID from:', x);
+  return NaN;
+};
 
 // 자산 메타데이터에서 소수점 추출 함수
 export function extractDecimals(metaHuman: any): number {

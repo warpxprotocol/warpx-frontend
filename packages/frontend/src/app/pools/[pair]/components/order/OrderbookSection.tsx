@@ -5,7 +5,13 @@ import React, { useState } from 'react';
 import TradesTable from '../trade/TradesTable';
 import OrderbookTable from './OrderbookTable';
 
-export default function OrderbookSection() {
+export default function OrderbookSection({
+  baseAssetId,
+  quoteAssetId,
+}: {
+  baseAssetId?: number;
+  quoteAssetId?: number;
+}) {
   const [activeTab, setActiveTab] = useState<'orderbook' | 'trades'>('orderbook');
 
   return (

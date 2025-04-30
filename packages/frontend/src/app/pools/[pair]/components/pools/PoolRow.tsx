@@ -13,27 +13,42 @@ export function PoolRow({ pool }: { pool: Pool }) {
   return (
     <tr className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
       <td className="py-3 px-4 font-medium text-white">
-        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
+        <Link
+          href={`/pools/${encodeURIComponent(pool.id)}?baseId=${pool.token0.id}&quoteId=${pool.token1.id}`}
+          className="block"
+        >
           {pool.name}
         </Link>
       </td>
       <td className="py-3 px-4 text-gray-300">
-        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
+        <Link
+          href={`/pools/${encodeURIComponent(pool.id)}?baseId=${pool.token0.id}&quoteId=${pool.token1.id}`}
+          className="block"
+        >
           {pool.protocol}
         </Link>
       </td>
       <td className="py-3 px-4 text-gray-300">
-        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
+        <Link
+          href={`/pools/${encodeURIComponent(pool.id)}?baseId=${pool.token0.id}&quoteId=${pool.token1.id}`}
+          className="block"
+        >
           {pool.feeTier}
         </Link>
       </td>
       <td className="py-3 px-4 text-gray-300">
-        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
+        <Link
+          href={`/pools/${encodeURIComponent(pool.id)}?baseId=${pool.token0.id}&quoteId=${pool.token1.id}`}
+          className="block"
+        >
           {pool.tvl}
         </Link>
       </td>
       <td className="py-3 px-4 text-gray-300">
-        <Link href={`/pools/${encodeURIComponent(pool.id)}`} className="block">
+        <Link
+          href={`/pools/${encodeURIComponent(pool.id)}?baseId=${pool.token0.id}&quoteId=${pool.token1.id}`}
+          className="block"
+        >
           {pool.apr}
         </Link>
       </td>

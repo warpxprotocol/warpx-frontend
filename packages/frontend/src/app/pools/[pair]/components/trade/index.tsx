@@ -20,7 +20,13 @@ interface AssetPair {
   quoteAssetId: number;
 }
 
-export default function TradeSection() {
+export default function TradeSection({
+  baseAssetId,
+  quoteAssetId,
+}: {
+  baseAssetId?: number;
+  quoteAssetId?: number;
+}) {
   // Order state
   const [orderType, setOrderType] = useState<OrderType>('market');
   const [side, setSide] = useState<TradeSide>('buy');

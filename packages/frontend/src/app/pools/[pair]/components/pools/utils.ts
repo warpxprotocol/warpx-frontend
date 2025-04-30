@@ -15,11 +15,42 @@ export const extractId = (x: any): number => {
   if (x === undefined || x === null) return NaN;
 
   if (typeof x === 'object' && x !== null) {
-    if ('WithId' in x) return Number(x.WithId);
-    if ('withId' in x) return Number(x.withId);
+    // Handle case variations of WithId property
+    if ('WithId' in x) {
+      console.log('Found WithId property:', x.WithId);
+      return Number(x.WithId);
+    }
+    if ('withId' in x) {
+      console.log('Found withId property:', x.withId);
+      return Number(x.withId);
+    }
+    if ('withid' in x) {
+      console.log('Found withid property:', x.withid);
+      return Number(x.withid);
+    }
+
+    // Check for case-insensitive match
+    const keys = Object.keys(x);
+    const withIdKey = keys.find((key) => key.toLowerCase() === 'withid');
+    if (withIdKey) {
+      console.log(`Found case-insensitive withId property (${withIdKey}):`, x[withIdKey]);
+      return Number(x[withIdKey]);
+    }
+
+    // If x is an object with only one property and that property is a number or string
+    if (
+      keys.length === 1 &&
+      (typeof x[keys[0]] === 'number' || typeof x[keys[0]] === 'string')
+    ) {
+      console.log(`Extracting from single property object (${keys[0]}):`, x[keys[0]]);
+      return Number(x[keys[0]]);
+    }
+
+    // Log the object structure for debugging
+    console.log('Object structure:', JSON.stringify(x));
   }
 
-  // 숫자나 문자열로 변환 시도
+  // Try converting directly to number
   const num = Number(x);
   if (!isNaN(num)) return num;
 

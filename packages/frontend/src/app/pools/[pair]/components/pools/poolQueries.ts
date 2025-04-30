@@ -1,4 +1,3 @@
-import { ApiPromise } from '@polkadot/api';
 import { useCallback } from 'react';
 
 import { useApi } from '@/hooks/useApi';
@@ -62,10 +61,30 @@ export const usePoolQueries = () => {
           const valueHuman =
             typeof value.toHuman === 'function' ? value.toHuman() : undefined;
 
-          // 키에서 풀 인덱스 추출
-          const poolIndex = key.args[0].toNumber
-            ? key.args[0].toNumber()
-            : Number(key.args[0]);
+          // 키에서 풀 인덱스 추출 - 더 방어적인 로직으로 강화
+          let poolIndex;
+          try {
+            if (!key.args || !key.args[0]) {
+              console.log('[findPoolIndexByPair] key.args[0] is undefined or null');
+              poolIndex = NaN;
+            } else if (key.args[0].toNumber && typeof key.args[0].toNumber === 'function') {
+              poolIndex = key.args[0].toNumber();
+            } else if (typeof key.args[0] === 'object' && 'valueOf' in key.args[0]) {
+              poolIndex = Number(key.args[0].valueOf());
+            } else {
+              poolIndex = Number(key.args[0]);
+            }
+
+            if (isNaN(poolIndex)) {
+              console.log(
+                '[findPoolIndexByPair] Failed to extract valid pool index from:',
+                key.args[0],
+              );
+            }
+          } catch (e) {
+            console.error('[findPoolIndexByPair] Error extracting pool index:', e);
+            poolIndex = NaN;
+          }
 
           // 키 구조 자세히 로깅
           const keyHuman = key.toHuman ? key.toHuman() : null;
@@ -212,6 +231,14 @@ export const usePoolQueries = () => {
             ((poolBaseAssetId === id0 && poolQuoteAssetId === id1) ||
               (poolBaseAssetId === id1 && poolQuoteAssetId === id0))
           ) {
+            // NaN 인덱스 체크
+            if (isNaN(poolIndex)) {
+              console.log(
+                '[findPoolIndexByPair] Found matching pool but index is NaN, continuing search',
+              );
+              continue; // Skip this entry and continue searching
+            }
+
             console.log('[findPoolIndexByPair] 매칭되는 풀 찾음! 인덱스:', poolIndex);
             return poolIndex;
           }
@@ -235,6 +262,21 @@ export const usePoolQueries = () => {
   const getPoolInfo = useCallback(
     async (poolIndex: number): Promise<PoolInfo> => {
       if (!api) throw new Error('API not connected');
+
+      // 방어적 코딩: poolIndex가 유효한 숫자인지 확인
+      if (isNaN(poolIndex)) {
+        console.error('[getPoolInfo] Invalid pool index: NaN');
+        // 풀이 없을 때와 동일한 기본 구조 반환
+        return {
+          baseAssetId: 0,
+          quoteAssetId: 0,
+          reserve0: 0,
+          reserve1: 0,
+          lpTokenId: 0,
+          feeTier: 0,
+          poolExists: false,
+        };
+      }
 
       try {
         console.log('[getPoolInfo] Querying pool with index:', poolIndex);
@@ -363,7 +405,16 @@ export const usePoolQueries = () => {
         };
       } catch (error) {
         console.error('[getPoolInfo] Error getting pool info:', error);
-        throw new Error(`Failed to get pool info: ${error}`);
+        // 오류 발생 시 기본 구조 반환
+        return {
+          baseAssetId: 0,
+          quoteAssetId: 0,
+          reserve0: 0,
+          reserve1: 0,
+          lpTokenId: 0,
+          feeTier: 0,
+          poolExists: false,
+        };
       }
     },
     [api],

@@ -212,10 +212,6 @@ declare module '@polkadot/api-base/types/storage' {
     };
     hybridOrderbook: {
       /**
-       * Stores the `Hold` assets for limit order
-       **/
-      frozenAssets: AugmentedQuery<ApiType, (arg1: AccountId32 | string | Uint8Array, arg2: FrameSupportTokensFungibleUnionOfNativeOrWithId | { Native: any } | { WithId: any } | string | Uint8Array) => Observable<Option<u128>>, [AccountId32, FrameSupportTokensFungibleUnionOfNativeOrWithId]> & QueryableStorageEntry<ApiType, [AccountId32, FrameSupportTokensFungibleUnionOfNativeOrWithId]>;
-      /**
        * Stores the `PoolAssetId` that is going to be used for the next lp token.
        * This gets incremented whenever a new lp pool is created.
        **/

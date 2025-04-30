@@ -286,6 +286,10 @@ declare module '@polkadot/api-base/types/errors' {
        **/
       BelowMinimum: AugmentedError<ApiType>;
       /**
+       * Some conversion error occurred
+       **/
+      ConversionError: AugmentedError<ApiType>;
+      /**
        * An error occurred while cancelling an order.
        **/
       ErrorOnCancelOrder: AugmentedError<ApiType>;
@@ -310,6 +314,10 @@ declare module '@polkadot/api-base/types/errors' {
        **/
       InvalidAssetPair: AugmentedError<ApiType>;
       /**
+       * Invalid lot size
+       **/
+      InvalidLotSize: AugmentedError<ApiType>;
+      /**
        * The order price must be a multiple of the tick size.
        **/
       InvalidOrderPrice: AugmentedError<ApiType>;
@@ -321,6 +329,10 @@ declare module '@polkadot/api-base/types/errors' {
        * The provided path must consists of 2 assets at least.
        **/
       InvalidPath: AugmentedError<ApiType>;
+      /**
+       * Invalid tick size
+       **/
+      InvalidTickSize: AugmentedError<ApiType>;
       /**
        * The provided path must consists of unique assets.
        **/
@@ -761,6 +773,16 @@ declare module '@polkadot/api-base/types/errors' {
        * The submitted code is not authorized.
        **/
       Unauthorized: AugmentedError<ApiType>;
+      /**
+       * Generic error
+       **/
+      [key: string]: AugmentedError<ApiType>;
+    };
+    utility: {
+      /**
+       * Too many calls batched.
+       **/
+      TooManyCalls: AugmentedError<ApiType>;
       /**
        * Generic error
        **/

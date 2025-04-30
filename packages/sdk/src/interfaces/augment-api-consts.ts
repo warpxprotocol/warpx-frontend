@@ -161,6 +161,7 @@ declare module '@polkadot/api-base/types/consts' {
        * Asset class from [`Config::Assets`] used to pay the [`Config::PoolSetupFee`].
        **/
       poolSetupFeeAsset: FrameSupportTokensFungibleUnionOfNativeOrWithId & AugmentedConst<ApiType>;
+      standardDecimals: u8 & AugmentedConst<ApiType>;
       /**
        * Generic const
        **/
@@ -325,6 +326,16 @@ declare module '@polkadot/api-base/types/consts' {
        * transactions.
        **/
       operationalFeeMultiplier: u8 & AugmentedConst<ApiType>;
+      /**
+       * Generic const
+       **/
+      [key: string]: Codec;
+    };
+    utility: {
+      /**
+       * The limit on the number of batched calls.
+       **/
+      batchedCallsLimit: u32 & AugmentedConst<ApiType>;
       /**
        * Generic const
        **/

@@ -114,54 +114,50 @@ export const AssetsTab = () => {
         throw new Error('No signer available for the selected account');
       }
 
-      // Create asset and set admin sequentially
-      await handleExtrinsic(
-        api.tx.assets.create(newAssetId, selectedWeb3Account, minBalance),
-        {
-          signer: selectedAccount.signer,
-          account: selectedWeb3Account,
-        },
-        {
-          pending: 'Creating asset...',
-          success: 'Asset created successfully',
-          error: 'Failed to create asset',
-        },
+      // Create all three transactions
+      const createAssetTx = api.tx.assets.create(
+        newAssetId,
+        selectedWeb3Account,
+        minBalance,
       );
 
-      await handleExtrinsic(
-        api.tx.assets.setTeam(
-          newAssetId,
-          selectedWeb3Account, // issuer
-          selectedWeb3Account, // admin
-          selectedWeb3Account, // freezer
-        ),
-        {
-          signer: selectedAccount.signer,
-          account: selectedWeb3Account,
-        },
-        {
-          pending: 'Setting admin...',
-          success: 'Admin set successfully',
-          error: 'Failed to set admin',
-        },
+      const setTeamTx = api.tx.assets.setTeam(
+        newAssetId,
+        selectedWeb3Account, // issuer
+        selectedWeb3Account, // admin
+        selectedWeb3Account, // freezer
       );
 
-      // Set asset metadata
+      const setMetadataTx = api.tx.assets.setMetadata(
+        newAssetId,
+        assetName,
+        assetSymbol,
+        parseInt(assetDecimals),
+      );
+
+      // Combine all transactions into a single batchAll transaction
+      const batchAllTx = api.tx.utility.batchAll([createAssetTx, setTeamTx, setMetadataTx]);
+
+      console.log('[AssetsTab] Sending batch transaction with operations:', {
+        assetId: newAssetId,
+        name: assetName,
+        symbol: assetSymbol,
+        decimals: assetDecimals,
+        minBalance: minBalance,
+        account: selectedWeb3Account,
+      });
+
+      // Execute the batched transaction
       await handleExtrinsic(
-        api.tx.assets.setMetadata(
-          newAssetId,
-          assetName,
-          assetSymbol,
-          parseInt(assetDecimals),
-        ),
+        batchAllTx,
         {
           signer: selectedAccount.signer,
           account: selectedWeb3Account,
         },
         {
-          pending: 'Setting metadata...',
-          success: 'Metadata set successfully',
-          error: 'Failed to set metadata',
+          pending: 'Creating asset with metadata...',
+          success: 'Asset created successfully with metadata',
+          error: 'Failed to complete asset creation process',
         },
       );
 

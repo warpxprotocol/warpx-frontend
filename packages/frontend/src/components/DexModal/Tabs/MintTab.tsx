@@ -94,8 +94,13 @@ export const MintTab = () => {
     console.log('[MintTab] fetchAccountInfo: selectedAccount =', selectedAccount);
 
     try {
-      // 계정 잔액 조회
-      const accountInfo = await api.query.system.account(selectedAccount);
+      // 계정 정보와 에셋 메타데이터를 병렬로 조회
+      const [accountInfo, assetMetadatas] = await Promise.all([
+        api.query.system.account(selectedAccount),
+        api.query.assets.metadata.entries(),
+      ]);
+
+      // 계정 잔액 처리
       const accountInfoHuman = accountInfo.toHuman() as {
         data: {
           free: string | { toString: () => string };
@@ -117,22 +122,20 @@ export const MintTab = () => {
 
       console.log('[MintTab] Free balance:', freeBalance, 'Reserved:', reservedBalance);
       console.log('[MintTab] Fetching assets for account:', selectedAccount);
-
-      // 계정의 에셋 목록 조회
-      const assetMetadatas = await api.query.assets.metadata.entries();
       console.log('[MintTab] Total asset metadatas found:', assetMetadatas.length);
 
-      const assets: Asset[] = [];
-      const balances: Record<string, string> = {};
+      // 에셋 기본 정보 수집 - 모든 에셋 정보를 한 번에 조회
+      const assetIds = assetMetadatas.map(([key]) => key.args[0].toString());
 
-      for (const [key, metadata] of assetMetadatas) {
-        const assetId = key.args[0].toString();
-        console.log('Checking asset:', assetId);
+      // 모든 에셋 정보를 병렬로 조회
+      const assetInfoQueries = assetIds.map((assetId) => api.query.assets.asset(assetId));
+      const assetInfos = await Promise.all(assetInfoQueries);
 
-        console.log('[MintTab] typeof assetId:', typeof assetId, 'assetId:', assetId);
-        const assetInfo = await api.query.assets.asset(assetId);
-        console.log('Asset info:', assetInfo.toHuman());
-
+      // 관련 에셋만 필터링
+      const relevantAssets = [];
+      for (let i = 0; i < assetIds.length; i++) {
+        const assetId = assetIds[i];
+        const assetInfo = assetInfos[i];
         const assetInfoHuman = assetInfo.toHuman() as {
           owner: string;
           issuer: string;
@@ -148,28 +151,34 @@ export const MintTab = () => {
           status: string;
         } | null;
 
-        console.log('[MintTab] Asset', assetId, 'full info:', assetInfoHuman);
+        if (assetInfoHuman && assetInfoHuman.admin === selectedAccount) {
+          relevantAssets.push({
+            id: assetId,
+            info: assetInfoHuman,
+            metadata: assetMetadatas.find(
+              ([key]) => key.args[0].toString() === assetId,
+            )?.[1],
+          });
+        }
+      }
 
-        if (assetInfoHuman) {
-          const { owner, admin, minBalance, supply, status } = assetInfoHuman;
+      // 관련 에셋의 메타데이터와 잔액 조회를 병렬로 실행
+      const assets: Asset[] = [];
+      const balances: Record<string, string> = {};
 
-          console.log('[MintTab] Asset', assetId, 'admin:', admin, 'selectedAccount:', selectedAccount, 'status:', status);
-
-          // 해당 계정이 admin인 에셋만 필터링
-          if (admin === selectedAccount) {
-            console.log('Found matching asset:', assetId);
-
-            // 에셋 메타데이터 조회
-            const metadata = await api.query.assets.metadata(assetId);
+      if (relevantAssets.length > 0) {
+        const assetQueries = relevantAssets.map((asset) => {
+          const assetId = asset.id;
+          return Promise.all([
+            api.query.assets.metadata(assetId),
+            api.query.assets.account(assetId, selectedAccount),
+          ]).then(([metadata, balance]) => {
             const metadataHuman = metadata.toHuman() as {
               name?: string;
               symbol?: string;
               decimals?: string | number;
             } | null;
 
-            // 에셋 잔액 조회
-            console.log('[MintTab] typeof selectedAccount:', typeof selectedAccount, 'selectedAccount:', selectedAccount);
-            const balance = await api.query.assets.account(assetId, selectedAccount);
             const balanceJson = balance.toJSON();
             function extractBalance(json: any): string {
               if (
@@ -182,17 +191,28 @@ export const MintTab = () => {
               }
               return '0';
             }
+
             const actualBalance = extractBalance(balanceJson);
-            console.log('[MintTab] Asset', assetId, 'balance for', selectedAccount, '=', actualBalance);
             balances[assetId] = actualBalance;
 
-            assets.push({
+            console.log(
+              '[MintTab] Asset',
+              assetId,
+              'admin:',
+              asset.info.admin,
+              'selectedAccount:',
+              selectedAccount,
+              'balance:',
+              actualBalance,
+            );
+
+            return {
               id: assetId,
-              owner,
-              admin,
-              minBalance,
-              status: assetInfoHuman.status,
-              supply: assetInfoHuman.supply,
+              owner: asset.info.owner,
+              admin: asset.info.admin,
+              minBalance: asset.info.minBalance,
+              status: asset.info.status,
+              supply: asset.info.supply,
               metadata: metadataHuman
                 ? {
                     name: metadataHuman.name || `Asset #${assetId}`,
@@ -204,9 +224,12 @@ export const MintTab = () => {
                     symbol: `ASSET${assetId}`,
                     decimals: 12,
                   },
-            });
-          }
-        }
+            };
+          });
+        });
+
+        const processedAssets = await Promise.all(assetQueries);
+        assets.push(...processedAssets);
       }
 
       console.log('Final assets list:', assets);
@@ -214,7 +237,14 @@ export const MintTab = () => {
       setAssetBalances(balances);
       console.log('[MintTab] setAccountAssets:', assets);
       console.log('[MintTab] setAssetBalances:', balances);
-      console.log('[MintTab] After fetch: selectedAccount =', selectedAccount, ', selectedAsset =', selectedAsset, ', assetBalances =', balances);
+      console.log(
+        '[MintTab] After fetch: selectedAccount =',
+        selectedAccount,
+        ', selectedAsset =',
+        selectedAsset,
+        ', assetBalances =',
+        balances,
+      );
     } catch (error) {
       console.error('Failed to fetch account info:', error);
     }
@@ -227,7 +257,14 @@ export const MintTab = () => {
   const handleMint = async () => {
     if (!api || !isConnected || !selectedAccount || !selectedAsset || !amount) return;
 
-    console.log('[MintTab] handleMint: recipient =', selectedAccount, ', asset =', selectedAsset, ', amount =', amount);
+    console.log(
+      '[MintTab] handleMint: recipient =',
+      selectedAccount,
+      ', asset =',
+      selectedAsset,
+      ', amount =',
+      amount,
+    );
 
     try {
       setIsLoading(true);
@@ -252,30 +289,94 @@ export const MintTab = () => {
         : 12;
       // [수정] amount에 decimals 곱하기
       const mintAmount = BigInt(Math.floor(Number(amount) * 10 ** decimals)).toString();
-      // Mint 토큰
-      console.log('[MintTab] Minting tokens...', { mintAmount, decimals, amount, selectedAccount, selectedAsset });
-      console.log('[MintTab] Minting: assetId =', selectedAsset, 'recipient =', selectedAccount, 'amount =', mintAmount);
-    const mintTx = api.tx.assets.mint(selectedAsset, selectedAccount, mintAmount);
 
-      await handleExtrinsic(
-        mintTx,
-        {
-          signer: selectedWeb3Account.signer,
-          account: selectedAccount,
-        },
-        {
-          pending: 'Minting tokens...',
-          success: 'Tokens minted successfully',
-          error: 'Failed to mint tokens',
-        }
+      console.log('[MintTab] Minting tokens...', {
+        mintAmount,
+        decimals,
+        amount,
+        selectedAccount,
+        selectedAsset,
+      });
+      console.log(
+        '[MintTab] Minting: assetId =',
+        selectedAsset,
+        'recipient =',
+        selectedAccount,
+        'amount =',
+        mintAmount,
       );
-      // 트랜잭션 완료 후 잔고 fetch
-      console.log('[MintTab] Mint extrinsic finalized, refreshing balances...');
-      await fetchAccountInfo();
-      setAmount('');
+
+      // Create the mint transaction
+      const mintTx = api.tx.assets.mint(selectedAsset, selectedAccount, mintAmount);
+
+      try {
+        console.log('[MintTab] Sending mint transaction with params:', {
+          assetId: selectedAsset,
+          recipient: selectedAccount,
+          amount: mintAmount,
+          decimals: decimals,
+          originalAmount: amount,
+        });
+
+        // 방법 1: 단일 트랜잭션으로 처리 (batchAll 없이)
+        await handleExtrinsic(
+          mintTx,
+          {
+            signer: selectedWeb3Account.signer,
+            account: selectedAccount,
+          },
+          {
+            pending: 'Minting tokens...',
+            success: 'Tokens minted successfully',
+            error: 'Failed to mint tokens',
+          },
+        );
+
+        /* 방법 2: utility.batch 사용 (utility.batchAll 대신) - 필요시 주석 해제
+        const batchTx = api.tx.utility.batch([mintTx]);
+        await handleExtrinsic(
+          batchTx,
+          {
+            signer: selectedWeb3Account.signer,
+            account: selectedAccount,
+          },
+          {
+            pending: 'Processing batch transaction...',
+            success: 'Batch transaction completed successfully',
+            error: 'Failed to process batch transaction',
+          },
+        );
+        */
+
+        // 트랜잭션 완료 후 잔고 fetch
+        console.log('[MintTab] Transaction finalized, refreshing balances...');
+        await fetchAccountInfo();
+        setAmount('');
+      } catch (txError) {
+        // 오류 세부 정보 출력
+        console.error('Transaction error details:', txError);
+
+        // API 오류 응답 구조 분석
+        if (txError && typeof txError === 'object') {
+          // 자세한 오류 내용 출력
+          console.error('Error structure:', JSON.stringify(txError, null, 2));
+
+          // 특정 오류 필드 확인
+          if ('message' in txError)
+            console.error('Error message:', (txError as any).message);
+          if ('data' in txError) console.error('Error data:', (txError as any).data);
+          if ('type' in txError) console.error('Error type:', (txError as any).type);
+          if ('code' in txError) console.error('Error code:', (txError as any).code);
+        }
+
+        setError(
+          txError instanceof Error ? txError.message : 'Failed to process transaction',
+        );
+        throw txError; // 상위 catch 블록으로 오류 전달
+      }
     } catch (error) {
-      console.error('Failed to mint tokens:', error);
-      setError(error instanceof Error ? error.message : 'Failed to mint tokens');
+      console.error('Failed to process transaction:', error);
+      setError(error instanceof Error ? error.message : 'Failed to process transaction');
     } finally {
       setIsLoading(false);
     }
@@ -287,8 +388,17 @@ export const MintTab = () => {
     const win: any = window;
     if (win && win.getLiquidityModalTokenIds) {
       const ids = win.getLiquidityModalTokenIds();
-      alert(`Liquidity Modal token0.id: ${ids.token0}, token1.id: ${ids.token1}\nMintTab selectedAsset: ${selectedAsset}`);
-      console.log('Liquidity Modal token0.id:', ids.token0, 'token1.id:', ids.token1, 'MintTab selectedAsset:', selectedAsset);
+      alert(
+        `Liquidity Modal token0.id: ${ids.token0}, token1.id: ${ids.token1}\nMintTab selectedAsset: ${selectedAsset}`,
+      );
+      console.log(
+        'Liquidity Modal token0.id:',
+        ids.token0,
+        'token1.id:',
+        ids.token1,
+        'MintTab selectedAsset:',
+        selectedAsset,
+      );
     } else {
       alert('getLiquidityModalTokenIds helper not found on window.');
     }

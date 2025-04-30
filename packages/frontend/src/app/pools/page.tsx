@@ -6,28 +6,37 @@ import type { FrameSupportTokensFungibleUnionOfNativeOrWithId } from '@warpx/sdk
 import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
 
-import { PoolList } from '@/app/pools/[pair]/components/pools/PoolList';
 import { Pool } from '@/app/pools/[pair]/components/pools/types';
 import { useApi } from '@/hooks/useApi';
+
+// 모든 클라이언트 컴포넌트를 동적으로 로드하여 SSR 문제 해결
+const PoolList = dynamic(
+  () => import('@/app/pools/[pair]/components/pools/PoolList').then((mod) => mod.PoolList),
+  { ssr: false },
+);
 
 const CreatePoolButton = dynamic(
   () =>
     import('@/app/pools/[pair]/components/pools/CreatePoolButton').then(
       (mod) => mod.CreatePoolButton,
     ),
-  {
-    ssr: false,
-  },
+  { ssr: false },
 );
 
 export default function PoolsPage() {
   const { api, isLoading, error } = useApi();
   const [pools, setPools] = useState<Pool[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    const fetchPools = async () => {
-      if (!api) return;
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
 
+  useEffect(() => {
+    if (!api || !isMounted) return;
+
+    const fetchPools = async () => {
       try {
         // hybridOrderbook 팔렛의 pools 스토리지에서 모든 풀 데이터 가져오기
         const poolsData = await api.query.hybridOrderbook.pools.entries();
@@ -79,13 +88,13 @@ export default function PoolsPage() {
                 id: baseAssetId,
                 symbol: baseSymbol,
                 iconUrl: '', // TODO: provide icon URL
-                usdPrice: 0,  // TODO: fetch current USD price
+                usdPrice: 0, // TODO: fetch current USD price
               },
               token1: {
                 id: quoteAssetId,
                 symbol: quoteSymbol,
                 iconUrl: '', // TODO: provide icon URL
-                usdPrice: 0,  // TODO: fetch current USD price
+                usdPrice: 0, // TODO: fetch current USD price
               },
             };
           }),
@@ -99,7 +108,7 @@ export default function PoolsPage() {
     };
 
     fetchPools();
-  }, [api]);
+  }, [api, isMounted]);
 
   if (isLoading) {
     return (

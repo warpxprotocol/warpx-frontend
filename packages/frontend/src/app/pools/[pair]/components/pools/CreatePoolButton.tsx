@@ -1,7 +1,7 @@
 'use client';
 
 import { web3Enable } from '@polkadot/extension-dapp';
-import { Plus, X } from 'lucide-react';
+import { Info, Plus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { useWalletStore } from '@/app/features/wallet/hooks/useWalletStore';
@@ -18,12 +18,16 @@ import {
 import { useApi } from '@/hooks/useApi';
 import { useExtrinsic } from '@/hooks/useExtrinsic';
 
+import { PoolParametersForm } from './PoolParametersForm';
+import { usePoolCreation } from './poolCreation';
+
 interface CreatePoolButtonProps {
   className?: string;
 }
 
 export function CreatePoolButton({ className }: CreatePoolButtonProps) {
   const { handleExtrinsic } = useExtrinsic();
+  const { createPool } = usePoolCreation();
   const { showTxToast } = useTxToast();
   const { selectedAccount, connected } = useWalletStore();
   const { api } = useApi();
@@ -34,23 +38,56 @@ export function CreatePoolButton({ className }: CreatePoolButtonProps) {
     id: number;
     symbol: string;
     name?: string;
+    decimals?: number;
   } | null>(null);
   const [selectedQuoteAsset, setSelectedQuoteAsset] = useState<{
     id: number;
     symbol: string;
     name?: string;
+    decimals?: number;
   } | null>(null);
   const [signer, setSigner] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Pool parameters state
+  const [takerFeeRate, setTakerFeeRate] = useState<string>('0');
+  const [tickSize, setTickSize] = useState<string>('1');
+  const [lotSize, setLotSize] = useState<string>('1');
+  const [poolDecimals, setPoolDecimals] = useState<string>('18');
+  const [currentStep, setCurrentStep] = useState<'pair' | 'parameters'>('pair');
+
+  // 컴포넌트가 마운트되었는지 확인하는 useEffect
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
 
   useEffect(() => {
-    const initSigner = async () => {
-      const extensions = await web3Enable('polkadot-js');
-      if (extensions.length > 0) {
-        setSigner(extensions[0].signer);
-      }
-    };
-    initSigner();
-  }, []);
+    // 컴포넌트가 마운트된 후에만 web3Enable 호출
+    if (isMounted) {
+      const initSigner = async () => {
+        try {
+          const extensions = await web3Enable('polkadot-js');
+          if (extensions.length > 0) {
+            setSigner(extensions[0].signer);
+          }
+        } catch (error) {
+          console.error('Failed to initialize signer:', error);
+        }
+      };
+      initSigner();
+    }
+  }, [isMounted]);
+
+  useEffect(() => {
+    if (selectedBaseAsset?.decimals && selectedQuoteAsset?.decimals) {
+      // Set pool decimals to the minimum of the two assets' decimals
+      setPoolDecimals(
+        Math.min(selectedBaseAsset.decimals, selectedQuoteAsset.decimals).toString(),
+      );
+    }
+  }, [selectedBaseAsset?.decimals, selectedQuoteAsset?.decimals]);
 
   const openBaseAssetSelector = () => {
     setSelectingBase(true);
@@ -63,22 +100,60 @@ export function CreatePoolButton({ className }: CreatePoolButtonProps) {
   const removeBaseAsset = () => setSelectedBaseAsset(null);
   const removeQuoteAsset = () => setSelectedQuoteAsset(null);
 
-  const handleAssetSelect = (asset: { id: number; symbol: string; name?: string }) => {
-    if (selectingBase) {
-      setSelectedBaseAsset(asset);
-      if (selectedQuoteAsset && selectedQuoteAsset.id === asset.id) {
-        setSelectedQuoteAsset(null);
+  const handleAssetSelect = async (asset: {
+    id: number;
+    symbol: string;
+    name?: string;
+  }) => {
+    setIsLoading(true);
+    try {
+      // Fetch asset metadata to get decimals
+      let decimals = 18; // Default fallback
+      if (api) {
+        try {
+          const assetMetadata = await api.query.assets.metadata(asset.id);
+          if (assetMetadata) {
+            // Use type assertion to handle the returned metadata structure
+            const metadata = assetMetadata.toHuman() as { decimals?: string | number };
+            if (metadata && metadata.decimals !== undefined) {
+              // Convert to number since it might be returned as a string
+              decimals =
+                typeof metadata.decimals === 'string'
+                  ? parseInt(metadata.decimals, 10)
+                  : metadata.decimals;
+              console.log(`Fetched decimals for asset ${asset.id}: ${decimals}`);
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to fetch metadata for asset ${asset.id}:`, error);
+        }
       }
-    } else {
-      setSelectedQuoteAsset(asset);
-      if (selectedBaseAsset && selectedBaseAsset.id === asset.id) {
-        setSelectedBaseAsset(null);
+
+      const assetWithDecimals = {
+        ...asset,
+        decimals,
+      };
+
+      if (selectingBase) {
+        setSelectedBaseAsset(assetWithDecimals);
+        if (selectedQuoteAsset && selectedQuoteAsset.id === asset.id) {
+          setSelectedQuoteAsset(null);
+        }
+      } else {
+        setSelectedQuoteAsset(assetWithDecimals);
+        if (selectedBaseAsset && selectedBaseAsset.id === asset.id) {
+          setSelectedBaseAsset(null);
+        }
       }
+    } catch (error) {
+      console.error('Error selecting asset:', error);
+    } finally {
+      setIsLoading(false);
+      setIsAssetSelectorOpen(false);
     }
-    setIsAssetSelectorOpen(false);
   };
 
-  const createPool = async () => {
+  const createPoolHandler = async () => {
     if (!connected || !selectedAccount || !api || !signer) {
       console.error('Wallet not connected or API not ready');
       return;
@@ -86,150 +161,191 @@ export function CreatePoolButton({ className }: CreatePoolButtonProps) {
 
     if (selectedBaseAsset && selectedQuoteAsset) {
       try {
-        const extrinsic = api.tx.hybridOrderbook.createPool(
-          { WithId: selectedBaseAsset.id },
-          { WithId: selectedQuoteAsset.id },
-          0, // takerFeeRate (0%)
-          1, // tickSize
-          1, // lotSize
+        setIsLoading(true);
+
+        // Set pool parameters from form inputs
+        const baseDecimals = selectedBaseAsset.decimals || 18;
+        const quoteDecimals = selectedQuoteAsset.decimals || 18;
+
+        // Log the actual values being sent to the transaction
+        console.log('Creating pool with parameters:');
+        console.log(
+          `- Base Asset: ${selectedBaseAsset.symbol} (ID: ${selectedBaseAsset.id}, Decimals: ${baseDecimals})`,
+        );
+        console.log(
+          `- Quote Asset: ${selectedQuoteAsset.symbol} (ID: ${selectedQuoteAsset.id}, Decimals: ${quoteDecimals})`,
+        );
+        console.log(
+          `- Taker Fee Rate: ${takerFeeRate} (Applied as: ${parseFloat(takerFeeRate).toFixed(6)}%)`,
+        );
+        console.log(
+          `- Tick Size: ${tickSize} (Applied with ${poolDecimals} decimals: ${parseFloat(tickSize).toFixed(parseInt(poolDecimals))})`,
+        );
+        console.log(
+          `- Lot Size: ${lotSize} (Applied with ${baseDecimals} decimals: ${parseFloat(lotSize).toFixed(baseDecimals)})`,
+        );
+        console.log(`- Pool Decimals: ${poolDecimals}`);
+
+        // Call the createPool function from the usePoolCreation hook
+        const txHash = await createPool(
+          selectedBaseAsset.id,
+          baseDecimals,
+          selectedQuoteAsset.id,
+          quoteDecimals,
+          takerFeeRate,
+          tickSize,
+          lotSize,
+          poolDecimals,
+          selectedAccount,
+          { signer },
         );
 
-        await handleExtrinsic(
-          extrinsic,
-          {
-            account: selectedAccount,
-            signer,
-          },
-          {
-            pending: '풀 생성을 시작합니다...',
-            success: '풀이 성공적으로 생성되었습니다!',
-            error: '풀 생성 중 오류가 발생했습니다.',
-          },
-        );
-
+        console.log('Pool created with txHash:', txHash);
+        showTxToast('success', 'Pool created successfully!');
         setOpen(false);
       } catch (error) {
         console.error('Failed to create pool:', error);
+        showTxToast(
+          'error',
+          `Failed to create pool: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+      } finally {
+        setIsLoading(false);
       }
     }
   };
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} className={className}>
-        <Plus className="h-4 w-4" /> CREATE POOL
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-xl p-0 bg-[#18181B] border-none">
-          <DialogHeader className="px-8 pt-8 pb-4">
-            <DialogTitle className="text-2xl font-bold text-white">
-              NEW POSITION
-            </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Select a token pair and fee tier, and set the price range and deposit amount.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="w-full max-w-xl mx-auto rounded-2xl p-8">
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">NEW POSITION</h2>
-              <div className="flex items-center gap-2 text-gray-400 text-sm mb-6">
-                <span className="font-semibold text-white">1ST STEP STEP</span>
-                <span>Select a token pair and fee tier</span>
-                <span className="mx-2">|</span>
-                <span>Set the price range and deposit amount</span>
-              </div>
-              <div className="mb-6">
-                <div className="text-gray-400 text-sm mb-2">Select a pair</div>
-                <div className="flex gap-2 items-center">
-                  {/* Base Token */}
-                  {selectedBaseAsset ? (
-                    <div className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-lg min-w-[100px]">
-                      <span className="bg-gray-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white">
-                        {selectedBaseAsset.symbol[0]}
-                      </span>
-                      <span className="text-white font-semibold">
-                        {selectedBaseAsset.symbol}
-                      </span>
-                      <button
-                        onClick={removeBaseAsset}
-                        className="text-gray-400 hover:text-red-400 ml-1"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+      {isMounted ? (
+        <>
+          <Button onClick={() => setOpen(true)} className={className}>
+            <Plus className="h-4 w-4" /> CREATE POOL
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent className="max-w-xl p-0 bg-[#18181B] border-none">
+              <DialogHeader className="px-8 pt-8 pb-4">
+                <DialogTitle className="text-2xl font-bold text-white">
+                  NEW POSITION
+                </DialogTitle>
+                <DialogDescription className="text-gray-400">
+                  Select a token pair and fee tier, and set the price range and deposit
+                  amount.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="w-full max-w-xl mx-auto rounded-2xl p-8">
+                <div className="space-y-4">
+                  <div className="mb-6">
+                    <div className="text-gray-400 text-sm mb-2">Select a pair</div>
+                    <div className="flex gap-2 items-center">
+                      {/* Base Token */}
+                      {selectedBaseAsset ? (
+                        <div className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-lg min-w-[100px]">
+                          <span className="bg-gray-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white">
+                            {selectedBaseAsset.symbol[0]}
+                          </span>
+                          <span className="text-white font-semibold">
+                            {selectedBaseAsset.symbol}
+                          </span>
+                          <button
+                            onClick={removeBaseAsset}
+                            className="text-gray-400 hover:text-red-400 ml-1"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          className="min-w-[100px]"
+                          onClick={openBaseAssetSelector}
+                        >
+                          + ADD TOKEN
+                        </Button>
+                      )}
+                      <span className="text-gray-500 font-bold">/</span>
+                      {/* Quote Token */}
+                      {selectedQuoteAsset ? (
+                        <div className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-lg min-w-[100px]">
+                          <span className="bg-gray-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white">
+                            {selectedQuoteAsset.symbol[0]}
+                          </span>
+                          <span className="text-white font-semibold">
+                            {selectedQuoteAsset.symbol}
+                          </span>
+                          <button
+                            onClick={removeQuoteAsset}
+                            className="text-gray-400 hover:text-red-400 ml-1"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          className="min-w-[100px]"
+                          onClick={openQuoteAssetSelector}
+                        >
+                          + ADD TOKEN
+                        </Button>
+                      )}
                     </div>
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      className="min-w-[100px]"
-                      onClick={openBaseAssetSelector}
-                    >
-                      + ADD TOKEN
-                    </Button>
-                  )}
-                  <span className="text-gray-500 font-bold">/</span>
-                  {/* Quote Token */}
-                  {selectedQuoteAsset ? (
-                    <div className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-lg min-w-[100px]">
-                      <span className="bg-gray-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white">
-                        {selectedQuoteAsset.symbol[0]}
-                      </span>
-                      <span className="text-white font-semibold">
-                        {selectedQuoteAsset.symbol}
-                      </span>
-                      <button
-                        onClick={removeQuoteAsset}
-                        className="text-gray-400 hover:text-red-400 ml-1"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      className="min-w-[100px]"
-                      onClick={openQuoteAssetSelector}
-                    >
-                      + ADD TOKEN
-                    </Button>
-                  )}
-                </div>
-                <div className="text-xs text-gray-500 mt-2">
-                  Select the token you want to provide liquidity. You can select tokens on
-                  all supported networks.
-                </div>
-              </div>
-              {/* Fee Tier */}
-              <div className="mb-6">
-                <div className="text-gray-400 text-sm mb-2">Fee Tier</div>
-                <div className="bg-gray-800 rounded-lg p-4 flex items-center justify-between">
-                  <div>
-                    <div className="text-white font-semibold">0.3% Fee Tier</div>
-                    <div className="text-xs text-gray-400">
-                      The ratio of fees you can earn (%)
+                    <div className="text-xs text-gray-500 mt-2">
+                      Select the token you want to provide liquidity. You can select tokens
+                      on all supported networks.
                     </div>
                   </div>
-                  <Button variant="ghost" className="text-xs px-3 py-1">
-                    MORE
+
+                  <PoolParametersForm
+                    takerFeeRate={takerFeeRate}
+                    setTakerFeeRate={setTakerFeeRate}
+                    tickSize={tickSize}
+                    setTickSize={setTickSize}
+                    lotSize={lotSize}
+                    setLotSize={setLotSize}
+                    poolDecimals={poolDecimals}
+                    setPoolDecimals={setPoolDecimals}
+                    baseAssetDecimals={selectedBaseAsset?.decimals}
+                    quoteAssetDecimals={selectedQuoteAsset?.decimals}
+                  />
+
+                  <Button
+                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                    size="lg"
+                    disabled={!(selectedBaseAsset && selectedQuoteAsset) || isLoading}
+                    onClick={() => {
+                      if (
+                        currentStep === 'pair' &&
+                        selectedBaseAsset &&
+                        selectedQuoteAsset
+                      ) {
+                        setCurrentStep('parameters');
+                      } else {
+                        createPoolHandler();
+                      }
+                    }}
+                  >
+                    {isLoading
+                      ? 'CREATING POOL...'
+                      : currentStep === 'pair' && selectedBaseAsset && selectedQuoteAsset
+                        ? 'CONTINUE TO PARAMETERS'
+                        : 'CREATE POOL'}
                   </Button>
                 </div>
+                <AssetSelector
+                  isOpen={isAssetSelectorOpen}
+                  onClose={() => setIsAssetSelectorOpen(false)}
+                  onSelect={handleAssetSelect}
+                />
               </div>
-              <Button
-                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
-                size="lg"
-                disabled={!(selectedBaseAsset && selectedQuoteAsset)}
-                onClick={createPool}
-              >
-                CONTINUE
-              </Button>
-            </div>
-            <AssetSelector
-              isOpen={isAssetSelectorOpen}
-              onClose={() => setIsAssetSelectorOpen(false)}
-              onSelect={handleAssetSelect}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+            </DialogContent>
+          </Dialog>
+        </>
+      ) : (
+        <Button className={className} disabled>
+          <Plus className="h-4 w-4" /> CREATE POOL
+        </Button>
+      )}
     </>
   );
 }

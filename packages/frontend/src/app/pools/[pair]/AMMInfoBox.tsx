@@ -1,4 +1,4 @@
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 
 import { useWalletStore } from '@/app/features/wallet/hooks/useWalletStore';
@@ -6,6 +6,7 @@ import { usePoolOperations } from '@/app/pools/[pair]/components/pools/usePoolOp
 import { useApi } from '@/hooks/useApi';
 
 import { PoolInfo } from './components/pools/poolQueries';
+import { usePoolQueries } from './components/pools/poolQueries';
 
 // 인터페이스 및 타입 정의
 interface LpTokenBalanceType {
@@ -28,17 +29,65 @@ interface PoolInfoDisplay extends PoolInfo {
   quoteAssetDecimals?: number;
   lpTokenSymbol?: string;
   lpTokenDecimals?: number;
+  poolDecimals?: number;
+  poolPrice?: number;
+}
+
+/**
+ * Format a number with appropriate decimals for human-readable display
+ * @param raw The raw value (string or number)
+ * @param decimals The number of decimals to adjust by
+ * @returns Formatted string with appropriate decimal places
+ */
+function formatWithDecimals(raw: string | number, decimals: number): string {
+  const num = typeof raw === 'string' ? Number(raw.replace(/,/g, '')) : raw;
+  if (isNaN(num)) return '-';
+
+  const adjusted = num / Math.pow(10, decimals);
+  return adjusted.toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
+
+/**
+ * Format a number with compact notation and trim if too long
+ * @param raw The raw value (string or number)
+ * @param decimals The number of decimals to adjust by
+ * @param maxLength Maximum length of the output string before trimming
+ * @returns Formatted compact string (e.g. 1.2M, 3.5B) with length limitation
+ */
+function formatCompactTrimmed(
+  raw: string | number,
+  decimals: number,
+  maxLength: number = 8,
+): string {
+  const num = typeof raw === 'string' ? Number(raw.replace(/,/g, '')) : raw;
+  if (isNaN(num)) return '-';
+
+  const adjusted = num / Math.pow(10, decimals);
+  const compact = adjusted.toLocaleString(undefined, {
+    notation: 'compact',
+    maximumFractionDigits: 2,
+  });
+
+  return compact.length > maxLength ? compact.slice(0, maxLength - 1) + '…' : compact;
 }
 
 export default function AMMInfoBox() {
   // URL 파라미터 파싱
   const params = useParams();
+  const searchParams = useSearchParams();
   const pairParam = params?.pair as string | undefined;
+
+  // 쿼리 파라미터에서 baseId와 quoteId 가져오기
+  const baseIdParam = searchParams.get('baseId');
+  const quoteIdParam = searchParams.get('quoteId');
+  const baseIdFromUrl = baseIdParam ? parseInt(baseIdParam, 10) : null;
+  const quoteIdFromUrl = quoteIdParam ? parseInt(quoteIdParam, 10) : null;
 
   // API 및 계정 정보 가져오기
   const { api } = useApi();
   const { selectedAccount } = useWalletStore();
-  const { getLpTokenBalance, getPoolInfoByPair } = usePoolOperations();
+  const { getLpTokenBalance } = usePoolOperations();
+  const { findPoolIndexByPair, getPoolQueryRpc } = usePoolQueries();
 
   // 상태 관리
   const [poolInfo, setPoolInfo] = useState<PoolInfoDisplay | null>(null);
@@ -92,7 +141,7 @@ export default function AMMInfoBox() {
         setLoading(true);
         setError(null);
 
-        // URL에서 토큰 ID 추출
+        // URL에서 토큰 심볼 추출 (UI 표시용)
         console.log('Processing pair parameter:', pairParam);
         // URL 디코딩: %2F는 '/' 문자로 디코딩
         const decodedParam = decodeURIComponent(pairParam);
@@ -117,110 +166,217 @@ export default function AMMInfoBox() {
           setToken1Symbol(quoteSymbol);
         }
 
-        // 심볼에 해당하는 토큰 ID 찾기
-        const assetsData = await api?.query.assets.metadata.entries();
+        // baseId와 quoteId가 URL에 있는 경우 이를 사용
+        let baseId = baseIdFromUrl;
+        let quoteId = quoteIdFromUrl;
 
-        if (!isMounted) return;
-
-        let baseId: number | null = null;
-        let quoteId: number | null = null;
-
-        if (!assetsData) {
-          throw new Error('Failed to fetch asset metadata');
-        }
-
-        for (const entry of assetsData) {
-          try {
-            const id = entry[0].args[0];
-            const meta = entry[1].toHuman();
-            if (meta && typeof meta === 'object' && 'symbol' in meta) {
-              const symbol = String(meta.symbol || '');
-              if (symbol === baseSymbol) baseId = Number(id);
-              if (symbol === quoteSymbol) quoteId = Number(id);
-              if (baseId !== null && quoteId !== null) break;
-            }
-          } catch (err) {
-            console.error('Error processing asset entry:', err);
-          }
-        }
-
-        if (!isMounted) return;
-
+        // URL에 ID가 없는 경우에만 심볼로 ID 검색 시도
         if (baseId === null || quoteId === null) {
-          throw new Error(
-            `Could not find token IDs for symbols: ${baseSymbol}, ${quoteSymbol}`,
-          );
-        }
+          // 심볼에 해당하는 토큰 ID 찾기
+          const assetsData = await api?.query.assets.metadata.entries();
 
-        // 풀 정보 가져오기
-        let poolInfoData: PoolInfo | null = null;
-        try {
-          console.log('Fetching pool info for baseId:', baseId, 'quoteId:', quoteId);
-          poolInfoData = await getPoolInfoByPair(baseId, quoteId);
-          console.log('Pool info data received:', poolInfoData);
+          if (!isMounted) return;
 
-          // 풀 정보 정리 - PoolInfo 타입은 이미 알맞게 정의되어 있음
-          if (poolInfoData) {
-            // PoolInfoDisplay 타입에 맞게 변환
-            const cleanedPoolInfo: PoolInfoDisplay = {
-              // PoolInfo의 필수 필드
-              poolExists: poolInfoData.poolExists,
-              baseAssetId: poolInfoData.baseAssetId,
-              quoteAssetId: poolInfoData.quoteAssetId,
-              feeTier: poolInfoData.feeTier,
-              reserve0: poolInfoData.reserve0,
-              reserve1: poolInfoData.reserve1,
-              lpTokenId: poolInfoData.lpTokenId,
-              // 선택적 필드
-              poolIndex: poolInfoData.poolIndex,
-
-              // UI에 필요한 추가 필드는 현재 없지만 필요할 수 있음
-              baseAssetSymbol: token0Symbol,
-              quoteAssetSymbol: token1Symbol,
-              // 나중에 필요하면 추가
-              // baseAssetDecimals: 0,
-              // quoteAssetDecimals: 0,
-              // lpTokenSymbol: '',
-              // lpTokenDecimals: 0,
-            };
-
-            console.log('Pool info:', cleanedPoolInfo);
-            console.log(
-              'Has liquidity:',
-              typeof cleanedPoolInfo.reserve0 === 'number' &&
-                cleanedPoolInfo.reserve0 > 0 &&
-                typeof cleanedPoolInfo.reserve1 === 'number' &&
-                cleanedPoolInfo.reserve1 > 0,
-            );
-            setPoolInfo(cleanedPoolInfo);
+          if (!assetsData) {
+            throw new Error('Failed to fetch assets metadata');
           }
-        } catch (err) {
-          console.error('Error fetching pool info:', err);
-          setError(
-            `Failed to fetch pool information: ${err instanceof Error ? err.message || 'Unknown error' : 'Unknown error'}`,
-          );
+
+          console.log(`Fetched ${assetsData.length} asset metadata entries`);
+
+          // baseSymbol과 quoteSymbol에 해당하는 ID 찾기
+          for (const entry of assetsData) {
+            try {
+              const assetId = (
+                entry[0].args[0] as unknown as { toNumber: () => number }
+              ).toNumber();
+              const metadata = entry[1];
+              const metadataHuman = metadata.toHuman();
+
+              // 둘 다 찾았으면 중단
+              if (baseId !== null && quoteId !== null) break;
+            } catch (e) {
+              console.error('Error processing asset metadata entry:', e);
+            }
+          }
+
+          if (baseId === null || quoteId === null) {
+            throw new Error(
+              `Could not find assets with symbols ${baseSymbol} and/or ${quoteSymbol}`,
+            );
+          }
         }
+
+        console.log(`Using baseId: ${baseId}, quoteId: ${quoteId} for pool query`);
+
+        // 1. findPoolIndexByPair로 풀 인덱스 찾기
+        const poolIndex = await findPoolIndexByPair(baseId, quoteId);
+        console.log('Pool index found:', poolIndex);
+
+        // 2. 풀 인덱스로 RPC 호출
+        let poolData: PoolInfoDisplay = {
+          baseAssetId: baseId,
+          quoteAssetId: quoteId,
+          reserve0: 0,
+          reserve1: 0,
+          lpTokenId: 0,
+          feeTier: 0,
+          poolExists: false,
+          poolDecimals: 0,
+          poolPrice: 0,
+        };
+
+        if (poolIndex !== null) {
+          // 풀 인덱스가 있으면 RPC 호출로 자세한 정보 가져오기
+          const poolQueryResult = await getPoolQueryRpc(baseId, quoteId);
+          console.log('Pool query RPC result:', poolQueryResult);
+
+          if (poolQueryResult.success && poolQueryResult.data) {
+            // RPC 결과에서 PoolData 형식으로 변환
+            const rpcData = poolQueryResult.data;
+
+            // Some 또는 Option 형식인지 확인
+            if (
+              typeof rpcData === 'object' &&
+              rpcData !== null &&
+              ('isSome' in rpcData ||
+                'Some' in rpcData ||
+                !('isEmpty' in rpcData && !('None' in rpcData)))
+            ) {
+              const poolDataRaw =
+                'isSome' in rpcData
+                  ? typeof rpcData.isSome === 'boolean' && rpcData.isSome === true
+                    ? rpcData.value || rpcData
+                    : 'unwrap' in rpcData && typeof rpcData.unwrap === 'function'
+                      ? (rpcData.unwrap as () => any)()
+                      : rpcData
+                  : 'Some' in rpcData
+                    ? rpcData.Some
+                    : rpcData;
+
+              console.log('Unwrapped pool data:', poolDataRaw);
+
+              // 풀 데이터 추출
+              const extractNumericValue = (val: any) => {
+                if (val === undefined || val === null) return 0;
+                if (typeof val === 'number') return val;
+                // 콤마 제거 후 숫자 변환
+                return Number(String(val).replace(/,/g, ''));
+              };
+
+              try {
+                // 새로운 API 응답 형식에 맞게 데이터 추출
+                poolData = {
+                  baseAssetId: extractNumericValue(
+                    poolDataRaw.baseAssetId || poolDataRaw.base_asset_id,
+                  ),
+                  quoteAssetId: extractNumericValue(
+                    poolDataRaw.quoteAssetId || poolDataRaw.quote_asset_id,
+                  ),
+                  // baseReserve와 quoteReserve가 직접 있는 경우 사용
+                  reserve0: extractNumericValue(
+                    poolDataRaw.baseReserve ||
+                      poolDataRaw.base_reserve ||
+                      poolDataRaw.reserve0 ||
+                      poolDataRaw.reserve_0,
+                  ),
+                  reserve1: extractNumericValue(
+                    poolDataRaw.quoteReserve ||
+                      poolDataRaw.quote_reserve ||
+                      poolDataRaw.reserve1 ||
+                      poolDataRaw.reserve_1,
+                  ),
+                  // lpTokenId 추출 시도
+                  lpTokenId: extractNumericValue(
+                    poolDataRaw.lpTokenId || poolDataRaw.lp_token_id,
+                  ),
+                  // feeTier 추출 - takerFeeRate가 문자열(예: "0.03%")로 오는 경우 처리
+                  feeTier: poolDataRaw.takerFeeRate
+                    ? extractNumericValue(
+                        String(poolDataRaw.takerFeeRate).replace('%', ''),
+                      ) * 100 // 예: "0.03%" → 3
+                    : extractNumericValue(poolDataRaw.feeTier || poolDataRaw.fee_tier),
+                  poolExists: true,
+                  poolIndex: poolIndex,
+                  // 추가 정보 저장
+                  poolDecimals: extractNumericValue(
+                    poolDataRaw.poolDecimals || poolDataRaw.pool_decimals,
+                  ),
+                  poolPrice: extractNumericValue(
+                    poolDataRaw.poolPrice || poolDataRaw.pool_price,
+                  ),
+                };
+
+                console.log('Parsed pool data:', poolData);
+              } catch (e) {
+                console.error('Error processing pool RPC data:', e);
+              }
+            }
+          } else {
+            console.log('Pool query RPC failed or returned empty data');
+          }
+        }
+
+        console.log('Pool info retrieved:', poolData);
 
         if (!isMounted) return;
 
-        // 계정이 연결되었으나 LP 토큰 정보는 별도 컴포넌트로 분리
-        if (poolInfoData && poolInfoData.poolExists && selectedAccount) {
-          console.log(
-            'Account connected, but LP position info moved to separate component',
-          );
-        }
+        // 토큰 심볼과 소수점 정보 가져오기
+        const token0MetadataRaw = await api.query.assets.metadata(baseId);
+        const token1MetadataRaw = await api.query.assets.metadata(quoteId);
 
-        // 폴링이 아니라 초기 로드인 경우에만 로딩 상태 해제
-        if (!retryCount) {
-          setLoading(false);
+        if (!isMounted) return;
+
+        const token0Metadata = token0MetadataRaw.toHuman();
+        const token1Metadata = token1MetadataRaw.toHuman();
+
+        const lpTokenMetadataRaw = await api.query.assets.metadata(poolData.lpTokenId);
+        const lpTokenMetadata = lpTokenMetadataRaw.toHuman();
+
+        // 풀 정보에 추가 메타데이터 병합
+        const enhancedPoolInfo: PoolInfoDisplay = {
+          ...poolData,
+        };
+
+        console.log('Enhanced pool info:', enhancedPoolInfo);
+        setPoolInfo(enhancedPoolInfo);
+        setLoading(false);
+
+        // LP 토큰 잔액 조회 (계정이 연결된 경우에만)
+        if (
+          selectedAccount &&
+          typeof selectedAccount === 'object' &&
+          'address' in selectedAccount &&
+          poolData &&
+          poolData.poolExists &&
+          poolData.lpTokenId
+        ) {
+          try {
+            // 풀이 실제로 존재하고 lpTokenId가 유효한 경우에만 시도
+            if (poolData.lpTokenId > 0) {
+              const lpBalance = await getLpTokenBalance(
+                poolData.baseAssetId,
+                poolData.quoteAssetId,
+                (selectedAccount as { address: string }).address,
+              );
+              if (!isMounted) return;
+              console.log('LP token balance:', lpBalance);
+            } else {
+              console.log(
+                'Skip LP token balance check - invalid lpTokenId:',
+                poolData.lpTokenId,
+              );
+            }
+          } catch (e) {
+            console.error('Error fetching LP token balance:', e);
+            // LP 토큰 잔액 조회 오류는 치명적이지 않음 - UI에 표시될 정보에는 영향 없음
+          }
+        } else if (selectedAccount) {
+          console.log('Skip LP token balance check - pool does not exist or no lpTokenId');
         }
       } catch (error) {
-        console.error('Error fetching AMMInfoBox data:', error);
+        console.error('Error fetching pool data:', error);
         if (isMounted) {
-          setError(error instanceof Error ? error.message : 'Unknown error occurred');
-        }
-      } finally {
-        if (isMounted) {
+          setError(String(error));
           setLoading(false);
         }
       }
@@ -249,7 +405,7 @@ export default function AMMInfoBox() {
       } catch (error) {
         console.error('Error during data fetch:', error);
         if (isMounted) {
-          setError(error instanceof Error ? error.message : 'Unknown error occurred');
+          setError(String(error));
           setLoading(false);
         }
       }
@@ -271,7 +427,14 @@ export default function AMMInfoBox() {
       isMounted = false;
       clearInterval(pollingInterval);
     };
-  }, [api, selectedAccount, pairParam, getLpTokenBalance, getPoolInfoByPair]);
+  }, [
+    api,
+    selectedAccount,
+    pairParam,
+    getLpTokenBalance,
+    findPoolIndexByPair,
+    getPoolQueryRpc,
+  ]);
 
   // URL에 페어 정보가 없는 경우 처리
   if (!pairParam) {
@@ -311,6 +474,32 @@ export default function AMMInfoBox() {
         </div>
       ) : (
         <>
+          {/* 디버깅 정보 - 개발 중에만 활성화하고 나중에 제거 */}
+          {(() => {
+            // 디버깅용 로그
+            console.log('PoolInfo Debug:', {
+              reserve0: poolInfo?.reserve0,
+              reserve1: poolInfo?.reserve1,
+              poolDecimals: poolInfo?.poolDecimals,
+              baseAssetDecimals: poolInfo?.baseAssetDecimals,
+              quoteAssetDecimals: poolInfo?.quoteAssetDecimals,
+            });
+
+            // formatWithDecimals 테스트
+            if (poolInfo?.reserve0) {
+              console.log('Format Test:', {
+                raw: poolInfo.reserve0,
+                decimals: poolInfo.poolDecimals ?? 0,
+                formatted: formatWithDecimals(
+                  poolInfo.reserve0,
+                  poolInfo.poolDecimals ?? 0,
+                ),
+                hardcodedTest: formatWithDecimals('123456789000', 6), // 예상 결과: "123.456789"
+              });
+            }
+            return null;
+          })()}
+
           {/* 중앙: 가격 & 페어 정보 */}
           <div className="flex w-full items-center justify-between mb-1">
             <div className="flex flex-col">
@@ -345,10 +534,11 @@ export default function AMMInfoBox() {
                 >
                   <span className="text-white text-xs mr-1">{token0Symbol}</span>
                   <span className="text-white font-medium text-xs">
-                    {typeof poolInfo?.reserve0 === 'number'
-                      ? poolInfo.reserve0.toLocaleString(undefined, {
-                          maximumFractionDigits: 2,
-                        })
+                    {poolInfo?.reserve0 !== undefined
+                      ? formatCompactTrimmed(
+                          poolInfo.reserve0,
+                          poolInfo.baseAssetDecimals ?? 0,
+                        )
                       : '0'}
                   </span>
                 </span>
@@ -359,10 +549,11 @@ export default function AMMInfoBox() {
                 >
                   <span className="text-white text-xs mr-1">{token1Symbol}</span>
                   <span className="text-white font-medium text-xs">
-                    {typeof poolInfo?.reserve1 === 'number'
-                      ? poolInfo.reserve1.toLocaleString(undefined, {
-                          maximumFractionDigits: 2,
-                        })
+                    {poolInfo?.reserve1 !== undefined
+                      ? formatCompactTrimmed(
+                          poolInfo.reserve1,
+                          poolInfo.quoteAssetDecimals ?? 0,
+                        )
                       : '0'}
                   </span>
                 </span>

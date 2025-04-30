@@ -55,200 +55,207 @@ export const usePoolQueries = () => {
           return null;
         }
 
-        for (const entry of poolsData as any[]) {
-          const key = entry[0];
-          const value = entry[1];
-          const valueHuman =
-            typeof value.toHuman === 'function' ? value.toHuman() : undefined;
-
-          // 키에서 풀 인덱스 추출 - 더 방어적인 로직으로 강화
-          let poolIndex;
+        // 모든 풀 엔트리 처리
+        for (let entryIndex = 0; entryIndex < poolsData.length; entryIndex++) {
+          const entry = poolsData[entryIndex] as any;
           try {
-            if (!key.args || !key.args[0]) {
-              console.log('[findPoolIndexByPair] key.args[0] is undefined or null');
-              poolIndex = NaN;
-            } else if (key.args[0].toNumber && typeof key.args[0].toNumber === 'function') {
-              poolIndex = key.args[0].toNumber();
-            } else if (typeof key.args[0] === 'object' && 'valueOf' in key.args[0]) {
-              poolIndex = Number(key.args[0].valueOf());
-            } else {
-              poolIndex = Number(key.args[0]);
+            if (!entry || !Array.isArray(entry) || entry.length < 2) {
+              console.log('[findPoolIndexByPair] Invalid entry format:', entry);
+              continue;
             }
 
-            if (isNaN(poolIndex)) {
-              console.log(
-                '[findPoolIndexByPair] Failed to extract valid pool index from:',
-                key.args[0],
-              );
-            }
-          } catch (e) {
-            console.error('[findPoolIndexByPair] Error extracting pool index:', e);
-            poolIndex = NaN;
-          }
+            const key = entry[0];
+            const value = entry[1];
 
-          // 키 구조 자세히 로깅
-          const keyHuman = key.toHuman ? key.toHuman() : null;
-          console.log(
-            '[findPoolIndexByPair] 풀 인덱스:',
-            poolIndex,
-            '키 구조:',
-            JSON.stringify(keyHuman),
-          );
+            // 값에서 토큰 ID 추출 시도 (두 가지 방법)
+            let poolAssetIds: number[] = [];
+            let poolIndex: number | null = null;
 
-          if (keyHuman) {
-            console.log('[findPoolIndexByPair] 키 구조 타입:', typeof keyHuman);
-            if (Array.isArray(keyHuman)) {
-              console.log('[findPoolIndexByPair] 키 배열 길이:', keyHuman.length);
-              if (keyHuman.length > 1) {
-                console.log('[findPoolIndexByPair] 두 번째 요소 타입:', typeof keyHuman[1]);
-                console.log(
-                  '[findPoolIndexByPair] 두 번째 요소 값:',
-                  JSON.stringify(keyHuman[1]),
-                );
-              }
-            }
-          }
+            // 1. 키에서 풀 인덱스 추출 시도
+            try {
+              // 키의 구조 확인
+              const keyHuman = key.toHuman ? key.toHuman() : null;
+              console.log('[findPoolIndexByPair] 키 구조:', JSON.stringify(keyHuman));
 
-          let poolBaseAssetId: number | null = null;
-          let poolQuoteAssetId: number | null = null;
-
-          // 1. 키 구조 방식 1: [Array(2)]에서 두 번째 배열에 WithId 객체 배열로 저장됨
-          if (keyHuman && Array.isArray(keyHuman) && keyHuman.length > 1) {
-            const assetPair = keyHuman[1]; // 두 번째 요소가 자산 쌍
-
-            if (Array.isArray(assetPair) && assetPair.length >= 2) {
-              // WithId 객체에서 ID 추출
-              poolBaseAssetId = extractId(assetPair[0]);
-              poolQuoteAssetId = extractId(assetPair[1]);
-
-              console.log(
-                '[findPoolIndexByPair] 키 구조 방식 1: 풀 인덱스:',
-                poolIndex,
-                'assets:',
-                poolBaseAssetId,
-                poolQuoteAssetId,
-              );
-            }
-          }
-
-          // 2. 키 구조 방식 2: keyHuman에 직접 assets 배열이 있는 경우
-          if (poolBaseAssetId === null && keyHuman && typeof keyHuman === 'object') {
-            for (const prop in keyHuman) {
-              if (Array.isArray(keyHuman[prop]) && keyHuman[prop].length >= 2) {
-                try {
-                  poolBaseAssetId = extractId(keyHuman[prop][0]);
-                  poolQuoteAssetId = extractId(keyHuman[prop][1]);
-                  console.log(
-                    '[findPoolIndexByPair] 키 구조 방식 2: 풀 인덱스:',
-                    poolIndex,
-                    'assets:',
-                    poolBaseAssetId,
-                    poolQuoteAssetId,
-                  );
-                } catch (e) {
-                  console.log('[findPoolIndexByPair] 키 구조 방식 2 처리 중 오류:', e);
+              // 키에서 풀 인덱스를 추출하기 위한 여러 방법 시도
+              // 방법 1: key.args[0]에서 추출
+              if (key.args && key.args[0]) {
+                if (typeof key.args[0].toNumber === 'function') {
+                  poolIndex = key.args[0].toNumber();
+                } else if (typeof key.args[0] === 'object' && 'valueOf' in key.args[0]) {
+                  poolIndex = Number(key.args[0].valueOf());
+                } else {
+                  poolIndex = Number(key.args[0]);
                 }
               }
-            }
-          }
 
-          // 3. 값에서도 추출 시도 (백업 메소드)
-          if ((poolBaseAssetId === null || poolQuoteAssetId === null) && valueHuman) {
-            const baseFromValue = extractId(
-              valueHuman.baseAssetId || valueHuman.base_asset_id,
-            );
-            const quoteFromValue = extractId(
-              valueHuman.quoteAssetId || valueHuman.quote_asset_id,
-            );
-
-            if (baseFromValue && quoteFromValue) {
-              poolBaseAssetId = baseFromValue;
-              poolQuoteAssetId = quoteFromValue;
-              console.log(
-                '[findPoolIndexByPair] 값 구조에서 ID 추출: 풀 인덱스:',
-                poolIndex,
-                'assets:',
-                poolBaseAssetId,
-                poolQuoteAssetId,
-              );
-            }
-          }
-
-          // 4. key.args[1]에 직접 접근해보기 (raw 데이터)
-          if (
-            (poolBaseAssetId === null || poolQuoteAssetId === null) &&
-            key.args &&
-            key.args.length > 1
-          ) {
-            try {
-              const rawArgs = key.args[1];
-              console.log('[findPoolIndexByPair] Raw key.args[1]:', typeof rawArgs);
-
-              // 패턴별로 자산 ID 추출 시도
-              if (typeof rawArgs === 'object' && rawArgs !== null) {
-                // 일반적인 객체인 경우
-                if (rawArgs.toHuman) {
-                  const rawArgsHuman = rawArgs.toHuman();
-                  console.log(
-                    '[findPoolIndexByPair] Raw key.args[1].toHuman():',
-                    JSON.stringify(rawArgsHuman),
-                  );
-
-                  if (Array.isArray(rawArgsHuman) && rawArgsHuman.length >= 2) {
-                    poolBaseAssetId = extractId(rawArgsHuman[0]);
-                    poolQuoteAssetId = extractId(rawArgsHuman[1]);
+              // 방법 2: 키 구조에서 추출
+              if ((poolIndex === null || isNaN(poolIndex)) && keyHuman) {
+                if (Array.isArray(keyHuman) && keyHuman.length > 0) {
+                  if (typeof keyHuman[0] === 'number') {
+                    poolIndex = Number(keyHuman[0]);
+                  } else if (Array.isArray(keyHuman[0]) && keyHuman[0].length > 0) {
+                    if (typeof keyHuman[0][0] === 'number') {
+                      poolIndex = Number(keyHuman[0][0]);
+                    }
                   }
                 }
-                // 배열인 경우
-                else if (Array.isArray(rawArgs) && rawArgs.length >= 2) {
-                  poolBaseAssetId = extractId(
-                    rawArgs[0].toHuman ? rawArgs[0].toHuman() : rawArgs[0],
-                  );
-                  poolQuoteAssetId = extractId(
-                    rawArgs[1].toHuman ? rawArgs[1].toHuman() : rawArgs[1],
-                  );
+              }
+
+              // 방법 3: 최후의 수단 - 배열 인덱스를 풀 인덱스로 사용
+              if (poolIndex === null || isNaN(poolIndex)) {
+                console.log(
+                  '[findPoolIndexByPair] 키에서 풀 인덱스를 추출할 수 없어 엔트리 인덱스를 사용:',
+                  entryIndex,
+                );
+                poolIndex = entryIndex;
+              }
+
+              console.log('[findPoolIndexByPair] 추출된 풀 인덱스:', poolIndex);
+            } catch (e) {
+              console.error(
+                '[findPoolIndexByPair] 키에서 풀 인덱스 추출 실패, 엔트리 인덱스 사용:',
+                entryIndex,
+              );
+              poolIndex = entryIndex;
+            }
+
+            // 2. 키의 다른 인자 또는 값에서 토큰 ID 추출 시도
+            try {
+              // 키 구조 분석
+              const keyHuman = key.toHuman ? key.toHuman() : null;
+              console.log('[findPoolIndexByPair] Full keyHuman:', keyHuman);
+
+              // 중첩된 배열 구조 처리
+              if (keyHuman && Array.isArray(keyHuman)) {
+                let assetPairData = null;
+
+                // 첫 번째 요소가 배열인 경우 (중첩 배열)
+                if (keyHuman.length > 0 && Array.isArray(keyHuman[0])) {
+                  // 중첩 배열 [[{WithId:1}, {WithId:2}]]
+                  assetPairData = keyHuman[0];
+                  console.log('[findPoolIndexByPair] 중첩 배열 구조 발견:', assetPairData);
+                }
+                // 두 번째 요소가 자산 쌍일 수 있음
+                else if (keyHuman.length > 1) {
+                  assetPairData = keyHuman[1];
+                  console.log('[findPoolIndexByPair] 두 번째 요소 구조:', assetPairData);
                 }
 
-                if (poolBaseAssetId !== null && poolQuoteAssetId !== null) {
-                  console.log(
-                    '[findPoolIndexByPair] Raw args에서 추출: 풀 인덱스:',
-                    poolIndex,
-                    'assets:',
-                    poolBaseAssetId,
-                    poolQuoteAssetId,
-                  );
+                // assetPairData가 배열인 경우
+                if (Array.isArray(assetPairData)) {
+                  poolAssetIds = assetPairData
+                    .map((item) => {
+                      // WithId 형식인 경우
+                      if (item && typeof item === 'object' && 'WithId' in item) {
+                        console.log('[findPoolIndexByPair] WithId 항목 발견:', item.WithId);
+                        return Number(item.WithId);
+                      }
+                      // 단순 숫자인 경우
+                      else if (typeof item === 'number') {
+                        return item;
+                      }
+                      // 기타 형식
+                      else {
+                        const extractedId = extractId(item);
+                        return extractedId !== null ? extractedId : NaN;
+                      }
+                    })
+                    .filter((id) => !isNaN(id)); // 유효한 ID만 필터링
+
+                  console.log('[findPoolIndexByPair] 추출된 자산 ID:', poolAssetIds);
+                }
+                // assetPairData가 객체인 경우
+                else if (assetPairData && typeof assetPairData === 'object') {
+                  const asset1 = assetPairData.base_asset_id || assetPairData.baseAssetId;
+                  const asset2 = assetPairData.quote_asset_id || assetPairData.quoteAssetId;
+
+                  if (asset1 !== undefined) poolAssetIds.push(Number(asset1));
+                  if (asset2 !== undefined) poolAssetIds.push(Number(asset2));
                 }
               }
+
+              // 추가: 중첩 배열 대응을 위한 마지막 옵션
+              if (poolAssetIds.length === 0) {
+                // keyHuman에서 WithId 객체를 재귀적으로 찾아서 처리
+                const findWithIdObjects = (obj: any): number[] => {
+                  if (!obj) return [];
+
+                  // 배열인 경우 각 요소에 대해 재귀 호출
+                  if (Array.isArray(obj)) {
+                    return obj.flatMap((item) => findWithIdObjects(item));
+                  }
+
+                  // WithId 객체인 경우
+                  if (typeof obj === 'object' && 'WithId' in obj) {
+                    console.log(
+                      '[findPoolIndexByPair] 중첩 구조에서 WithId 발견:',
+                      obj.WithId,
+                    );
+                    return [Number(obj.WithId)];
+                  }
+
+                  // 다른 객체인 경우 모든 속성에 대해 재귀 호출
+                  if (typeof obj === 'object' && obj !== null) {
+                    return Object.values(obj).flatMap((val) => findWithIdObjects(val));
+                  }
+
+                  return [];
+                };
+
+                poolAssetIds = findWithIdObjects(keyHuman);
+                console.log(
+                  '[findPoolIndexByPair] 재귀 검색으로 추출된 자산 ID:',
+                  poolAssetIds,
+                );
+              }
+
+              // 값에서도 토큰 ID 추출 시도 (fallback)
+              if (poolAssetIds.length < 2) {
+                const valueHuman = value.toHuman ? value.toHuman() : null;
+                if (valueHuman && typeof valueHuman === 'object') {
+                  const asset1 = valueHuman.base_asset_id || valueHuman.baseAssetId;
+                  const asset2 = valueHuman.quote_asset_id || valueHuman.quoteAssetId;
+
+                  // 이미 추출된 ID와 중복되지 않게 추가
+                  if (asset1 !== undefined && !poolAssetIds.includes(Number(asset1))) {
+                    poolAssetIds.push(Number(asset1));
+                  }
+                  if (asset2 !== undefined && !poolAssetIds.includes(Number(asset2))) {
+                    poolAssetIds.push(Number(asset2));
+                  }
+                }
+              }
+
+              console.log('[findPoolIndexByPair] 최종 추출된 자산 ID:', poolAssetIds);
             } catch (e) {
-              console.log('[findPoolIndexByPair] Raw args 처리 중 오류:', e);
-            }
-          }
-
-          // 자산 ID 매칭 시도 (순서 상관없이)
-          if (
-            poolBaseAssetId !== null &&
-            poolQuoteAssetId !== null &&
-            ((poolBaseAssetId === id0 && poolQuoteAssetId === id1) ||
-              (poolBaseAssetId === id1 && poolQuoteAssetId === id0))
-          ) {
-            // NaN 인덱스 체크
-            if (isNaN(poolIndex)) {
-              console.log(
-                '[findPoolIndexByPair] Found matching pool but index is NaN, continuing search',
-              );
-              continue; // Skip this entry and continue searching
+              console.error('[findPoolIndexByPair] 자산 ID 추출 실패:', e);
             }
 
-            console.log('[findPoolIndexByPair] 매칭되는 풀 찾음! 인덱스:', poolIndex);
-            return poolIndex;
+            // 3. 자산 ID 비교로 페어 매칭 확인
+            if (poolAssetIds.length >= 2) {
+              const hasBaseAsset = poolAssetIds.includes(id0);
+              const hasQuoteAsset = poolAssetIds.includes(id1);
+
+              if (hasBaseAsset && hasQuoteAsset && poolIndex !== null) {
+                console.log(
+                  `[findPoolIndexByPair] 풀 찾음: 인덱스 ${poolIndex}, 자산 ID: [${poolAssetIds.join(', ')}]`,
+                );
+                return poolIndex;
+              }
+            }
+          } catch (e) {
+            console.error('[findPoolIndexByPair] Entry 처리 중 오류:', e);
+            continue; // 현재 엔트리 오류, 다음으로 진행
           }
         }
 
-        console.log('[findPoolIndexByPair] 매칭되는 풀을 찾지 못함:', id0, id1);
-        return null; // 페어에 대한 풀을 찾지 못함
-      } catch (error) {
-        console.error('[findPoolIndexByPair] Error finding pool index:', error);
+        // 풀을 찾지 못한 경우
+        console.log(`[findPoolIndexByPair] 토큰 페어 ${id0}, ${id1}에 대한 풀을 찾지 못함`);
         return null;
+      } catch (error) {
+        console.error('[findPoolIndexByPair] Error:', error);
+        throw error;
       }
     },
     [api],
@@ -550,12 +557,58 @@ export const usePoolQueries = () => {
     [api, findPoolIndexByPair, getPoolInfo],
   );
 
-  // 내부 함수는 utils.ts의 extractDecimals로 대체합니다.
+  /**
+   * Runtime call을 사용하여 풀 데이터를 조회하는 함수
+   * @param poolId 조회할 풀 ID
+   * @returns 풀 데이터 객체
+   */
+  const getPoolQueryRpc = useCallback(
+    async (baseAssetId: number, quoteAssetId: number) => {
+      if (!api) throw new Error('API not connected');
+
+      try {
+        console.log(
+          '[getPoolQueryRpc] Querying pool data for base/quote:',
+          baseAssetId,
+          quoteAssetId,
+        );
+
+        const base = api.createType('FrameSupportTokensFungibleUnionOfNativeOrWithId', {
+          WithId: baseAssetId,
+        });
+        const quote = api.createType('FrameSupportTokensFungibleUnionOfNativeOrWithId', {
+          WithId: quoteAssetId,
+        });
+
+        const result = await (api.call as any).hybridOrderbookApi.getPoolQuery(base, quote);
+
+        console.log('[getPoolQueryRpc] Pool data response:', result.toHuman());
+
+        return {
+          baseAssetId,
+          quoteAssetId,
+          data: result.toHuman(),
+          success: true,
+        };
+      } catch (error) {
+        console.error('[getPoolQueryRpc] Error fetching pool data:', error);
+        return {
+          baseAssetId,
+          quoteAssetId,
+          data: null,
+          success: false,
+          error: String(error),
+        };
+      }
+    },
+    [api],
+  );
 
   return {
     findPoolIndexByPair,
     getPoolInfo,
     getPoolInfoByPair,
     getPoolPriceRatio,
+    getPoolQueryRpc,
   };
 };

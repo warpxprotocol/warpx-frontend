@@ -67,7 +67,7 @@ export default function OrderbookTable() {
           >
             {/* 색상 바 */}
             <div
-              className="absolute left-0 top-0 h-full bg-red-500 opacity-20 rounded"
+              className="absolute left-0 top-0 h-full bg-red-500 opacity-20"
               style={{ width: `${(ask.total / maxAskTotal) * 100}%` }}
             />
             <div className="w-1/3 relative z-10">{ask.price.toFixed(2)}</div>
@@ -89,7 +89,7 @@ export default function OrderbookTable() {
           >
             {/* 색상 바 */}
             <div
-              className="absolute left-0 top-0 h-full bg-green-500 opacity-20 rounded"
+              className="absolute left-0 top-0 h-full bg-green-500 opacity-20 "
               style={{ width: `${(bid.total / maxBidTotal) * 100}%` }}
             />
             <div className="w-1/3 relative z-10">{bid.price.toFixed(2)}</div>

@@ -20,6 +20,13 @@ export interface PoolInfoDisplay extends PoolInfo {
   lpTokenDecimals?: number;
   poolDecimals?: number;
   poolPrice?: number;
+
+  // 오더북 데이터
+  asks?: any;
+  bids?: any;
+
+  // 원본 데이터
+  rawData?: any;
 }
 
 // Zustand 스토어 상태 정의
@@ -57,7 +64,8 @@ export const selectError = (state: PoolDataState) => state.error;
 
 // API 상태 확인 함수
 const isApiReady = (api: any): boolean => {
-  return !!api && api.isReady && api.isConnected;
+  // API가 정의되어 있고, 객체 형태이며, 최소한 isReady 또는 isConnected 속성 중 하나가 true인 경우
+  return !!api && typeof api === 'object' && (api.isReady || api.isConnected);
 };
 
 // 풀 데이터 로직을 위한 훅
@@ -188,7 +196,15 @@ export function usePoolDataFetcher() {
         // 풀 인덱스가 있으면 풀 정보 가져오기
         let poolInfoData: PoolInfo | null = null;
         if (poolIndex !== null) {
-          poolInfoData = await getPoolInfo(poolIndex);
+          try {
+            poolInfoData = await getPoolInfo(poolIndex);
+          } catch (error) {
+            console.warn(
+              `[PoolDataStore] getPoolInfo 오류 무시 (poolIndex: ${poolIndex}):`,
+              error,
+            );
+            // 오류가 발생해도 계속 진행 - 풀 데이터는 poolQueryResponse에서도 얻을 수 있음
+          }
         }
 
         // 토큰 메타데이터 가져오기
@@ -238,6 +254,13 @@ export function usePoolDataFetcher() {
           quoteAssetSymbol: quoteSymbol,
           baseAssetDecimals: baseDecimals,
           quoteAssetDecimals: quoteDecimals,
+
+          // asks와 bids 원본 데이터 저장 (오더북 표시용)
+          asks: poolData?.asks || {},
+          bids: poolData?.bids || {},
+
+          // 원본 poolData 저장 - 필요한 경우 나중에 참조할 수 있음
+          rawData: poolData || {},
         };
 
         console.log('[PoolDataStore] 풀 데이터 가져오기 성공', processedData);

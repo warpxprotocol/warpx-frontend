@@ -12,6 +12,9 @@ import { useExtrinsic } from '@/hooks/useExtrinsic';
 export type OrderType = 'market' | 'limit';
 export type TradeSide = 'buy' | 'sell';
 
+// market order는 baseasset 기준으로(decimal 고려해서) token quantiatiy 전달
+// limit order는 baseasset 기준으로(decimal 고려해서), pool price 기준으로 설정해서 base Asset의 가격 전달
+
 interface TradeParameters {
   poolId: number;
   assetIn: number;

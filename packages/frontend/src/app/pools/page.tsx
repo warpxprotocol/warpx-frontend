@@ -9,6 +9,10 @@ import React, { useEffect, useState } from 'react';
 import { Pool } from '@/app/pools/[pair]/components/pools/types';
 import { useApi } from '@/hooks/useApi';
 
+// pool list data 불러오는거 개선
+// create Pool + first add lp
+// polkadot Porotocol x, APR
+
 // 모든 클라이언트 컴포넌트를 동적으로 로드하여 SSR 문제 해결
 const PoolList = dynamic(
   () => import('@/app/pools/[pair]/components/pools/PoolList').then((mod) => mod.PoolList),

@@ -2,6 +2,8 @@ import { Pool } from '@/app/pools/[pair]/components/pools/types';
 
 import { PoolRow } from './PoolRow';
 
+// pool list data 불러오는거 개선
+
 export function PoolList({ pools }: { pools: Pool[] }) {
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-800 bg-[#18181B] mt-8">

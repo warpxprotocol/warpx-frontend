@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
 
 import { useWalletStore } from '@/app/features/wallet/hooks/useWalletStore';
@@ -9,11 +11,10 @@ import { TokenInfo } from './types';
 import { usePoolOperations } from './usePoolOperations';
 
 // ticksize deciaml 기준인데 decimal만 조정하면 ticksize 변화 보여주기
-// lot size quantity decimal 기준으로 굳이 보여주지 않기 
+// lot size quantity decimal 기준으로 굳이 보여주지 않기
 // 전체 ui 순서 조정 및 글래스 모피즘
 // base quote asset 가독성 개선
 // asset 비율(처음 )
-
 
 interface AddRemoveLiquidityModalProps {
   isOpen: boolean;

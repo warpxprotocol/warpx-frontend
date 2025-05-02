@@ -1,3 +1,5 @@
+'use client';
+
 import { useParams, useSearchParams } from 'next/navigation';
 import React, { useEffect } from 'react';
 
@@ -199,7 +201,11 @@ export default function AMMInfoBox() {
                   {poolInfo?.poolPrice &&
                   (poolInfo.reserve0 ?? 0) > 0 &&
                   (poolInfo.reserve1 ?? 0) > 0
-                    ? (poolInfo.reserve1 / poolInfo.reserve0).toFixed(3)
+                    ? (
+                        (poolInfo.reserve1 *
+                          Math.pow(10, poolInfo.baseAssetDecimals ?? 0)) /
+                        (poolInfo.reserve0 * Math.pow(10, poolInfo.quoteAssetDecimals ?? 0))
+                      ).toFixed((poolInfo.poolDecimals ?? 0) + 2)
                     : '-'}
                 </span>
                 <span className="ml-1 text-xs text-gray-400 font-medium">

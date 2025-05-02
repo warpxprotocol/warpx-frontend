@@ -295,7 +295,15 @@ export const usePoolQueries = () => {
         console.log('[getPoolInfo] Pool data:', JSON.stringify(valueHuman, null, 2));
 
         if (!valueHuman || Object.keys(valueHuman).length === 0) {
-          throw new Error(`Pool with index ${poolIndex} not found`);
+          return {
+            baseAssetId: 0,
+            quoteAssetId: 0,
+            reserve0: 0,
+            reserve1: 0,
+            lpTokenId: 0,
+            feeTier: 0,
+            poolExists: false,
+          };
         }
 
         // 필요한 인터페이스 정의 (valueHuman에 대한 타입 힌트)

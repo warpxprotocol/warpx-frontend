@@ -604,11 +604,142 @@ export const usePoolQueries = () => {
     [api],
   );
 
+  /**
+   * 오더북 데이터를 RPC로 가져오는 함수
+   */
+  const getOrderbookData = useCallback(
+    async (baseAssetId: number, quoteAssetId: number) => {
+      if (!api) return { asks: null, bids: null };
+
+      try {
+        console.log(
+          '[getOrderbookData] 오더북 데이터 가져오기 시작 (baseAssetId:',
+          baseAssetId,
+          ', quoteAssetId:',
+          quoteAssetId,
+          ')',
+        );
+
+        // 직접 getPoolQueryRpc 호출
+        const poolQueryResult = await getPoolQueryRpc(baseAssetId, quoteAssetId);
+
+        if (!poolQueryResult.success || !poolQueryResult.data) {
+          console.error('[getOrderbookData] getPoolQuery 실패:', poolQueryResult);
+          return { asks: null, bids: null };
+        }
+
+        const poolData = poolQueryResult.data;
+
+        // 오더북 데이터 추출 - 직접 poolData에서 asks와 bids 찾기
+        const asks = poolData.asks || null;
+        const bids = poolData.bids || null;
+
+        if (asks || bids) {
+          console.log('[getOrderbookData] 오더북 데이터 찾음');
+          return { asks, bids };
+        }
+
+        // 혹시 orderbook 객체 안에 있을 경우도 확인
+        if (poolData.orderbook) {
+          const nestedAsks = poolData.orderbook.asks || null;
+          const nestedBids = poolData.orderbook.bids || null;
+
+          if (nestedAsks || nestedBids) {
+            console.log('[getOrderbookData] 중첩된 오더북 데이터 찾음');
+            return { asks: nestedAsks, bids: nestedBids };
+          }
+        }
+
+        console.error('[getOrderbookData] 오더북 데이터를 찾을 수 없습니다');
+        return { asks: null, bids: null };
+      } catch (error) {
+        console.error('[getOrderbookData] 오더북 데이터 가져오기 실패:', error);
+        return { asks: null, bids: null };
+      }
+    },
+    [api, getPoolQueryRpc],
+  );
+
+  /**
+   * 오더북에 구독하는 함수
+   * @param api Polkadot.js API 인스턴스
+   * @param baseAssetId 기본 자산 ID
+   * @param quoteAssetId 쿼트 자산 ID
+   * @param onUpdate 업데이트 콜백
+   * @returns 구독 해제 함수들
+   */
+  const subscribeToOrderbook = useCallback(
+    async (
+      api: any,
+      baseAssetId: number,
+      quoteAssetId: number,
+      onUpdate: (data: any) => void,
+    ) => {
+      if (!api) throw new Error('API not connected');
+
+      try {
+        // 풀 인덱스 찾기
+        const poolIndex = await findPoolIndexByPair(baseAssetId, quoteAssetId);
+        if (poolIndex === null) throw new Error('Pool not found');
+
+        console.log('[subscribeToOrderbook] 풀 인덱스 찾음:', poolIndex);
+
+        // 폴링 방식으로 오더북 데이터 구독
+        console.log('[subscribeToOrderbook] 폴링 방식으로 오더북 데이터 구독');
+
+        // 폴링 함수
+        const fetchOrderbookData = async () => {
+          try {
+            // getOrderbookData 함수 사용 (RPC 방식)
+            const orderbookData = await getOrderbookData(baseAssetId, quoteAssetId);
+
+            if (orderbookData) {
+              // asks와 bids가 있는 경우 각각 업데이트
+              if (orderbookData.asks) {
+                onUpdate({ asks: orderbookData.asks });
+              }
+              if (orderbookData.bids) {
+                onUpdate({ bids: orderbookData.bids });
+              }
+
+              console.log('[subscribeToOrderbook] 오더북 데이터 업데이트 완료');
+            }
+          } catch (err) {
+            console.error('[subscribeToOrderbook] 오더북 폴링 오류:', err);
+          }
+        };
+
+        // 초기 데이터 가져오기
+        await fetchOrderbookData();
+
+        // 폴링 간격 설정 (5초)
+        const interval = setInterval(fetchOrderbookData, 5000);
+
+        return {
+          unsubAsks: () => clearInterval(interval),
+          unsubBids: () =>
+            console.log('[subscribeToOrderbook] 폴링은 unsubAsks로 해제됩니다'),
+        };
+      } catch (error) {
+        console.error('[subscribeToOrderbook] 오더북 구독 설정 실패:', error);
+        // 더미 구독 해제 함수 반환
+        return {
+          unsubAsks: () => console.log('[subscribeToOrderbook] 구독 실패로 해제 필요 없음'),
+          unsubBids: () => console.log('[subscribeToOrderbook] 구독 실패로 해제 필요 없음'),
+        };
+      }
+    },
+    [findPoolIndexByPair, getOrderbookData],
+  );
+
+  // return 문에 추가
   return {
     findPoolIndexByPair,
     getPoolInfo,
     getPoolInfoByPair,
     getPoolPriceRatio,
     getPoolQueryRpc,
+    subscribeToOrderbook,
+    getOrderbookData, // 추가
   };
 };

@@ -44,13 +44,30 @@ function convertOrderBookData(
   try {
     console.log(`${orderType} orderbook data:`, orderBookData);
 
+    // 데이터가 없으면 빈 배열 반환
+    if (!orderBookData) {
+      console.log(`${orderType} orderbook data is null or undefined`);
+      return [];
+    }
+
+    // 데이터 구조 분석을 위한 로깅
+    console.log(`${orderType} orderbook 키:`, Object.keys(orderBookData));
+
     // leaves 객체가 없거나 비어있으면 빈 배열 반환
-    if (
-      !orderBookData ||
-      !orderBookData.leaves ||
-      Object.keys(orderBookData.leaves).length === 0
-    ) {
-      console.log(`${orderType} orderbook leaves is empty`);
+    if (!orderBookData.leaves || Object.keys(orderBookData.leaves).length === 0) {
+      console.log(`${orderType} orderbook leaves is empty or missing`);
+
+      // 다른 형태의 데이터가 있는지 확인
+      if (orderType === 'ask' && orderBookData.asks) {
+        console.log(`Using nested 'asks' data:`, orderBookData.asks);
+        return convertOrderBookData(orderBookData.asks, orderType);
+      }
+
+      if (orderType === 'bid' && orderBookData.bids) {
+        console.log(`Using nested 'bids' data:`, orderBookData.bids);
+        return convertOrderBookData(orderBookData.bids, orderType);
+      }
+
       return [];
     }
 
@@ -63,8 +80,15 @@ function convertOrderBookData(
 
     console.log(`${orderType} extracted prices:`, prices);
 
-    // 두 경우 모두 내림차순 정렬 (높은 가격이 위로 가도록)
-    const sortedPrices = prices.sort((a, b) => b - a);
+    // 정렬 방향 설정
+    let sortedPrices;
+    if (orderType === 'ask') {
+      // asks는 오름차순 정렬 (낮은 가격이 위로)
+      sortedPrices = prices.sort((a, b) => a - b);
+    } else {
+      // bids는 내림차순 정렬 (높은 가격이 위로)
+      sortedPrices = prices.sort((a, b) => b - a);
+    }
 
     console.log(`${orderType} sorted prices:`, sortedPrices);
 
@@ -101,6 +125,12 @@ function convertOrderBookData(
         );
       });
 
+      // 수량이 0인 경우 스킵
+      if (totalQuantity <= 0) {
+        console.log(`Skipping price ${price} with zero quantity`);
+        continue;
+      }
+
       // 실제 가격은 정수형 key를 poolDecimals에 맞게 나눈 값
       // 여기서는 2를 하드코딩했지만, 실제로는 poolInfo.poolDecimals를 사용하는 것이 좋음
       const poolDecimals = 2;
@@ -135,6 +165,52 @@ function convertOrderBookData(
   } catch (error) {
     console.error(`Error converting ${orderType} orderbook data:`, error);
     return [];
+  }
+}
+
+// 오더북 데이터의 해시 생성 함수 (변경 감지용)
+function createOrderbookHash(data: any) {
+  if (!data) {
+    return 'empty';
+  }
+
+  try {
+    // 데이터 구조에 따라 다른 방식으로 해시 생성
+    if (data.leaves && Object.keys(data.leaves).length > 0) {
+      // leaves 구조가 있는 경우, 주문 수량과 만료 정보까지 포함
+      return Object.entries(data.leaves)
+        .map(([key, leaf]: [string, any]) => {
+          const openOrders = leaf.value?.openOrders || {};
+          const ordersInfo = Object.entries(openOrders)
+            .map(([orderId, order]: [string, any]) => {
+              // 각 주문의 수량과 만료 정보까지 포함
+              const quantity = order.quantity || '0';
+              const expiry = order.expiredAt || '0';
+              return `${orderId}:${quantity}:${expiry}`;
+            })
+            .join(',');
+
+          // 기존 키(가격) 정보에 주문 정보 추가
+          return `${key}:${JSON.stringify(leaf.key)}:${ordersInfo}`;
+        })
+        .sort()
+        .join('|');
+    } else if (data.internalNodes) {
+      // 다른 구조가 있는 경우 - 내부 노드까지 고려
+      const internalNodesHash = Object.entries(data.internalNodes)
+        .map(([key, node]: [string, any]) => {
+          return `${key}:${JSON.stringify(node)}`;
+        })
+        .join('|');
+      return `internal:${internalNodesHash}`;
+    } else {
+      // 다른 모든 경우 - deep stringify로 변경 사항 감지 강화
+      return `json:${JSON.stringify(data)}`.substring(0, 200); // 너무 길지 않게 제한
+    }
+  } catch (error) {
+    console.error('해시 생성 중 오류 발생:', error);
+    // 에러가 발생해도 매번 다른 해시를 반환하여 업데이트가 일어나도록 함
+    return `error:${Date.now()}`;
   }
 }
 
@@ -178,97 +254,63 @@ export default function OrderbookTable() {
   const poolInfo = usePoolDataStore(selectPoolInfo);
   const loading = usePoolDataStore(selectLoading);
 
+  // 마운트 시 초기화
   useEffect(() => {
     setMounted(true);
+  }, []);
 
-    // 초기 데이터
-    if (poolInfo) {
-      // asks와 bids 데이터 변경 확인을 위한 해시 생성
-      const createOrderbookHash = (data: any) => {
-        if (!data || !data.leaves || Object.keys(data.leaves).length === 0) {
-          return 'empty';
-        }
-        return Object.keys(data.leaves)
-          .map((key) => `${key}:${JSON.stringify(data.leaves[key].key)}`)
-          .sort()
-          .join('|');
-      };
-
-      // 현재 asks/bids 해시 계산
-      const currentAsksHash = poolInfo.asks ? createOrderbookHash(poolInfo.asks) : 'empty';
-      const currentBidsHash = poolInfo.bids ? createOrderbookHash(poolInfo.bids) : 'empty';
-
-      // 이전 해시와 비교하여 변경된 경우만 데이터 변환
-      if (currentAsksHash !== prevAsksHashRef.current) {
-        console.log('asks 데이터가 변경되어 업데이트합니다');
-        prevAsksHashRef.current = currentAsksHash;
-
-        const convertedAsks = convertOrderBookData(poolInfo.asks, 'ask');
-        setAsks(convertedAsks);
-      }
-
-      if (currentBidsHash !== prevBidsHashRef.current) {
-        console.log('bids 데이터가 변경되어 업데이트합니다');
-        prevBidsHashRef.current = currentBidsHash;
-
-        const convertedBids = convertOrderBookData(poolInfo.bids, 'bid');
-        setBids(convertedBids);
-      }
-    } else {
+  // poolInfo 변경 시 데이터 업데이트
+  useEffect(() => {
+    if (!poolInfo) {
       // 풀 정보가 없는 경우 빈 배열 사용
       setAsks([]);
       setBids([]);
+      return;
     }
 
-    // 주기적 업데이트
-    const interval = setInterval(() => {
-      if (poolInfo && poolInfo.poolExists) {
-        // asks와 bids 데이터 변경 확인을 위한 해시 생성
-        const createOrderbookHash = (data: any) => {
-          if (!data || !data.leaves || Object.keys(data.leaves).length === 0) {
-            return 'empty';
-          }
-          return Object.keys(data.leaves)
-            .map((key) => `${key}:${JSON.stringify(data.leaves[key].key)}`)
-            .sort()
-            .join('|');
-        };
+    // 데이터 로그 추가
+    console.log('현재 orderbook 데이터:', { asks: poolInfo.asks, bids: poolInfo.bids });
 
-        // 현재 asks/bids 해시 계산
-        const currentAsksHash = poolInfo.asks
-          ? createOrderbookHash(poolInfo.asks)
-          : 'empty';
-        const currentBidsHash = poolInfo.bids
-          ? createOrderbookHash(poolInfo.bids)
-          : 'empty';
+    // 현재 asks/bids 해시 계산
+    const currentAsksHash = poolInfo.asks ? createOrderbookHash(poolInfo.asks) : 'empty';
+    const currentBidsHash = poolInfo.bids ? createOrderbookHash(poolInfo.bids) : 'empty';
 
-        // 이전 해시와 비교하여 변경된 경우만 데이터 변환
-        if (currentAsksHash !== prevAsksHashRef.current) {
-          console.log('asks 데이터가 변경되어 업데이트합니다');
-          prevAsksHashRef.current = currentAsksHash;
+    console.log('해시값:', {
+      currentAsksHash,
+      prevAsksHash: prevAsksHashRef.current,
+      currentBidsHash,
+      prevBidsHash: prevBidsHashRef.current,
+    });
 
-          const convertedAsks = convertOrderBookData(poolInfo.asks, 'ask');
-          setAsks(convertedAsks);
-        }
-
-        if (currentBidsHash !== prevBidsHashRef.current) {
-          console.log('bids 데이터가 변경되어 업데이트합니다');
-          prevBidsHashRef.current = currentBidsHash;
-
-          const convertedBids = convertOrderBookData(poolInfo.bids, 'bid');
-          setBids(convertedBids);
-        }
-      } else {
-        // 풀 정보가 없는 경우 빈 배열 유지
-        // 임의 데이터 생성 로직 주석 처리
-        /*
-        setAsks(getRandomOrders('ask', 10));
-        setBids(getRandomOrders('bid', 10));
-        */
+    // asks 데이터 처리 - 항상 최신 데이터로 변환 시도
+    if (poolInfo.asks) {
+      const convertedAsks = convertOrderBookData(poolInfo.asks, 'ask');
+      // 변환된 데이터가 있거나 이전 해시와 다른 경우에만 업데이트
+      if (convertedAsks.length > 0 || currentAsksHash !== prevAsksHashRef.current) {
+        console.log(
+          'asks 데이터가 변경되어 업데이트합니다:',
+          convertedAsks.length,
+          '개 항목',
+        );
+        prevAsksHashRef.current = currentAsksHash;
+        setAsks(convertedAsks);
       }
-    }, 5000);
+    }
 
-    return () => clearInterval(interval);
+    // bids 데이터 처리 - 항상 최신 데이터로 변환 시도
+    if (poolInfo.bids) {
+      const convertedBids = convertOrderBookData(poolInfo.bids, 'bid');
+      // 변환된 데이터가 있거나 이전 해시와 다른 경우에만 업데이트
+      if (convertedBids.length > 0 || currentBidsHash !== prevBidsHashRef.current) {
+        console.log(
+          'bids 데이터가 변경되어 업데이트합니다:',
+          convertedBids.length,
+          '개 항목',
+        );
+        prevBidsHashRef.current = currentBidsHash;
+        setBids(convertedBids);
+      }
+    }
   }, [poolInfo]);
 
   // 최대 total 값 계산 (각각)
@@ -288,11 +330,11 @@ export default function OrderbookTable() {
         <div className="w-1/3 text-right">Size</div>
         <div className="w-1/3 text-right">Total</div>
       </div>
-      {/* 매도(ASKS) - 위쪽 */}
+
       <div className="flex flex-col w-full gap-[1px]">
-        {asks.map((ask, i) => (
+        {[...asks].reverse().map((ask, i) => (
           <div
-            key={i}
+            key={`ask-${ask.price}-${Date.now()}-${i}`} // 고유 키 사용하여 렌더링 강제
             className="relative flex text-sm text-red-400 h-5 items-center w-full"
           >
             {/* 색상 바 */}
@@ -306,15 +348,15 @@ export default function OrderbookTable() {
           </div>
         ))}
       </div>
-      {/* AMMInfoBox 중앙 배치 - 테이블 컬럼에 맞춰 한 줄로 */}
+
       <div className="flex w-full my-1">
         <AMMInfoBox />
       </div>
-      {/* 매수(BIDS) - 아래쪽 */}
+
       <div className="flex flex-col w-full gap-[1px]">
         {bids.map((bid, i) => (
           <div
-            key={i}
+            key={`bid-${bid.price}-${Date.now()}-${i}`} // 고유 키 사용하여 렌더링 강제
             className="relative flex text-sm text-green-400 h-5 items-center w-full"
           >
             {/* 색상 바 */}

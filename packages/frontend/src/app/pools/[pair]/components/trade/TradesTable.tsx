@@ -45,6 +45,7 @@ export default function TradesTable() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [mounted, setMounted] = useState(false);
   const prevTradesRef = useRef<Trade[]>([]);
+  const [firstLoaded, setFirstLoaded] = useState(false);
 
   // ask와 bid를 랜덤하게 섞는 함수
   const interleaveTrades = (asks: Trade[], bids: Trade[]): Trade[] => {
@@ -65,8 +66,10 @@ export default function TradesTable() {
     return () => setMounted(false);
   }, []);
 
+  // 기존 info로 첫 렌더링에만 trades를 채움
   useEffect(() => {
     if (!poolInfo?.asks || !poolInfo?.bids) return;
+    if (firstLoaded) return; // 이미 첫 로딩 했으면 무시
 
     console.log('[TradesTable] Initial pool data:', {
       asks: poolInfo.asks,
@@ -167,7 +170,8 @@ export default function TradesTable() {
       prevTradesRef.current = interleaved;
       setTrades(interleaved);
     }
-  }, [poolInfo?.asks, poolInfo?.bids]);
+    setFirstLoaded(true); // 첫 로딩 완료 표시
+  }, [poolInfo?.asks, poolInfo?.bids, firstLoaded]);
 
   // 체결 이벤트 구독
   useEffect(() => {
@@ -259,7 +263,9 @@ export default function TradesTable() {
             key={`trade-${trade.hash}-${index}`}
             className={`relative flex text-[10px] ${trade.className} h-5 items-center w-full`}
           >
-            <div className="w-1/3 relative z-10">{trade.price.toFixed(4)}</div>
+            <div className="w-1/3 relative z-10">
+              {trade.price.toFixed(poolInfo?.poolDecimals ?? 4)}
+            </div>
             <div className="w-1/3 text-right relative z-10">
               {Number(trade.size).toLocaleString()}
             </div>

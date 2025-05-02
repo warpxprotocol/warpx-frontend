@@ -4,6 +4,7 @@ import AMMInfoBox from '@/app/pools/[pair]/AMMInfoBox';
 import {
   selectLoading,
   selectPoolInfo,
+  usePoolDataFetcher,
   usePoolDataStore,
 } from '@/app/pools/[pair]/context/PoolDataContext';
 
@@ -242,6 +243,8 @@ function generateOrders(
 }
 
 export default function OrderbookTable() {
+  usePoolDataFetcher();
+
   const [mounted, setMounted] = useState(false);
   const [asks, setAsks] = useState<Order[]>([]);
   const [bids, setBids] = useState<Order[]>([]);
@@ -253,6 +256,7 @@ export default function OrderbookTable() {
   // 풀 데이터 가져오기
   const poolInfo = usePoolDataStore(selectPoolInfo);
   const loading = usePoolDataStore(selectLoading);
+  const poolDecimals = poolInfo?.poolDecimals ?? 4;
 
   // 마운트 시 초기화
   useEffect(() => {
@@ -342,7 +346,7 @@ export default function OrderbookTable() {
               className="absolute left-0 top-0 h-full bg-red-500 opacity-20 rounded"
               style={{ width: `${(ask.total / maxAskTotal) * 100}%` }}
             />
-            <div className="w-1/3 relative z-10">{ask.price.toFixed(4)}</div>
+            <div className="w-1/3 relative z-10">{ask.price.toFixed(poolDecimals)}</div>
             <div className="w-1/3 text-right relative z-10">{formatNumber(ask.size)}</div>
             <div className="w-1/3 text-right relative z-10">{formatNumber(ask.total)}</div>
           </div>
@@ -364,7 +368,7 @@ export default function OrderbookTable() {
               className="absolute left-0 top-0 h-full bg-green-500 opacity-20 rounded"
               style={{ width: `${(bid.total / maxBidTotal) * 100}%` }}
             />
-            <div className="w-1/3 relative z-10">{bid.price.toFixed(4)}</div>
+            <div className="w-1/3 relative z-10">{bid.price.toFixed(poolDecimals)}</div>
             <div className="w-1/3 text-right relative z-10">{formatNumber(bid.size)}</div>
             <div className="w-1/3 text-right relative z-10">{formatNumber(bid.total)}</div>
           </div>

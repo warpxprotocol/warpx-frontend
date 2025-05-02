@@ -15,8 +15,7 @@ export default async function PoolDetailPage({
   params: { pair: string };
   searchParams: { baseId?: string; quoteId?: string };
 }) {
-  const awaitedParams = await params;
-  const pairString = decodeURIComponent(awaitedParams.pair);
+  const pairString = decodeURIComponent(params.pair);
 
   // Extract asset IDs from search params
   const baseAssetId = searchParams.baseId ? parseInt(searchParams.baseId, 10) : undefined;
@@ -34,6 +33,7 @@ export default async function PoolDetailPage({
   // If we don't have asset IDs, show a helpful error
   if (!baseAssetId || !quoteAssetId) {
     console.error('Missing asset IDs in URL params');
+    notFound(); // 404 페이지로 이동
   }
 
   return (

@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { OrderType, TradeSide, useTradeOperations } from '@/app/features/trade/useTradeOperations';
 
-interface TradeButtonProps {
+import {
+  OrderType,
+  TradeSide,
+  useTradeOperations,
+} from '@/app/features/trade/useTradeOperations';
+
+export interface TradeButtonProps {
   orderType: OrderType;
   side: TradeSide;
   poolId: number;
@@ -12,6 +17,8 @@ interface TradeButtonProps {
   isValid: boolean;
   tokenIn: string;
   tokenOut: string;
+  onSubmit?: () => void | Promise<void>;
+  isSubmitting?: boolean;
 }
 
 export default function TradeButton({
@@ -24,11 +31,13 @@ export default function TradeButton({
   price,
   isValid,
   tokenIn,
-  tokenOut
+  tokenOut,
+  onSubmit,
+  isSubmitting,
 }: TradeButtonProps) {
-  const { submitMarketOrder, submitLimitOrder, isSubmitting, isTradingSupported } = useTradeOperations();
+  const { submitMarketOrder, submitLimitOrder, isTradingSupported } = useTradeOperations();
   const [apiSupportsTrading, setApiSupportsTrading] = useState<boolean>(true);
-  
+
   // Check if the API supports trading operations
   useEffect(() => {
     const supported = isTradingSupported();
@@ -43,20 +52,20 @@ export default function TradeButton({
         alert('Trading operations are not supported by the current API');
         return;
       }
-      
+
       // Debug information for order submission
-      console.log(`Submitting ${orderType} order:`, { 
-        orderType, 
-        side, 
-        amount, 
-        price, 
-        poolId, 
-        assetInId, 
+      console.log(`Submitting ${orderType} order:`, {
+        orderType,
+        side,
+        amount,
+        price,
+        poolId,
+        assetInId,
         assetOutId,
         hasPrice: !!price,
-        priceValue: price ? parseFloat(price) : 'none'
+        priceValue: price ? parseFloat(price) : 'none',
       });
-      
+
       const params = {
         poolId,
         assetIn: assetInId,
@@ -64,7 +73,7 @@ export default function TradeButton({
         amountIn: side === 'sell' ? amount : undefined,
         amountOut: side === 'buy' ? amount : undefined,
         price: orderType === 'limit' ? price : undefined,
-        side
+        side,
       };
 
       if (orderType === 'market') {
@@ -80,7 +89,7 @@ export default function TradeButton({
       }
     } catch (error) {
       console.error('Trade submission error:', error);
-      alert(`Trade error: ${error instanceof Error ? error.message : 'Unknown error'}`); 
+      alert(`Trade error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -89,22 +98,28 @@ export default function TradeButton({
     if (!apiSupportsTrading) {
       return 'Trading Not Available';
     }
-    
+
     if (!isValid) {
       return 'Invalid Order';
     }
-    
+
     const actionText = side === 'buy' ? 'Buy' : 'Sell';
     const tokenText = side === 'buy' ? tokenOut : tokenIn;
-    
+
     return `${actionText} ${tokenText}`;
   };
 
   return (
-    <button 
+    <button
       className="bg-teal-500 text-[11px] font-medium text-black p-1.5 w-full hover:bg-teal-600 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed transition"
-      onClick={handleSubmit}
-      disabled={!apiSupportsTrading || !isValid || isSubmitting || !amount || (orderType === 'limit' && !price)}
+      onClick={onSubmit || handleSubmit}
+      disabled={
+        !apiSupportsTrading ||
+        !isValid ||
+        isSubmitting ||
+        !amount ||
+        (orderType === 'limit' && !price)
+      }
     >
       {isSubmitting ? 'Processing...' : getButtonText()}
     </button>

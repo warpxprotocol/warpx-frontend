@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { OrderType, TradeSide } from '@/app/features/trade/useTradeOperations';
+import { PoolInfoDisplay } from '@/app/pools/[pair]/context/PoolDataContext';
 
 interface TradeInputProps {
   orderType: OrderType;
@@ -11,6 +13,15 @@ interface TradeInputProps {
   price: string;
   setPrice: (price: string) => void;
   availableBalance: string;
+  poolInfo?: PoolInfoDisplay;
+  decimals?: number;
+}
+
+function formatBalance(raw: string, decimals: number = 6) {
+  if (!raw) return '0';
+  return (Number(raw) / 10 ** decimals).toLocaleString(undefined, {
+    maximumFractionDigits: decimals,
+  });
 }
 
 export default function TradeInput({
@@ -22,17 +33,21 @@ export default function TradeInput({
   setAmount,
   price,
   setPrice,
-  availableBalance
+  availableBalance,
+  poolInfo,
+  decimals = 6,
 }: TradeInputProps) {
   const activeToken = side === 'buy' ? tokenOut : tokenIn;
-  
+
   return (
     <>
       <div className="text-[11px] text-gray-400 mb-1 flex justify-between">
         <span>Available</span>
-        <span className="text-white font-medium">{availableBalance} {activeToken}</span>
+        <span className="text-white font-medium">
+          {formatBalance(availableBalance, decimals)} {activeToken}
+        </span>
       </div>
-      
+
       {/* Size Input */}
       <div className="flex gap-2 mb-2">
         <input
@@ -53,7 +68,7 @@ export default function TradeInput({
           <option>{activeToken}</option>
         </select>
       </div>
-      
+
       {/* Price Input - Only for Limit Orders */}
       {orderType === 'limit' && (
         <div className="mb-2">
@@ -88,17 +103,19 @@ export default function TradeInput({
             </div>
           </div>
           <div className="mt-1 text-[10px] text-amber-400">
-            Note: Limit orders are submitted without decimal points. For example, 1.5 will be sent as 15.
+            Note: Limit orders are submitted without decimal points. For example, 1.5 will
+            be sent as 15.
           </div>
         </div>
       )}
-      
+
       {/* Total - Only for Limit Orders */}
       {orderType === 'limit' && price && amount && (
         <div className="text-[11px] text-gray-400 mb-2 flex justify-between">
           <span>Total</span>
           <span className="text-white font-medium">
-            {(parseFloat(price) * parseFloat(amount || '0')).toFixed(6)} {side === 'buy' ? tokenIn : tokenOut}
+            {(parseFloat(price) * parseFloat(amount || '0')).toFixed(6)}{' '}
+            {side === 'buy' ? tokenIn : tokenOut}
           </span>
         </div>
       )}

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { create } from 'zustand';
 
 import { useApi } from '@/hooks/useApi';
+import { isApiReady } from '@/hooks/useApi';
 
 import { PoolInfo } from '../components/pools/poolQueries';
 import { usePoolQueries } from '../components/pools/poolQueries';
@@ -69,21 +70,57 @@ export const selectLoading = (state: PoolDataState) => state.loading;
 export const selectError = (state: PoolDataState) => state.error;
 export const selectIsSubscribed = (state: PoolDataState) => state.isSubscribed;
 
-// API 상태 확인 함수
-const isApiReady = (api: any): boolean => {
-  // API가 정의되어 있고, 객체 형태이며, 최소한 isReady 또는 isConnected 속성 중 하나가 true인 경우
-  return !!api && typeof api === 'object' && (api.isReady || api.isConnected);
+// API 상태 로깅 함수
+const logApiStatus = (api: any) => {
+  if (!api) return 'API is null';
+  return {
+    isReady: api.isReady ? 'ready' : 'not ready',
+    isConnected: api.isConnected ? 'connected' : 'not connected',
+  };
+};
+
+// 1. shallowEqual 함수 추가
+function shallowEqual(objA: any, objB: any) {
+  if (objA === objB) return true;
+  if (!objA || !objB) return false;
+  const keysA = Object.keys(objA);
+  const keysB = Object.keys(objB);
+  if (keysA.length !== keysB.length) return false;
+  for (let key of keysA) {
+    if (objA[key] !== objB[key]) return false;
+  }
+  return true;
+}
+
+// 2. setPoolInfo 최적화
+const setPoolInfo = (poolInfo: PoolInfoDisplay | null) => {
+  usePoolDataStore.setState((state) => {
+    if (shallowEqual(state.poolInfo, poolInfo)) return state;
+    return { ...state, poolInfo };
+  });
+};
+
+// 예시: 심볼 → asset id 매핑
+const symbolToId: Record<string, number> = {
+  DOT: 1,
+  USDT: 2,
+  // ... 추가
 };
 
 // 풀 데이터 로직을 위한 훅
 export function usePoolDataFetcher() {
-  const { api } = useApi();
+  const { api, isConnected, isReady } = useApi();
   const params = useParams();
   const searchParams = useSearchParams();
+  const isFetchingRef = useRef(false);
+  const isSettingUpRef = useRef(false);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const poolInfoRef = useRef<PoolInfoDisplay | null>(null);
+  const poolIndexRef = useRef<number | null>(null);
 
   // URL에서 토큰 ID 추출
   const pairString = params?.pair?.toString() || '';
-  console.log('원본 pair 문자열:', pairString);
+  // console.log('원본 pair 문자열:', pairString);
 
   // 각 부분에서 숫자 추출 시도
   const extractTokenId = (part: string): number | null => {
@@ -102,37 +139,54 @@ export function usePoolDataFetcher() {
   let baseId = searchParams?.get('baseId');
   let quoteId = searchParams?.get('quoteId');
 
-  console.log('쿼리 파라미터에서 추출한 토큰 ID:', { baseId, quoteId });
+  if (baseId && quoteId) {
+    baseId = String(parseInt(baseId, 10));
+    quoteId = String(parseInt(quoteId, 10));
+  } else {
+    // 2. 쿼리 파라미터가 없으면 URL 경로에서 추출 시도
+    if (pairString) {
+      // URL 디코딩 (WO%2FWF -> WO/WF)
+      const decodedPair = decodeURIComponent(pairString);
+      // console.log('디코딩된 pair 문자열:', decodedPair);
 
-  // 2. 쿼리 파라미터가 없으면 URL 경로에서 추출 시도
-  if ((!baseId || !quoteId) && pairString) {
-    // URL 디코딩 (WO%2FWF -> WO/WF)
-    const decodedPair = decodeURIComponent(pairString);
-    console.log('디코딩된 pair 문자열:', decodedPair);
+      // 분리자로 분리 시도 (예: WO/WF, WO-WF)
+      const pairParts =
+        decodedPair.split('/').length === 2
+          ? decodedPair.split('/')
+          : decodedPair.split('-').length === 2
+            ? decodedPair.split('-')
+            : [];
 
-    // 분리자로 분리 시도 (예: WO/WF, WO-WF)
-    const pairParts =
-      decodedPair.split('/').length === 2
-        ? decodedPair.split('/')
-        : decodedPair.split('-').length === 2
-          ? decodedPair.split('-')
-          : [];
+      // console.log('분리된 pair 부분:', pairParts);
 
-    console.log('분리된 pair 부분:', pairParts);
+      // 유효한 쌍이 있으면 각 부분에서 ID 추출
+      if (pairParts.length === 2) {
+        if (!baseId) {
+          const extractedBaseId = extractTokenId(pairParts[0]);
+          if (extractedBaseId !== null) {
+            baseId = String(extractedBaseId);
+          }
+        }
 
-    // 유효한 쌍이 있으면 각 부분에서 ID 추출
-    if (pairParts.length === 2) {
-      if (!baseId) {
-        const extractedBaseId = extractTokenId(pairParts[0]);
-        if (extractedBaseId !== null) {
-          baseId = String(extractedBaseId);
+        if (!quoteId) {
+          const extractedQuoteId = extractTokenId(pairParts[1]);
+          if (extractedQuoteId !== null) {
+            quoteId = String(extractedQuoteId);
+          }
         }
       }
 
-      if (!quoteId) {
-        const extractedQuoteId = extractTokenId(pairParts[1]);
-        if (extractedQuoteId !== null) {
-          quoteId = String(extractedQuoteId);
+      // 예시: 심볼 → asset id 매핑
+      if (!baseId && pairParts.length === 2) {
+        const symbol = pairParts[0];
+        if (symbolToId[symbol]) {
+          baseId = String(symbolToId[symbol]);
+        }
+      }
+      if (!quoteId && pairParts.length === 2) {
+        const symbol = pairParts[1];
+        if (symbolToId[symbol]) {
+          quoteId = String(symbolToId[symbol]);
         }
       }
     }
@@ -142,18 +196,17 @@ export function usePoolDataFetcher() {
   const baseIdFromUrl = baseId ? parseInt(baseId, 10) : NaN;
   const quoteIdFromUrl = quoteId ? parseInt(quoteId, 10) : NaN;
 
-  console.log('최종 추출된 토큰 ID:', {
-    baseId: baseIdFromUrl,
-    quoteId: quoteIdFromUrl,
-    originalPath: pairString,
-  });
+  // console.log('최종 추출된 토큰 ID:', {
+  //   baseId: baseIdFromUrl,
+  //   quoteId: quoteIdFromUrl,
+  //   originalPath: pairString,
+  // });
 
   // 풀 쿼리 함수들
   const { getPoolQueryRpc, findPoolIndexByPair, getPoolInfo, subscribeToOrderbook } =
     usePoolQueries();
 
   // 개별 액션을 직접 선택하여 객체 생성을 방지
-  const setPoolInfo = usePoolDataStore((state) => state.setPoolInfo);
   const setLoading = usePoolDataStore((state) => state.setLoading);
   const setError = usePoolDataStore((state) => state.setError);
   const refreshPoolData = usePoolDataStore((state) => state.refreshPoolData);
@@ -165,14 +218,13 @@ export function usePoolDataFetcher() {
       try {
         fn();
       } catch (err) {
-        console.error('[Unsubscribe] 구독 해제 실패:', err);
+        // 에러만 출력
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Unsubscribe] 구독 해제 실패:', err);
+        }
       }
     }
   }, []);
-
-  // 실시간 데이터 접근을 위한 Ref 추가
-  const poolInfoRef = useRef<PoolInfoDisplay | null>(null);
-  const poolIndexRef = useRef<number | null>(null);
 
   // 구독 관리 Refs
   const subscriptionsRef = useRef<{
@@ -184,7 +236,7 @@ export function usePoolDataFetcher() {
 
   // 모든 구독 해제 함수
   const unsubscribeAll = useCallback(() => {
-    console.log('[PoolDataStore] 모든 구독 해제 중');
+    // console.log('[PoolDataStore] 모든 구독 해제 중');
 
     // 풀 구독 해제
     if (subscriptionsRef.current.pool) {
@@ -192,16 +244,16 @@ export function usePoolDataFetcher() {
         const unsubFn = subscriptionsRef.current.pool;
         if (typeof unsubFn === 'function') {
           unsubFn();
-          console.log('[PoolSubscription] 풀 구독 해제 완료');
+          // console.log('[PoolSubscription] 풀 구독 해제 완료');
         } else {
-          console.log(
-            '[PoolSubscription] 풀 구독 해제 함수가 유효하지 않음:',
-            typeof unsubFn,
-          );
+          // console.log(
+          //   '[PoolSubscription] 풀 구독 해제 함수가 유효하지 않음:',
+          //   typeof unsubFn,
+          // );
         }
         subscriptionsRef.current.pool = undefined;
       } catch (err) {
-        console.error('[PoolSubscription] 풀 구독 해제 오류:', err);
+        // console.error('[PoolSubscription] 풀 구독 해제 오류:', err);
       }
     }
 
@@ -211,11 +263,11 @@ export function usePoolDataFetcher() {
         const unsubFn = subscriptionsRef.current.orderbook;
         if (typeof unsubFn === 'function') {
           unsubFn();
-          console.log('[OrderbookSubscription] 오더북 구독 해제 완료');
+          // console.log('[OrderbookSubscription] 오더북 구독 해제 완료');
         }
         subscriptionsRef.current.orderbook = undefined;
       } catch (err) {
-        console.error('[OrderbookSubscription] 오더북 구독 해제 오류:', err);
+        // console.error('[OrderbookSubscription] 오더북 구독 해제 오류:', err);
       }
     }
 
@@ -225,11 +277,11 @@ export function usePoolDataFetcher() {
         const unsubFn = subscriptionsRef.current.trades;
         if (typeof unsubFn === 'function') {
           unsubFn();
-          console.log('[TradesSubscription] 거래 구독 해제 완료');
+          // console.log('[TradesSubscription] 거래 구독 해제 완료');
         }
         subscriptionsRef.current.trades = undefined;
       } catch (err) {
-        console.error('[TradesSubscription] 거래 구독 해제 오류:', err);
+        // console.error('[TradesSubscription] 거래 구독 해제 오류:', err);
       }
     }
 
@@ -237,12 +289,12 @@ export function usePoolDataFetcher() {
     if (subscriptionsRef.current.metadataInterval) {
       clearInterval(subscriptionsRef.current.metadataInterval);
       subscriptionsRef.current.metadataInterval = undefined;
-      console.log('[TokenPolling] 메타데이터 폴링 해제 완료');
+      // console.log('[TokenPolling] 메타데이터 폴링 해제 완료');
     }
 
     // 구독 상태 업데이트
     setSubscribed(false);
-    console.log('[Subscriptions] 모든 구독 해제 완료');
+    // console.log('[Subscriptions] 모든 구독 해제 완료');
   }, [setSubscribed]);
 
   // 오더북 구독 해제 헬퍼 함수
@@ -252,7 +304,7 @@ export function usePoolDataFetcher() {
         safeUnsubscribe(unsubAsks);
         safeUnsubscribe(unsubBids);
       } catch (err) {
-        console.error('[OrderbookSubscription] 구독 해제 중 오류', err);
+        // console.error('[OrderbookSubscription] 구독 해제 중 오류', err);
       }
     },
     [safeUnsubscribe],
@@ -300,163 +352,151 @@ export function usePoolDataFetcher() {
         baseAssetDecimals: baseDecimals,
         quoteAssetSymbol: quoteSymbol,
         quoteAssetDecimals: quoteDecimals,
+        poolPrice: currentPoolInfo.poolPrice,
+        reserve0: currentPoolInfo.reserve0,
+        reserve1: currentPoolInfo.reserve1,
       };
 
       // Ref와 상태 모두 업데이트
       poolInfoRef.current = updatedPoolInfo;
       setPoolInfo(updatedPoolInfo);
 
-      console.log('[TokenPolling] 토큰 메타데이터 업데이트 완료');
+      // console.log('[TokenPolling] 토큰 메타데이터 업데이트 완료');
     } catch (err) {
-      console.error('[TokenPolling] 메타데이터 업데이트 실패:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[TokenPolling] 메타데이터 업데이트 실패:', err);
+      }
     }
   }, [api, baseIdFromUrl, quoteIdFromUrl, setPoolInfo]);
 
-  // API 준비되면 구독 설정하는 함수
   const setupSubscriptions = useCallback(async () => {
-    if (!isApiReady(api)) {
-      console.log('[Subscription] API가 준비되지 않았습니다. 구독을 설정할 수 없습니다.');
-      return;
-    }
-
-    if (!baseIdFromUrl || !quoteIdFromUrl) {
-      console.log('[Subscription] 토큰 ID가 유효하지 않습니다. 구독을 설정할 수 없습니다.');
-      return;
-    }
-
-    // 이미 구독 중인 경우 해제 후 재설정
-    if (usePoolDataStore.getState().isSubscribed) {
-      console.log('[Subscription] 기존 구독 해제 후 재설정');
-      unsubscribeAll();
-    }
+    if (isSettingUpRef.current) return; // 중복 실행 방지
+    isSettingUpRef.current = true;
 
     try {
-      console.log(
-        '[Subscription] 풀 구독 설정 시작:',
-        'baseId =',
-        baseIdFromUrl,
-        'quoteId =',
-        quoteIdFromUrl,
-      );
-
-      // 풀 인덱스 찾기
-      const poolIndex = await findPoolIndexByPair(baseIdFromUrl, quoteIdFromUrl);
-      if (poolIndex === null) {
-        console.log('[Subscription] 풀을 찾을 수 없습니다.');
-        setError('해당 토큰 페어의 풀을 찾을 수 없습니다');
-        setLoading(false);
+      if (!isApiReady(api, isConnected, isReady)) {
+        console.log('[Subscription] API가 준비되지 않았습니다. 2초 후 재시도합니다.');
+        if (!retryTimeoutRef.current) {
+          retryTimeoutRef.current = setTimeout(() => {
+            retryTimeoutRef.current = null;
+            isSettingUpRef.current = false;
+            setupSubscriptions();
+          }, 2000);
+        }
         return;
       }
 
-      // 풀 인덱스 저장
-      poolIndexRef.current = poolIndex;
+      if (!baseIdFromUrl || !quoteIdFromUrl) {
+        console.log(
+          '[Subscription] 토큰 ID가 유효하지 않습니다. 구독을 설정할 수 없습니다.',
+        );
+        isSettingUpRef.current = false;
+        return;
+      }
 
-      // 풀 구독 설정
+      // 이미 구독 중인 경우 해제 후 재설정
+      if (usePoolDataStore.getState().isSubscribed) {
+        console.log('[Subscription] 기존 구독 해제 후 재설정');
+        unsubscribeAll();
+      }
+
       try {
-        // 직접 구독 대신 polling으로 변경 (구독 기능이 불안정할 수 있음)
+        console.log(
+          '[Subscription] 풀 구독 설정 시작:',
+          'baseId =',
+          baseIdFromUrl,
+          'quoteId =',
+          quoteIdFromUrl,
+          'API 상태:',
+          logApiStatus(api),
+        );
+
+        // 풀 인덱스 찾기
+        const poolIndex = await findPoolIndexByPair(baseIdFromUrl, quoteIdFromUrl);
+        if (poolIndex === null) {
+          console.log('[Subscription] 풀을 찾을 수 없습니다.');
+          setError('해당 토큰 페어의 풀을 찾을 수 없습니다');
+          setLoading(false);
+          isSettingUpRef.current = false;
+          return;
+        }
+
+        poolIndexRef.current = poolIndex;
+
+        // 초기 풀 데이터 가져오기
+        const initialPoolInfo = await getPoolInfo(poolIndex);
+        if (initialPoolInfo) {
+          setPoolInfo(initialPoolInfo);
+          setError(null);
+        }
+
+        // 풀 구독 설정
+        if (!isApiReady(api, isConnected, isReady)) {
+          console.error('API가 준비되지 않음');
+          isSettingUpRef.current = false;
+          return;
+        }
+
         const unsub = await api?.query.hybridOrderbook.pools(
           poolIndex,
           async (poolData: any) => {
-            if (!poolData || !poolData.isSome) return;
+            if (!poolData || (poolData.isNone !== undefined && poolData.isNone)) {
+              console.log('[PoolSubscription] poolData가 None이므로 무시');
+              return;
+            }
 
             try {
-              // 풀 정보 업데이트
               const poolInfo = await getPoolInfo(poolIndex);
-
-              if (!poolInfo) return;
-
-              // Ref와 상태 모두 업데이트
-              poolInfoRef.current = {
-                ...poolInfoRef.current,
-                ...poolInfo,
-              };
-
-              // UI 리렌더링을 위한 상태 업데이트 (최소화)
-              setPoolInfo(poolInfoRef.current);
-
-              console.log('[PoolSubscription] 풀 데이터 업데이트 완료');
+              if (!poolInfo || poolInfo.baseAssetId === 0 || poolInfo.quoteAssetId === 0) {
+                console.log('[PoolSubscription] poolInfo가 비어있으므로 무시', poolInfo);
+                return;
+              }
+              setPoolInfo(poolInfo);
+              setError(null);
             } catch (err) {
-              console.error('[PoolSubscription] 풀 데이터 처리 오류:', err);
+              setError('풀 데이터 갱신 중 오류 발생');
             }
           },
         );
 
         if (!unsub) {
-          throw new Error('풀 구독에 실패했습니다. 유효한 풀 모듈을 찾을 수 없습니다.');
+          console.error('구독 함수가 반환되지 않음');
+        } else {
+          console.log('구독 연결 성공');
         }
 
         subscriptionsRef.current.pool = unsub;
-        console.log('[PoolSubscription] 풀 구독 설정 완료');
-      } catch (err) {
-        console.error('[PoolSubscription] 풀 구독 설정 오류:', err);
-        setError('풀 구독 설정 중 오류가 발생했습니다');
-        setLoading(false);
+
+        // 초기 메타데이터 업데이트 실행
+        await updateTokenMetadata();
+
+        // 주기적 업데이트 설정 (10초마다)
+        const metadataInterval = setInterval(updateTokenMetadata, 10000);
+        subscriptionsRef.current.metadataInterval = metadataInterval;
+
+        setSubscribed(true);
+      } catch (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Subscription] 구독 설정 오류:', error);
+        }
+        // 오류 발생 시 2초 후 재시도
+        if (!retryTimeoutRef.current) {
+          retryTimeoutRef.current = setTimeout(() => {
+            retryTimeoutRef.current = null;
+            isSettingUpRef.current = false;
+            setupSubscriptions();
+          }, 2000);
+        }
+        setSubscribed(false);
+        setError('구독 설정 중 오류가 발생했습니다');
       }
-
-      // Orderbook 구독 설정
-      try {
-        const { unsubAsks, unsubBids } = await subscribeToOrderbook(
-          api,
-          baseIdFromUrl,
-          quoteIdFromUrl,
-          (orderbook: any) => {
-            const currentPoolInfo = poolInfoRef.current;
-            if (!currentPoolInfo) return;
-
-            // 경량 해시 비교로 변경 감지 (JSON.stringify보다 빠름)
-            const oldAsksHash = createLightHash(currentPoolInfo.asks);
-            const newAsksHash = createLightHash(orderbook.asks);
-            const oldBidsHash = createLightHash(currentPoolInfo.bids);
-            const newBidsHash = createLightHash(orderbook.bids);
-
-            // 변경 감지 (해시 비교)
-            const asksChanged = orderbook.asks && oldAsksHash !== newAsksHash;
-            const bidsChanged = orderbook.bids && oldBidsHash !== newBidsHash;
-
-            // 의미 있는 변경이 있는 경우에만 상태 업데이트
-            if (asksChanged || bidsChanged) {
-              // 불필요한 복사 제거하고 최적화된 업데이트
-              const updatedPoolInfo = {
-                ...currentPoolInfo,
-                asks: orderbook.asks || currentPoolInfo.asks,
-                bids: orderbook.bids || currentPoolInfo.bids,
-                lastUpdated: Date.now(),
-              };
-
-              // ref 업데이트
-              poolInfoRef.current = updatedPoolInfo;
-
-              // 상태 업데이트 - 최적화된 방식
-              setPoolInfo(updatedPoolInfo); // 이미 새 객체라 얕은 복사 불필요
-            }
-          },
-        );
-
-        // 구독 해제 함수 저장 - 미리 정의된 함수를 호출하도록 수정
-        subscriptionsRef.current.orderbook = () =>
-          combinedOrderbookUnsubscribe(unsubAsks, unsubBids);
-        console.log('[OrderbookSubscription] 오더북 구독 설정 완료');
-      } catch (err) {
-        console.error('[OrderbookSubscription] 오더북 구독 설정 오류:', err);
-      }
-
-      // 초기 메타데이터 업데이트 실행
-      await updateTokenMetadata();
-
-      // 주기적 업데이트 설정 (10초마다)
-      const metadataInterval = setInterval(updateTokenMetadata, 10000);
-      subscriptionsRef.current.metadataInterval = metadataInterval;
-      console.log('[TokenPolling] 메타데이터 폴링 설정 완료');
-
-      // 구독 상태 설정
-      setSubscribed(true);
-    } catch (error) {
-      console.error('[Subscription] 구독 설정 오류:', error);
-      setSubscribed(false);
-      setError('구독 설정 중 오류가 발생했습니다');
+    } finally {
+      isSettingUpRef.current = false;
     }
   }, [
     api,
+    isConnected,
+    isReady,
     baseIdFromUrl,
     quoteIdFromUrl,
     unsubscribeAll,
@@ -465,25 +505,15 @@ export function usePoolDataFetcher() {
     setError,
     setLoading,
     setPoolInfo,
-    subscribeToOrderbook,
-    combinedOrderbookUnsubscribe,
     updateTokenMetadata,
     setSubscribed,
   ]);
 
-  // 구독 기반 업데이트 설정
   useEffect(() => {
-    // API 객체가 없으면 초기 로드 단계이므로 리턴
-    if (!api) {
-      console.log('[PoolDataStore] API가 없어 구독 설정을 건너뜁니다.');
-      return;
-    }
-
-    // 구독 설정 함수 호출
     setupSubscriptions();
-
-    // 정리 함수는 unsubscribeAll을 호출
     return () => {
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      isSettingUpRef.current = false;
       unsubscribeAll();
     };
   }, [api, setupSubscriptions, unsubscribeAll]);
@@ -491,33 +521,46 @@ export function usePoolDataFetcher() {
   // 데이터 가져오기 함수
   const fetchData = useCallback(
     async (retryCount = 0, maxRetries = 3) => {
-      if (!isApiReady(api)) {
-        console.log(
-          `[PoolDataStore] API가 준비되지 않음, 재시도 ${retryCount}/${maxRetries}`,
-        );
+      // 중복 호출 방지
+      if (isFetchingRef.current) {
+        console.log('[PoolDataStore] 이미 데이터를 가져오는 중입니다.');
+        return;
+      }
 
-        if (retryCount < maxRetries) {
-          // API가 준비되지 않았을 때 재시도
-          setTimeout(() => fetchData(retryCount + 1, maxRetries), 1000);
+      isFetchingRef.current = true;
+
+      try {
+        if (!isApiReady(api, isConnected, isReady)) {
+          console.log(
+            `[PoolDataStore] API가 준비되지 않음, 재시도 ${retryCount}/${maxRetries}`,
+            'API 상태:',
+            logApiStatus(api),
+          );
+
+          if (retryCount < maxRetries) {
+            // API가 준비되지 않은 경우 더 긴 대기 시간 설정
+            setTimeout(() => {
+              isFetchingRef.current = false;
+              fetchData(retryCount + 1, maxRetries);
+            }, 5000);
+            return;
+          }
+
+          setError('API 연결이 없습니다. 페이지를 새로고침 해주세요.');
+          setLoading(false);
           return;
         }
 
-        setError('API 연결이 없습니다. 페이지를 새로고침 해주세요.');
-        setLoading(false);
-        return;
-      }
+        if (!baseIdFromUrl || !quoteIdFromUrl) {
+          setError('토큰 ID가 제공되지 않았습니다');
+          setLoading(false);
+          return;
+        }
 
-      if (!baseIdFromUrl || !quoteIdFromUrl) {
-        setError('토큰 ID가 제공되지 않았습니다');
-        setLoading(false);
-        return;
-      }
-
-      try {
         console.log('[PoolDataStore] 풀 데이터 가져오기 시작', {
           baseId: baseIdFromUrl,
           quoteId: quoteIdFromUrl,
-          apiReady: isApiReady(api),
+          apiReady: isApiReady(api, isConnected, isReady),
         });
 
         // 풀 쿼리 데이터 가져오기
@@ -525,6 +568,19 @@ export function usePoolDataFetcher() {
 
         if (!poolQueryResponse.success) {
           console.error('[PoolDataStore] 풀 데이터 가져오기 실패', poolQueryResponse.error);
+
+          // API 연결 오류인 경우 재시도
+          if (
+            poolQueryResponse.error?.includes('API not connected') &&
+            retryCount < maxRetries
+          ) {
+            setTimeout(() => {
+              isFetchingRef.current = false;
+              fetchData(retryCount + 1, maxRetries);
+            }, 5000);
+            return;
+          }
+
           setError('풀 데이터를 가져오는 중 오류 발생');
           setLoading(false);
           return;
@@ -532,27 +588,11 @@ export function usePoolDataFetcher() {
 
         // Extract pool data from the query response
         const poolData = poolQueryResponse.data;
-        console.log('[PoolDataStore] Raw pool data from query:', poolData);
 
-        // 풀 인덱스 찾기
+        // 풀 인덱스 찾기 (캐싱을 위해 한 번만 호출)
         const poolIndex = await findPoolIndexByPair(baseIdFromUrl, quoteIdFromUrl);
-        console.log('[PoolDataStore] Pool index search result:', poolIndex);
 
-        // 풀 인덱스가 있으면 풀 정보 가져오기
-        let poolInfoData: PoolInfo | null = null;
-        if (poolIndex !== null) {
-          try {
-            poolInfoData = await getPoolInfo(poolIndex);
-          } catch (error) {
-            console.warn(
-              `[PoolDataStore] getPoolInfo 오류 무시 (poolIndex: ${poolIndex}):`,
-              error,
-            );
-            // 오류가 발생해도 계속 진행 - 풀 데이터는 poolQueryResponse에서도 얻을 수 있음
-          }
-        }
-
-        // 토큰 메타데이터 가져오기
+        // 토큰 메타데이터 가져오기 (공통으로 사용)
         const [baseMeta, quoteMeta] = await Promise.all([
           api?.query.assets.metadata(baseIdFromUrl),
           api?.query.assets.metadata(quoteIdFromUrl),
@@ -567,56 +607,84 @@ export function usePoolDataFetcher() {
         const quoteSymbol = extractSymbol(quoteMeta);
         const quoteDecimals = extractDecimals(quoteMetaHuman);
 
-        // 데이터 처리 및 상태 업데이트
-        const processedData: PoolInfoDisplay = {
-          baseAssetId: baseIdFromUrl,
-          quoteAssetId: quoteIdFromUrl,
-          // poolInfoData가 있으면 그 값을 사용하고, 없으면 기본값 설정
-          reserve0: poolData?.baseReserve
-            ? Number(poolData.baseReserve.replace(/,/g, ''))
-            : (poolInfoData?.reserve0 ?? 0),
-          reserve1: poolData?.quoteReserve
-            ? Number(poolData.quoteReserve.replace(/,/g, ''))
-            : (poolInfoData?.reserve1 ?? 0),
-          lpTokenId: poolInfoData?.lpTokenId ?? 0,
-          feeTier: poolData?.takerFeeRate
-            ? Number(poolData.takerFeeRate.replace('%', '').replace(/,/g, '')) * 100
-            : (poolInfoData?.feeTier ?? 0),
-          poolExists:
-            poolInfoData?.poolExists ??
-            (poolData?.baseReserve && poolData?.quoteReserve ? true : false),
+        // 풀 데이터 처리 함수
+        const processPoolData = (
+          poolInfo: PoolInfo | null,
+          poolData: any,
+        ): PoolInfoDisplay => {
+          const isPoolInfoValid =
+            poolInfo && poolInfo.baseAssetId !== 0 && poolInfo.quoteAssetId !== 0;
 
-          poolIndex: poolInfoData?.poolIndex,
-
-          // Include pool price and decimals from poolQueryResponse
-          poolPrice: poolData?.poolPrice ? Number(poolData.poolPrice.replace(/,/g, '')) : 0,
-          poolDecimals: poolData?.poolDecimals
-            ? Number(poolData.poolDecimals.replace(/,/g, ''))
-            : 0,
-
-          // 실제 메타데이터 적용
-          baseAssetSymbol: baseSymbol,
-          quoteAssetSymbol: quoteSymbol,
-          baseAssetDecimals: baseDecimals,
-          quoteAssetDecimals: quoteDecimals,
-
-          // asks와 bids 원본 데이터 저장 (오더북 표시용)
-          asks: poolData?.asks || {},
-          bids: poolData?.bids || {},
-
-          // 원본 poolData 저장 - 필요한 경우 나중에 참조할 수 있음
-          rawData: poolData || {},
+          return {
+            baseAssetId: baseIdFromUrl,
+            quoteAssetId: quoteIdFromUrl,
+            reserve0: isPoolInfoValid
+              ? poolInfo.reserve0
+              : poolData?.baseReserve
+                ? Number(poolData.baseReserve.replace(/,/g, ''))
+                : 0,
+            reserve1: isPoolInfoValid
+              ? poolInfo.reserve1
+              : poolData?.quoteReserve
+                ? Number(poolData.quoteReserve.replace(/,/g, ''))
+                : 0,
+            lpTokenId: isPoolInfoValid ? poolInfo.lpTokenId : 0,
+            feeTier: isPoolInfoValid
+              ? poolInfo.feeTier
+              : poolData?.takerFeeRate
+                ? Number(poolData.takerFeeRate.replace('%', '').replace(/,/g, '')) * 100
+                : 0,
+            poolExists: isPoolInfoValid
+              ? poolInfo.poolExists
+              : poolData?.baseReserve && poolData?.quoteReserve
+                ? true
+                : false,
+            poolIndex: isPoolInfoValid ? poolInfo.poolIndex : undefined,
+            poolPrice: poolData?.poolPrice
+              ? Number(poolData.poolPrice.replace(/,/g, ''))
+              : 0,
+            poolDecimals: poolData?.poolDecimals
+              ? Number(poolData.poolDecimals.replace(/,/g, ''))
+              : 0,
+            baseAssetSymbol: baseSymbol,
+            quoteAssetSymbol: quoteSymbol,
+            baseAssetDecimals: baseDecimals,
+            quoteAssetDecimals: quoteDecimals,
+            asks: poolData?.asks || {},
+            bids: poolData?.bids || {},
+            rawData: poolData || {},
+          };
         };
 
-        console.log('[PoolDataStore] 풀 데이터 가져오기 성공', processedData);
+        // 풀 인덱스가 있으면 풀 정보 가져오기
+        let poolInfoData: PoolInfo | null = null;
+        if (poolIndex !== null) {
+          try {
+            poolInfoData = await getPoolInfo(poolIndex);
+          } catch (error) {
+            console.warn(
+              `[PoolDataStore] getPoolInfo 오류 (poolIndex: ${poolIndex}):`,
+              error,
+            );
+          }
+        }
 
-        // 스토어 상태 업데이트
+        // 풀 데이터 처리 및 상태 업데이트
+        const processedData = processPoolData(poolInfoData, poolData);
         setPoolInfo(processedData);
         setLoading(false);
       } catch (err) {
-        console.error('[PoolDataStore] 풀 데이터 가져오기 오류:', err);
-        setError('풀 데이터를 가져오는 중 오류 발생');
+        // 오류 발생 시 1초 후 재시도
+        if (retryCount < maxRetries) {
+          setTimeout(() => {
+            isFetchingRef.current = false;
+            fetchData(retryCount + 1, maxRetries);
+          }, 2000);
+          return;
+        }
         setLoading(false);
+      } finally {
+        isFetchingRef.current = false;
       }
     },
     [
@@ -629,24 +697,34 @@ export function usePoolDataFetcher() {
       setPoolInfo,
       setLoading,
       setError,
+      isConnected,
+      isReady,
     ],
   );
 
   // API 및 토큰 ID가 준비되면 초기 데이터 가져오기
   useEffect(() => {
     let mounted = true;
+    let fetchTimeout: NodeJS.Timeout | null = null;
 
     const initData = async () => {
-      // 명시적 API 상태 확인
-      if (isApiReady(api) && baseIdFromUrl && quoteIdFromUrl && mounted) {
-        console.log('[PoolDataStore] API 준비됨, 초기 데이터 가져오기 시작');
-        await fetchData();
-      } else if (mounted) {
-        console.log('[PoolDataStore] API 또는 토큰 ID가 준비되지 않음:', {
-          apiReady: isApiReady(api),
-          baseId: baseIdFromUrl,
-          quoteId: quoteIdFromUrl,
-        });
+      if (
+        isApiReady(api, isConnected, isReady) &&
+        baseIdFromUrl &&
+        quoteIdFromUrl &&
+        mounted
+      ) {
+        // 이전 타임아웃이 있다면 취소
+        if (fetchTimeout) {
+          clearTimeout(fetchTimeout);
+        }
+
+        // 약간의 지연 후 데이터 가져오기 (다른 초기화 작업이 완료되도록)
+        fetchTimeout = setTimeout(async () => {
+          if (mounted) {
+            await fetchData();
+          }
+        }, 100);
       }
     };
 
@@ -654,28 +732,35 @@ export function usePoolDataFetcher() {
 
     return () => {
       mounted = false;
+      if (fetchTimeout) {
+        clearTimeout(fetchTimeout);
+      }
     };
-  }, [api, baseIdFromUrl, quoteIdFromUrl, fetchData]);
+  }, [api, baseIdFromUrl, quoteIdFromUrl, fetchData, isConnected, isReady]);
 
   // refreshPoolData가 호출되면 데이터 새로고침
   useEffect(() => {
-    // 이전 상태 저장
+    let mounted = true;
     let prevLoading = usePoolDataStore.getState().loading;
     let prevError = usePoolDataStore.getState().error;
 
-    // 단일 콜백 형태로 사용
     const unsubscribe = usePoolDataStore.subscribe((state) => {
+      if (!mounted) return;
+
       const newLoading = state.loading;
       const newError = state.error;
 
       // loading이 true로 설정되고 error가 null인 경우 새로고침 트리거
       if (newLoading && newError === null && (!prevLoading || prevError !== null)) {
-        console.log('[PoolDataStore] 새로고침 요청 수신');
-
         const doRefresh = async () => {
-          if (isApiReady(api) && baseIdFromUrl && quoteIdFromUrl) {
+          if (
+            mounted &&
+            isApiReady(api, isConnected, isReady) &&
+            baseIdFromUrl &&
+            quoteIdFromUrl
+          ) {
             await fetchData();
-          } else {
+          } else if (mounted) {
             setError('API 연결이 없거나 토큰 ID가 유효하지 않습니다');
             setLoading(false);
           }
@@ -690,34 +775,19 @@ export function usePoolDataFetcher() {
     });
 
     return () => {
+      mounted = false;
       unsubscribe();
     };
-  }, [api, baseIdFromUrl, quoteIdFromUrl, fetchData, setError, setLoading]);
-
-  useEffect(() => {
-    let isSubscribed = true;
-
-    // Function to check API readiness
-    const checkApiAndFetch = async () => {
-      if (!isApiReady(api)) {
-        console.log('[PoolDataStore] API not ready yet, waiting...');
-        // Check again in 500ms
-        setTimeout(checkApiAndFetch, 500);
-        return;
-      }
-
-      console.log('[PoolDataStore] API is now ready, fetching data...');
-      if (isSubscribed && baseIdFromUrl && quoteIdFromUrl) {
-        await fetchData();
-      }
-    };
-
-    checkApiAndFetch();
-
-    return () => {
-      isSubscribed = false;
-    };
-  }, [api, baseIdFromUrl, quoteIdFromUrl, fetchData]);
+  }, [
+    api,
+    baseIdFromUrl,
+    quoteIdFromUrl,
+    fetchData,
+    setError,
+    setLoading,
+    isConnected,
+    isReady,
+  ]);
 
   // 수동 새로고침 함수
   const manualRefresh = () => {
@@ -741,7 +811,9 @@ function extractSymbol(metadata: any): string {
     const human = metadata.toHuman ? metadata.toHuman() : metadata;
     return human?.symbol || 'UNKNOWN';
   } catch (err) {
-    console.error('심볼 추출 오류:', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('심볼 추출 오류:', err);
+    }
     return 'UNKNOWN';
   }
 }

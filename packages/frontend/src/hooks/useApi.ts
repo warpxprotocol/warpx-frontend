@@ -3,11 +3,20 @@ import { useEffect, useState } from 'react';
 
 const WS_URL = 'ws://127.0.0.1:9988'; // WarpX 파라체인 노드 (charlie)
 
+export function isApiReady(
+  api: ApiPromise | null,
+  isConnected: boolean,
+  isReady: boolean,
+): boolean {
+  return api !== null && isConnected && isReady;
+}
+
 export function useApi() {
   const [api, setApi] = useState<ApiPromise | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     let currentApi: ApiPromise | null = null;
@@ -87,6 +96,7 @@ export function useApi() {
         // API가 준비될 때까지 기다림
         await currentApi.isReady;
         console.log('API is ready');
+        setIsReady(true);
 
         // 연결 상태 로깅 및 상태 업데이트
         provider.on('connected', () => {
@@ -96,10 +106,12 @@ export function useApi() {
         provider.on('disconnected', () => {
           console.log('WS Disconnected');
           setIsConnected(false);
+          setIsReady(false);
         });
         provider.on('error', (error) => {
           console.error('WS Error:', error);
           setIsConnected(false);
+          setIsReady(false);
         });
 
         // 초기 연결 상태 확인
@@ -114,6 +126,7 @@ export function useApi() {
         setError(err as Error);
         setIsLoading(false);
         setIsConnected(false);
+        setIsReady(false);
       }
     };
 
@@ -126,5 +139,5 @@ export function useApi() {
     };
   }, []);
 
-  return { api, isLoading, error, isConnected };
+  return { api, isLoading, error, isConnected, isReady };
 }

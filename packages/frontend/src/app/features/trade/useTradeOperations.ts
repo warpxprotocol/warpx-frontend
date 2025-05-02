@@ -6,8 +6,14 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useWalletStore } from '@/app/features/wallet/hooks/useWalletStore';
 import { getAccountSigner } from '@/app/pools/[pair]/components/pools/utils';
+import {
+  PoolInfoDisplay,
+  usePoolDataStore,
+} from '@/app/pools/[pair]/context/PoolDataContext';
 import { useApi } from '@/hooks/useApi';
 import { useExtrinsic } from '@/hooks/useExtrinsic';
+
+import { toChainAmount, toChainPrice } from './utils/ammount';
 
 export type OrderType = 'market' | 'limit';
 export type TradeSide = 'buy' | 'sell';
@@ -25,7 +31,7 @@ interface TradeParameters {
   side: TradeSide;
 }
 
-export const useTradeOperations = () => {
+export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
   const { api, isLoading } = useApi();
   const { handleExtrinsic } = useExtrinsic();
   const { connected, selectedAccount } = useWalletStore();
@@ -44,9 +50,6 @@ export const useTradeOperations = () => {
   }, [connected, selectedAccount]);
 
   /**
-   * Creates a market order extrinsic
-   */
-  /**
    * Helper function to convert a decimal string to integer
    * Blockchain doesn't accept decimal values, so we need to convert them
    */
@@ -64,15 +67,38 @@ export const useTradeOperations = () => {
     return { WithId: assetId };
   };
 
+  // 주문 파라미터 변환 함수
+  function formatOrderParams(params: TradeParameters) {
+    if (!poolInfo) throw new Error('Pool info is not available');
+
+    const { amountIn, amountOut, price, side } = params;
+    const baseDecimals = poolInfo.baseAssetDecimals ?? 0;
+    const quoteDecimals = poolInfo.quoteAssetDecimals ?? 0;
+    const poolDecimals = poolInfo.poolDecimals ?? 0;
+
+    return {
+      ...params,
+      amountIn: amountIn
+        ? toChainAmount(amountIn, side === 'sell' ? baseDecimals : quoteDecimals)
+        : undefined,
+      amountOut: amountOut
+        ? toChainAmount(amountOut, side === 'buy' ? baseDecimals : quoteDecimals)
+        : undefined,
+      price: price ? toChainPrice(price, poolDecimals) : undefined,
+    };
+  }
+
+  /**
+   * Creates a market order extrinsic
+   */
   const createMarketOrderExtrinsic = useCallback(
-    (
-      params: TradeParameters,
-    ): SubmittableExtrinsic<'promise', ISubmittableResult> | null => {
+    (params: TradeParameters) => {
+      const formatted = formatOrderParams(params);
       if (!api || isLoading) return null;
 
-      console.log('Creating market order extrinsic with params:', params);
+      console.log('Creating market order extrinsic with params:', formatted);
 
-      const { poolId, assetIn, assetOut, amountIn, amountOut, side } = params;
+      const { poolId, assetIn, assetOut, amountIn, amountOut, side } = formatted;
 
       if (side === 'buy' && !amountOut) {
         throw new Error('Amount out is required for buy orders');
@@ -188,7 +214,7 @@ export const useTradeOperations = () => {
         return null;
       }
     },
-    [api, isLoading],
+    [api, isLoading, poolInfo],
   );
 
   /**

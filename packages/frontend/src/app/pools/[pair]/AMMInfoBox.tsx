@@ -1,11 +1,11 @@
 'use client';
 
 import { useParams, useSearchParams } from 'next/navigation';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 
 import { useWalletStore } from '@/app/features/wallet/hooks/useWalletStore';
 import { usePoolOperations } from '@/app/pools/[pair]/components/pools/usePoolOperations';
-import { useApi } from '@/hooks/useApi';
+import { isApiReady, useApi } from '@/hooks/useApi';
 
 import { PoolInfo } from './components/pools/poolQueries';
 import { usePoolQueries } from './components/pools/poolQueries';
@@ -13,6 +13,7 @@ import {
   selectError,
   selectLoading,
   selectPoolInfo,
+  usePoolDataFetcher,
   usePoolDataStore,
 } from './context/PoolDataContext';
 
@@ -80,25 +81,6 @@ function formatCompactTrimmed(
 }
 
 /**
- * 과학적 표기법을 사용하여 리저브 값 표시
- * @param value 원시 리저브 값
- * @param decimals 토큰 데시멀
- * @returns 과학적 표기법 문자열 (예: 1.10e+19)
- */
-function formatScientific(value: number, decimals: number = 0): string {
-  if (value === 0) return '0';
-
-  // 원시 값 그대로 과학적 표기법으로 변환 (데시멀 적용 안함)
-  const rawScientific = value.toExponential(2);
-
-  // decimals를 고려하여 실제 값으로 변환하여 표시할 경우:
-  // const adjusted = value / Math.pow(10, decimals);
-  // return adjusted.toExponential(2);
-
-  return rawScientific;
-}
-
-/**
  * 긴 숫자를 decimals에 맞게 조정하고 첫 3자리만 표시 후 생략
  * @param value 변환할 숫자 값
  * @param decimals decimals 값
@@ -134,7 +116,30 @@ function formatShortWithDecimals(value: number, decimals: number): string {
   return `${numStr.substring(0, Math.min(numStr.length, maxLength))}${numStr.length > maxLength ? '...' : ''}`;
 }
 
+function formatCompact(value: number, decimals: number = 0): string {
+  if (!value) return '0';
+  const adjusted = value / Math.pow(10, decimals);
+  return adjusted.toLocaleString('en-US', {
+    notation: 'compact',
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  });
+}
+
+function withApiReady(api: any, isConnected: any, isReady: any, fn: any) {
+  if (!api || !isApiReady(api, isConnected, isReady)) {
+    throw new Error('API not connected');
+  }
+  return fn();
+}
+
+function Skeleton({ className }: { className?: string }) {
+  return <div className={`animate-pulse bg-gray-700/50 rounded ${className}`} />;
+}
+
 export default function AMMInfoBox() {
+  usePoolDataFetcher();
+
   // URL 파라미터 파싱
   const params = useParams();
   const searchParams = useSearchParams();
@@ -142,6 +147,7 @@ export default function AMMInfoBox() {
 
   // Zustand 스토어에서 데이터 구독
   const poolInfo = usePoolDataStore(selectPoolInfo);
+  console.log('AMMInfoBox 렌더 poolInfo:', poolInfo);
   const loading = usePoolDataStore(selectLoading);
   const error = usePoolDataStore(selectError);
   const refreshPoolData = usePoolDataStore((state) => state.refreshPoolData);
@@ -181,16 +187,35 @@ export default function AMMInfoBox() {
   // 메인 렌더링
   return (
     <div className="relative bg-[#18181C] rounded-xl px-4 py-3 flex flex-col gap-2 min-w-[260px] w-full">
-      {/* 상단: PRICE / DEPTH */}
-      <div className="flex w-full justify-between items-center mb-0.5">
-        <span className="text-gray-400 text-xs font-medium tracking-widest">PRICE</span>
-        <span className="text-gray-400 text-xs font-medium tracking-widest">DEPTH</span>
-      </div>
-
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-4">
-          <span className="text-gray-400 text-sm">Loading pool information...</span>
-        </div>
+        <>
+          {/* 상단: PRICE / DEPTH */}
+          <div className="flex w-full justify-between items-center mb-0.5">
+            <span className="text-gray-400 text-xs font-medium tracking-widest">PRICE</span>
+            <span className="text-gray-400 text-xs font-medium tracking-widest">DEPTH</span>
+          </div>
+
+          {/* 중앙: 가격 & 페어 정보 */}
+          <div className="flex w-full items-center justify-between mb-1">
+            <div className="flex flex-col">
+              <div className="flex items-end mb-1">
+                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-4 w-8 ml-1" />
+              </div>
+              <Skeleton className="h-4 w-16" />
+            </div>
+
+            {/* 우측 Depth 바 */}
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex flex-col items-end gap-1">
+                <Skeleton className="h-6 w-20" />
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <Skeleton className="h-6 w-20" />
+              </div>
+            </div>
+          </div>
+        </>
       ) : (
         <>
           {/* 중앙: 가격 & 페어 정보 */}
@@ -198,14 +223,10 @@ export default function AMMInfoBox() {
             <div className="flex flex-col">
               <div className="flex items-end mb-1">
                 <span className="text-xl font-semibold text-white leading-none">
-                  {poolInfo?.poolPrice &&
-                  (poolInfo.reserve0 ?? 0) > 0 &&
-                  (poolInfo.reserve1 ?? 0) > 0
+                  {poolInfo?.poolPrice !== undefined && poolInfo?.poolPrice !== null
                     ? (
-                        (poolInfo.reserve1 *
-                          Math.pow(10, poolInfo.baseAssetDecimals ?? 0)) /
-                        (poolInfo.reserve0 * Math.pow(10, poolInfo.quoteAssetDecimals ?? 0))
-                      ).toFixed((poolInfo.poolDecimals ?? 0) + 2)
+                        poolInfo.poolPrice / Math.pow(10, poolInfo.poolDecimals ?? 0)
+                      ).toFixed(poolInfo.poolDecimals ?? 0)
                     : '-'}
                 </span>
                 <span className="ml-1 text-xs text-gray-400 font-medium">
@@ -232,7 +253,7 @@ export default function AMMInfoBox() {
                   <span className="text-white text-xs mr-1">{token0Symbol}</span>
                   <span className="text-white font-medium text-xs">
                     {poolInfo?.reserve0 !== undefined
-                      ? formatScientific(poolInfo.reserve0)
+                      ? formatCompact(poolInfo.reserve0, poolInfo.baseAssetDecimals ?? 0)
                       : '0'}
                   </span>
                 </span>
@@ -244,7 +265,7 @@ export default function AMMInfoBox() {
                   <span className="text-white text-xs mr-1">{token1Symbol}</span>
                   <span className="text-white font-medium text-xs">
                     {poolInfo?.reserve1 !== undefined
-                      ? formatScientific(poolInfo.reserve1)
+                      ? formatCompact(poolInfo.reserve1, poolInfo.quoteAssetDecimals ?? 0)
                       : '0'}
                   </span>
                 </span>

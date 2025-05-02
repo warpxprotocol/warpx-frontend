@@ -4,6 +4,8 @@ import { useParams } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 
 import { OrderType, TradeSide } from '@/app/features/trade/useTradeOperations';
+import { useTradeOperations } from '@/app/features/trade/useTradeOperations';
+import { usePoolDataStore } from '@/app/pools/[pair]/context/PoolDataContext';
 import { useApi } from '@/hooks/useApi';
 
 import SideToggle from './SideToggle';
@@ -54,6 +56,10 @@ export default function TradeSection({
   const availableBalance = '1000.00';
 
   const { api, isLoading: isApiLoading } = useApi();
+
+  const poolInfo = usePoolDataStore((state) => state.poolInfo);
+  const { submitMarketOrder, submitLimitOrder, isSubmitting, isTradingSupported } =
+    useTradeOperations(poolInfo ?? undefined);
 
   // Parse asset information from the pair parameter
   useEffect(() => {
@@ -173,6 +179,10 @@ export default function TradeSection({
           price={price}
           setPrice={setPrice}
           availableBalance={availableBalance}
+          poolInfo={poolInfo ?? undefined}
+          decimals={
+            side === 'buy' ? poolInfo?.quoteAssetDecimals : poolInfo?.baseAssetDecimals
+          }
         />
         <TradeSlider percent={percent} setPercent={setPercent} />
         <TradeInfo />
@@ -189,6 +199,24 @@ export default function TradeSection({
           isValid={isValid}
           tokenIn={tokenIn}
           tokenOut={tokenOut}
+          onSubmit={async () => {
+            if (!poolInfo) return;
+            const params = {
+              poolId,
+              assetIn: assetInId,
+              assetOut: assetOutId,
+              amountIn: side === 'sell' ? amount : undefined,
+              amountOut: side === 'buy' ? amount : undefined,
+              price: orderType === 'limit' ? price : undefined,
+              side,
+            };
+            if (orderType === 'market') {
+              await submitMarketOrder(params);
+            } else {
+              await submitLimitOrder(params);
+            }
+          }}
+          isSubmitting={isSubmitting}
         />
       </div>
     </div>

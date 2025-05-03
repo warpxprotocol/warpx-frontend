@@ -199,7 +199,7 @@ export default function TradeInputMarket({
           {formatBalance(availableBalance, decimals)} {availableToken}
         </span>
       </div>
-      <div className="flex gap-2 mb-2">
+      <div className="flex gap-2 mb-2 flex-col">
         <input
           type="number"
           className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 border border-gray-800 flex items-center"
@@ -217,12 +217,6 @@ export default function TradeInputMarket({
         </div>
       </div>
 
-      <div className="text-[11px] text-gray-400 mb-2">
-        <span>
-          Minimum unit: {humanLotSize} {baseToken}
-        </span>
-      </div>
-
       {showAdjustmentMessage && (
         <div className="text-[11px] text-yellow-400 mb-2">
           <span>
@@ -230,12 +224,6 @@ export default function TradeInputMarket({
           </span>
         </div>
       )}
-      <div className="text-[11px] text-gray-400 mb-2 flex justify-between">
-        <span>Max {side === 'buy' ? 'Buying Power' : 'Selling Amount'}</span>
-        <span className="text-white font-medium">
-          {formatDisplayAmount(maxAmount)} {availableToken}
-        </span>
-      </div>
       {/* 예상 수령액 표시 */}
       {amount && estimatedPrice > 0 && (
         <div className="text-[11px] text-gray-400 mb-2 flex justify-between">

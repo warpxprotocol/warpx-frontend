@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { OrderType, TradeSide } from '@/app/features/trade/useTradeOperations';
 import { useTradeOperations } from '@/app/features/trade/useTradeOperations';
@@ -109,14 +109,40 @@ export default function TradeSection({
 
   // base asset 기준 잔액, lotSize, min/max
   const lotSize = poolInfo?.lotSize ?? 1;
-  const humanLotSize = Number(lotSize) / 10 ** baseDecimals;
+  const lot = Number(lotSize);
+  const baseDecimalsNum = Number(baseDecimals);
+  const value = lot / 10 ** baseDecimalsNum;
+  const fractionDigits = getFractionDigits(lot, baseDecimalsNum);
+
+  console.log('DEBUG lotSize:', lotSize);
+  console.log('DEBUG baseDecimals:', baseDecimals);
+  console.log('DEBUG lot:', lot);
+  console.log('DEBUG baseDecimalsNum:', baseDecimalsNum);
+  console.log('DEBUG value:', value);
+  console.log('DEBUG fractionDigits:', fractionDigits);
+
+  const humanLotSize = useMemo(() => {
+    if (!lotSize || !baseDecimals) return '';
+    const lot = Number(lotSize);
+    const baseDecimalsNum = Number(baseDecimals);
+    if (isNaN(lot) || isNaN(baseDecimalsNum)) return '';
+    const value = lot / 10 ** baseDecimalsNum;
+    // 소수점 이하 자릿수 자동 계산
+    let fractionDigits = 0;
+    if (value < 1) {
+      const str = value.toFixed(8);
+      if (str.includes('.')) {
+        fractionDigits = str.split('.')[1].replace(/0+$/, '').length;
+      }
+    } else {
+      fractionDigits = 2;
+    }
+    return value.toLocaleString(undefined, {
+      maximumFractionDigits: fractionDigits,
+      minimumFractionDigits: fractionDigits,
+    });
+  }, [lotSize, baseDecimals]);
   const available = Number(availableBalance) / 10 ** baseDecimals;
-  const amountNumber = Number(amount) || 0;
-  const fractionDigits = getFractionDigits(humanLotSize, baseDecimals);
-  const sliderMin = humanLotSize.toFixed(fractionDigits);
-  const sliderMax = available.toFixed(fractionDigits);
-  const sliderStep = humanLotSize.toFixed(fractionDigits);
-  const sliderValue = amountNumber === 0 ? '' : amountNumber.toFixed(fractionDigits);
 
   // input → 슬라이더 연동 (base asset 기준)
   const handleInputChange = (value: string) => {
@@ -356,7 +382,7 @@ export default function TradeSection({
       <div className="flex flex-col gap-2 flex-1">
         <TradeTabs activeOrderType={orderType} setOrderType={handleOrderTypeChange} />
         <SideToggle side={side} setSide={setSide} />
-        <div className="flex gap-2 mb-2">
+        <div className="flex gap-2 mb-2 flex-col">
           <TradeInput
             orderType={orderType}
             side={side}
@@ -372,16 +398,16 @@ export default function TradeSection({
             baseAssetBalance={baseAssetBalance}
             quoteAssetBalance={quoteAssetBalance}
           />
-          <div
+          {/* <div
             className="bg-[#23232A] text-[11px] text-white px-2 py-1 border border-gray-800 flex items-center justify-center"
             style={{ minWidth: '70px' }}
           >
             {baseToken}
-          </div>
+          </div> */}
         </div>
         <div className="text-[11px] text-gray-400 mb-2">
           <span>
-            Minimum unit: {sliderStep} {baseToken}
+            Minimum unit: {humanLotSize} {baseToken}
           </span>
         </div>
         <div className="text-[11px] text-gray-400 mb-2 flex justify-between">
@@ -389,13 +415,6 @@ export default function TradeSection({
           <span className="text-white font-medium">
             {available.toLocaleString(undefined, { maximumFractionDigits: fractionDigits })}{' '}
             {availableToken}
-          </span>
-        </div>
-        <div className="text-[11px] text-gray-400 mb-2 flex justify-between">
-          <span>You will receive</span>
-          <span className="text-white font-medium">
-            {orderValue.toLocaleString(undefined, { maximumFractionDigits: quoteDecimals })}{' '}
-            {quoteToken}
           </span>
         </div>
         <TradeSlider value={percent} onChange={handleSliderChange} />

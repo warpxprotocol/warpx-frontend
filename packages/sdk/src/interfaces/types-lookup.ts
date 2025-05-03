@@ -3565,9 +3565,9 @@ declare module '@polkadot/types/lookup' {
     readonly takerFeeRate: Permill;
     readonly tickSize: u128;
     readonly lotSize: u128;
-    readonly poolDecimals: Option<u8>;
-    readonly baseAdjustment: Option<u8>;
-    readonly quoteAdjustment: Option<u8>;
+    readonly poolDecimals: u8;
+    readonly baseDecimals: u8;
+    readonly quoteDecimals: u8;
   }
 
   /** @name PalletHybridOrderbookCritbitCritbitTree (375) */
@@ -3608,7 +3608,7 @@ declare module '@polkadot/types/lookup' {
     readonly value: PalletHybridOrderbookTick;
   }
 
-  /** @name PalletHybridOrderbookCall (390) */
+  /** @name PalletHybridOrderbookCall (389) */
   interface PalletHybridOrderbookCall extends Enum {
     readonly isCreatePool: boolean;
     readonly asCreatePool: {
@@ -3671,7 +3671,7 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'CreatePool' | 'AddLiquidity' | 'RemoveLiquidity' | 'Touch' | 'MarketOrder' | 'LimitOrder' | 'CancelOrder';
   }
 
-  /** @name PalletHybridOrderbookError (391) */
+  /** @name PalletHybridOrderbookError (390) */
   interface PalletHybridOrderbookError extends Enum {
     readonly isInvalidAssetPair: boolean;
     readonly isPoolExists: boolean;
@@ -3711,7 +3711,7 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'InvalidAssetPair' | 'PoolExists' | 'WrongDesiredAmount' | 'AmountOneLessThanMinimal' | 'AmountTwoLessThanMinimal' | 'ReserveLeftLessThanMinimal' | 'AmountOutTooHigh' | 'PoolNotFound' | 'Overflow' | 'AssetOneDepositDidNotMeetMinimum' | 'AssetTwoDepositDidNotMeetMinimum' | 'AssetOneWithdrawalDidNotMeetMinimum' | 'AssetTwoWithdrawalDidNotMeetMinimum' | 'OptimalAmountLessThanDesired' | 'InsufficientLiquidityMinted' | 'ZeroLiquidity' | 'ZeroAmount' | 'ProvidedMinimumNotSufficientForSwap' | 'ProvidedMaximumNotSufficientForSwap' | 'InvalidPath' | 'NonUniquePath' | 'IncorrectPoolAssetId' | 'BelowMinimum' | 'InvalidOrderPrice' | 'InvalidOrderQuantity' | 'ErrorOnFillOrder' | 'ErrorOnPlaceOrder' | 'ErrorOnCancelOrder' | 'OrderNotFound' | 'NoPermission' | 'OverOrderQuantity' | 'ConversionError' | 'NoOps' | 'InvalidTickSize' | 'InvalidLotSize';
   }
 
-  /** @name PalletUtilityCall (392) */
+  /** @name PalletUtilityCall (391) */
   interface PalletUtilityCall extends Enum {
     readonly isBatch: boolean;
     readonly asBatch: {
@@ -3753,7 +3753,7 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'Batch' | 'AsDerivative' | 'BatchAll' | 'DispatchAs' | 'ForceBatch' | 'WithWeight' | 'IfElse' | 'DispatchAsFallible';
   }
 
-  /** @name PalletSudoCall (395) */
+  /** @name PalletSudoCall (394) */
   interface PalletSudoCall extends Enum {
     readonly isSudo: boolean;
     readonly asSudo: {
@@ -3777,7 +3777,7 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'Sudo' | 'SudoUncheckedWeight' | 'SetKey' | 'SudoAs' | 'RemoveKey';
   }
 
-  /** @name WarpxRuntimeOriginCaller (396) */
+  /** @name WarpxRuntimeOriginCaller (395) */
   interface WarpxRuntimeOriginCaller extends Enum {
     readonly isSystem: boolean;
     readonly asSystem: FrameSupportDispatchRawOrigin;
@@ -3788,7 +3788,7 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'System' | 'PolkadotXcm' | 'CumulusXcm';
   }
 
-  /** @name FrameSupportDispatchRawOrigin (397) */
+  /** @name FrameSupportDispatchRawOrigin (396) */
   interface FrameSupportDispatchRawOrigin extends Enum {
     readonly isRoot: boolean;
     readonly isSigned: boolean;
@@ -3797,7 +3797,7 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'Root' | 'Signed' | 'None';
   }
 
-  /** @name PalletXcmOrigin (398) */
+  /** @name PalletXcmOrigin (397) */
   interface PalletXcmOrigin extends Enum {
     readonly isXcm: boolean;
     readonly asXcm: StagingXcmV5Location;
@@ -3806,7 +3806,7 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'Xcm' | 'Response';
   }
 
-  /** @name CumulusPalletXcmOrigin (399) */
+  /** @name CumulusPalletXcmOrigin (398) */
   interface CumulusPalletXcmOrigin extends Enum {
     readonly isRelay: boolean;
     readonly isSiblingParachain: boolean;
@@ -3814,19 +3814,19 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'Relay' | 'SiblingParachain';
   }
 
-  /** @name PalletUtilityError (400) */
+  /** @name PalletUtilityError (399) */
   interface PalletUtilityError extends Enum {
     readonly isTooManyCalls: boolean;
     readonly type: 'TooManyCalls';
   }
 
-  /** @name PalletSudoError (401) */
+  /** @name PalletSudoError (400) */
   interface PalletSudoError extends Enum {
     readonly isRequireSudo: boolean;
     readonly type: 'RequireSudo';
   }
 
-  /** @name SpRuntimeMultiSignature (403) */
+  /** @name SpRuntimeMultiSignature (402) */
   interface SpRuntimeMultiSignature extends Enum {
     readonly isEd25519: boolean;
     readonly asEd25519: U8aFixed;
@@ -3837,43 +3837,43 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'Ed25519' | 'Sr25519' | 'Ecdsa';
   }
 
-  /** @name CumulusPalletWeightReclaimStorageWeightReclaim (406) */
+  /** @name CumulusPalletWeightReclaimStorageWeightReclaim (405) */
   interface CumulusPalletWeightReclaimStorageWeightReclaim extends ITuple<[FrameSystemExtensionsCheckNonZeroSender, FrameSystemExtensionsCheckSpecVersion, FrameSystemExtensionsCheckTxVersion, FrameSystemExtensionsCheckGenesis, Era, FrameSystemExtensionsCheckNonce, FrameSystemExtensionsCheckWeight, PalletTransactionPaymentChargeTransactionPayment, FrameMetadataHashExtensionCheckMetadataHash]> {}
 
-  /** @name FrameSystemExtensionsCheckNonZeroSender (408) */
+  /** @name FrameSystemExtensionsCheckNonZeroSender (407) */
   type FrameSystemExtensionsCheckNonZeroSender = Null;
 
-  /** @name FrameSystemExtensionsCheckSpecVersion (409) */
+  /** @name FrameSystemExtensionsCheckSpecVersion (408) */
   type FrameSystemExtensionsCheckSpecVersion = Null;
 
-  /** @name FrameSystemExtensionsCheckTxVersion (410) */
+  /** @name FrameSystemExtensionsCheckTxVersion (409) */
   type FrameSystemExtensionsCheckTxVersion = Null;
 
-  /** @name FrameSystemExtensionsCheckGenesis (411) */
+  /** @name FrameSystemExtensionsCheckGenesis (410) */
   type FrameSystemExtensionsCheckGenesis = Null;
 
-  /** @name FrameSystemExtensionsCheckNonce (414) */
+  /** @name FrameSystemExtensionsCheckNonce (413) */
   interface FrameSystemExtensionsCheckNonce extends Compact<u32> {}
 
-  /** @name FrameSystemExtensionsCheckWeight (415) */
+  /** @name FrameSystemExtensionsCheckWeight (414) */
   type FrameSystemExtensionsCheckWeight = Null;
 
-  /** @name PalletTransactionPaymentChargeTransactionPayment (416) */
+  /** @name PalletTransactionPaymentChargeTransactionPayment (415) */
   interface PalletTransactionPaymentChargeTransactionPayment extends Compact<u128> {}
 
-  /** @name FrameMetadataHashExtensionCheckMetadataHash (417) */
+  /** @name FrameMetadataHashExtensionCheckMetadataHash (416) */
   interface FrameMetadataHashExtensionCheckMetadataHash extends Struct {
     readonly mode: FrameMetadataHashExtensionMode;
   }
 
-  /** @name FrameMetadataHashExtensionMode (418) */
+  /** @name FrameMetadataHashExtensionMode (417) */
   interface FrameMetadataHashExtensionMode extends Enum {
     readonly isDisabled: boolean;
     readonly isEnabled: boolean;
     readonly type: 'Disabled' | 'Enabled';
   }
 
-  /** @name WarpxRuntimeRuntime (419) */
+  /** @name WarpxRuntimeRuntime (418) */
   type WarpxRuntimeRuntime = Null;
 
 } // declare module

@@ -77,7 +77,7 @@ export default function TradeInputLimit({
           {formatBalance(availableBalance, decimals)} {baseToken}
         </span>
       </div>
-      <div className="flex gap-2 mb-2">
+      <div className="flex gap-2 mb-2 flex-col">
         <input
           className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 border border-gray-800 focus:border-teal-500 outline-none transition"
           style={{ borderRadius: 0 }}
@@ -94,7 +94,7 @@ export default function TradeInputLimit({
           {baseToken}
         </div>
       </div>
-      <div className="flex gap-2 mb-2">
+      <div className="flex gap-2 mb-2 flex-col">
         <input
           className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 border border-gray-800 focus:border-teal-500 outline-none transition"
           style={{ borderRadius: 0 }}

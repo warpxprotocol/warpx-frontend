@@ -662,6 +662,9 @@ export function usePoolDataFetcher() {
             quoteAssetDecimals: quoteDecimals,
             asks: poolData?.asks || {},
             bids: poolData?.bids || {},
+            lotSize: poolData?.lotSize
+              ? Number(String(poolData.lotSize).replace(/,/g, ''))
+              : undefined,
             rawData: poolData || {},
           };
         };

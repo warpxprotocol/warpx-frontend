@@ -3274,9 +3274,9 @@ export default {
     takerFeeRate: 'Permill',
     tickSize: 'u128',
     lotSize: 'u128',
-    poolDecimals: 'Option<u8>',
-    baseAdjustment: 'Option<u8>',
-    quoteAdjustment: 'Option<u8>'
+    poolDecimals: 'u8',
+    baseDecimals: 'u8',
+    quoteDecimals: 'u8'
   },
   /**
    * Lookup375: pallet_hybrid_orderbook::critbit::CritbitTree<K, pallet_hybrid_orderbook::types::Tick<Quantity, sp_core::crypto::AccountId32, BlockNumber>>
@@ -3322,7 +3322,7 @@ export default {
     value: 'PalletHybridOrderbookTick'
   },
   /**
-   * Lookup390: pallet_hybrid_orderbook::pallet::Call<T>
+   * Lookup389: pallet_hybrid_orderbook::pallet::Call<T>
    **/
   PalletHybridOrderbookCall: {
     _enum: {
@@ -3382,13 +3382,13 @@ export default {
     }
   },
   /**
-   * Lookup391: pallet_hybrid_orderbook::pallet::Error<T>
+   * Lookup390: pallet_hybrid_orderbook::pallet::Error<T>
    **/
   PalletHybridOrderbookError: {
     _enum: ['InvalidAssetPair', 'PoolExists', 'WrongDesiredAmount', 'AmountOneLessThanMinimal', 'AmountTwoLessThanMinimal', 'ReserveLeftLessThanMinimal', 'AmountOutTooHigh', 'PoolNotFound', 'Overflow', 'AssetOneDepositDidNotMeetMinimum', 'AssetTwoDepositDidNotMeetMinimum', 'AssetOneWithdrawalDidNotMeetMinimum', 'AssetTwoWithdrawalDidNotMeetMinimum', 'OptimalAmountLessThanDesired', 'InsufficientLiquidityMinted', 'ZeroLiquidity', 'ZeroAmount', 'ProvidedMinimumNotSufficientForSwap', 'ProvidedMaximumNotSufficientForSwap', 'InvalidPath', 'NonUniquePath', 'IncorrectPoolAssetId', 'BelowMinimum', 'InvalidOrderPrice', 'InvalidOrderQuantity', 'ErrorOnFillOrder', 'ErrorOnPlaceOrder', 'ErrorOnCancelOrder', 'OrderNotFound', 'NoPermission', 'OverOrderQuantity', 'ConversionError', 'NoOps', 'InvalidTickSize', 'InvalidLotSize']
   },
   /**
-   * Lookup392: pallet_utility::pallet::Call<T>
+   * Lookup391: pallet_utility::pallet::Call<T>
    **/
   PalletUtilityCall: {
     _enum: {
@@ -3424,7 +3424,7 @@ export default {
     }
   },
   /**
-   * Lookup395: pallet_sudo::pallet::Call<T>
+   * Lookup394: pallet_sudo::pallet::Call<T>
    **/
   PalletSudoCall: {
     _enum: {
@@ -3449,7 +3449,7 @@ export default {
     }
   },
   /**
-   * Lookup396: warpx_runtime::OriginCaller
+   * Lookup395: warpx_runtime::OriginCaller
    **/
   WarpxRuntimeOriginCaller: {
     _enum: {
@@ -3489,7 +3489,7 @@ export default {
     }
   },
   /**
-   * Lookup397: frame_support::dispatch::RawOrigin<sp_core::crypto::AccountId32>
+   * Lookup396: frame_support::dispatch::RawOrigin<sp_core::crypto::AccountId32>
    **/
   FrameSupportDispatchRawOrigin: {
     _enum: {
@@ -3499,7 +3499,7 @@ export default {
     }
   },
   /**
-   * Lookup398: pallet_xcm::pallet::Origin
+   * Lookup397: pallet_xcm::pallet::Origin
    **/
   PalletXcmOrigin: {
     _enum: {
@@ -3508,7 +3508,7 @@ export default {
     }
   },
   /**
-   * Lookup399: cumulus_pallet_xcm::pallet::Origin
+   * Lookup398: cumulus_pallet_xcm::pallet::Origin
    **/
   CumulusPalletXcmOrigin: {
     _enum: {
@@ -3517,19 +3517,19 @@ export default {
     }
   },
   /**
-   * Lookup400: pallet_utility::pallet::Error<T>
+   * Lookup399: pallet_utility::pallet::Error<T>
    **/
   PalletUtilityError: {
     _enum: ['TooManyCalls']
   },
   /**
-   * Lookup401: pallet_sudo::pallet::Error<T>
+   * Lookup400: pallet_sudo::pallet::Error<T>
    **/
   PalletSudoError: {
     _enum: ['RequireSudo']
   },
   /**
-   * Lookup403: sp_runtime::MultiSignature
+   * Lookup402: sp_runtime::MultiSignature
    **/
   SpRuntimeMultiSignature: {
     _enum: {
@@ -3539,51 +3539,51 @@ export default {
     }
   },
   /**
-   * Lookup406: cumulus_pallet_weight_reclaim::StorageWeightReclaim<T, S>
+   * Lookup405: cumulus_pallet_weight_reclaim::StorageWeightReclaim<T, S>
    **/
   CumulusPalletWeightReclaimStorageWeightReclaim: '(FrameSystemExtensionsCheckNonZeroSender,FrameSystemExtensionsCheckSpecVersion,FrameSystemExtensionsCheckTxVersion,FrameSystemExtensionsCheckGenesis,Era,FrameSystemExtensionsCheckNonce,FrameSystemExtensionsCheckWeight,PalletTransactionPaymentChargeTransactionPayment,FrameMetadataHashExtensionCheckMetadataHash)',
   /**
-   * Lookup408: frame_system::extensions::check_non_zero_sender::CheckNonZeroSender<T>
+   * Lookup407: frame_system::extensions::check_non_zero_sender::CheckNonZeroSender<T>
    **/
   FrameSystemExtensionsCheckNonZeroSender: 'Null',
   /**
-   * Lookup409: frame_system::extensions::check_spec_version::CheckSpecVersion<T>
+   * Lookup408: frame_system::extensions::check_spec_version::CheckSpecVersion<T>
    **/
   FrameSystemExtensionsCheckSpecVersion: 'Null',
   /**
-   * Lookup410: frame_system::extensions::check_tx_version::CheckTxVersion<T>
+   * Lookup409: frame_system::extensions::check_tx_version::CheckTxVersion<T>
    **/
   FrameSystemExtensionsCheckTxVersion: 'Null',
   /**
-   * Lookup411: frame_system::extensions::check_genesis::CheckGenesis<T>
+   * Lookup410: frame_system::extensions::check_genesis::CheckGenesis<T>
    **/
   FrameSystemExtensionsCheckGenesis: 'Null',
   /**
-   * Lookup414: frame_system::extensions::check_nonce::CheckNonce<T>
+   * Lookup413: frame_system::extensions::check_nonce::CheckNonce<T>
    **/
   FrameSystemExtensionsCheckNonce: 'Compact<u32>',
   /**
-   * Lookup415: frame_system::extensions::check_weight::CheckWeight<T>
+   * Lookup414: frame_system::extensions::check_weight::CheckWeight<T>
    **/
   FrameSystemExtensionsCheckWeight: 'Null',
   /**
-   * Lookup416: pallet_transaction_payment::ChargeTransactionPayment<T>
+   * Lookup415: pallet_transaction_payment::ChargeTransactionPayment<T>
    **/
   PalletTransactionPaymentChargeTransactionPayment: 'Compact<u128>',
   /**
-   * Lookup417: frame_metadata_hash_extension::CheckMetadataHash<T>
+   * Lookup416: frame_metadata_hash_extension::CheckMetadataHash<T>
    **/
   FrameMetadataHashExtensionCheckMetadataHash: {
     mode: 'FrameMetadataHashExtensionMode'
   },
   /**
-   * Lookup418: frame_metadata_hash_extension::Mode
+   * Lookup417: frame_metadata_hash_extension::Mode
    **/
   FrameMetadataHashExtensionMode: {
     _enum: ['Disabled', 'Enabled']
   },
   /**
-   * Lookup419: warpx_runtime::Runtime
+   * Lookup418: warpx_runtime::Runtime
    **/
   WarpxRuntimeRuntime: 'Null'
 };

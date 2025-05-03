@@ -147,7 +147,6 @@ export default function AMMInfoBox() {
 
   // Zustand 스토어에서 데이터 구독
   const poolInfo = usePoolDataStore(selectPoolInfo);
-  console.log('AMMInfoBox 렌더 poolInfo:', poolInfo);
   const loading = usePoolDataStore(selectLoading);
   const error = usePoolDataStore(selectError);
   const refreshPoolData = usePoolDataStore((state) => state.refreshPoolData);
@@ -174,12 +173,10 @@ export default function AMMInfoBox() {
   if (error) {
     return (
       <div className="relative bg-[#18181C] rounded-xl px-4 py-3 flex flex-col gap-2 min-w-[260px] w-full">
-        <div className="text-red-400 text-sm">Error: {error}</div>
-        {!useWalletStore.getState().selectedAccount && (
-          <div className="text-yellow-400 text-sm mt-2">
-            Connect wallet to view your LP position.
-          </div>
-        )}
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-4 w-full" />
+          {!useWalletStore.getState().selectedAccount && <Skeleton className="h-4 w-3/4" />}
+        </div>
       </div>
     );
   }
@@ -187,41 +184,20 @@ export default function AMMInfoBox() {
   // 메인 렌더링
   return (
     <div className="relative bg-[#18181C] rounded-xl px-4 py-3 flex flex-col gap-2 min-w-[260px] w-full">
-      {loading ? (
-        <>
-          {/* 상단: PRICE / DEPTH */}
-          <div className="flex w-full justify-between items-center mb-0.5">
-            <span className="text-gray-400 text-xs font-medium tracking-widest">PRICE</span>
-            <span className="text-gray-400 text-xs font-medium tracking-widest">DEPTH</span>
-          </div>
+      {/* 상단: PRICE / DEPTH */}
+      <div className="flex w-full justify-between items-center mb-0.5">
+        <span className="text-gray-400 text-xs font-medium tracking-widest">PRICE</span>
+        <span className="text-gray-400 text-xs font-medium tracking-widest">DEPTH</span>
+      </div>
 
-          {/* 중앙: 가격 & 페어 정보 */}
-          <div className="flex w-full items-center justify-between mb-1">
-            <div className="flex flex-col">
-              <div className="flex items-end mb-1">
-                <Skeleton className="h-6 w-24" />
-                <Skeleton className="h-4 w-8 ml-1" />
-              </div>
-              <Skeleton className="h-4 w-16" />
-            </div>
-
-            {/* 우측 Depth 바 */}
-            <div className="flex flex-col items-end gap-1">
-              <div className="flex flex-col items-end gap-1">
-                <Skeleton className="h-6 w-20" />
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <Skeleton className="h-6 w-20" />
-              </div>
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          {/* 중앙: 가격 & 페어 정보 */}
-          <div className="flex w-full items-center justify-between mb-1">
-            <div className="flex flex-col">
-              <div className="flex items-end mb-1">
+      {/* 중앙: 가격 & 페어 정보 */}
+      <div className="flex w-full items-center justify-between mb-1">
+        <div className="flex flex-col">
+          <div className="flex items-end mb-1">
+            {loading ? (
+              <Skeleton className="h-6 w-24" />
+            ) : (
+              <>
                 <span className="text-xl font-semibold text-white leading-none">
                   {poolInfo?.poolPrice !== undefined && poolInfo?.poolPrice !== null
                     ? (
@@ -232,48 +208,60 @@ export default function AMMInfoBox() {
                 <span className="ml-1 text-xs text-gray-400 font-medium">
                   {token1Symbol}
                 </span>
-              </div>
-              {/* Fee & Pair 정보 */}
-              <div className="flex items-center gap-1.5">
-                {poolInfo?.feeTier !== undefined && (
-                  <span className="text-gray-400 text-xs">
-                    Fee:{' '}
-                    {poolInfo.feeTier === 0 ? '0.00' : (poolInfo.feeTier / 100).toFixed(2)}%
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* 우측 Depth 바 */}
-            <div className="flex flex-col items-end gap-1">
-              <div className="flex flex-col items-end gap-1">
-                <span
-                  className={`${!poolInfo || poolInfo.reserve0 === 0 ? 'bg-gray-700/50' : 'bg-gradient-to-r from-pink-500 to-purple-500'} rounded px-1.5 py-0.5 flex items-center min-w-[70px] justify-between`}
-                >
-                  <span className="text-white text-xs mr-1">{token0Symbol}</span>
-                  <span className="text-white font-medium text-xs">
-                    {poolInfo?.reserve0 !== undefined
-                      ? formatCompact(poolInfo.reserve0, poolInfo.baseAssetDecimals ?? 0)
-                      : '0'}
-                  </span>
-                </span>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <span
-                  className={`${!poolInfo || poolInfo.reserve1 === 0 ? 'bg-gray-700/50' : 'bg-gradient-to-r from-cyan-400 to-blue-500'} rounded px-1.5 py-0.5 flex items-center min-w-[70px] justify-between`}
-                >
-                  <span className="text-white text-xs mr-1">{token1Symbol}</span>
-                  <span className="text-white font-medium text-xs">
-                    {poolInfo?.reserve1 !== undefined
-                      ? formatCompact(poolInfo.reserve1, poolInfo.quoteAssetDecimals ?? 0)
-                      : '0'}
-                  </span>
-                </span>
-              </div>
-            </div>
+              </>
+            )}
           </div>
-        </>
-      )}
+          {/* Fee & Pair 정보 */}
+          <div className="flex items-center gap-1.5">
+            {loading ? (
+              <Skeleton className="h-4 w-16" />
+            ) : (
+              poolInfo?.feeTier !== undefined && (
+                <span className="text-gray-400 text-xs">
+                  Fee:{' '}
+                  {poolInfo.feeTier === 0 ? '0.00' : (poolInfo.feeTier / 100).toFixed(2)}%
+                </span>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* 우측 Depth 바 */}
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-col items-end gap-1">
+            {loading ? (
+              <Skeleton className="h-6 w-20" />
+            ) : (
+              <span
+                className={`${!poolInfo || poolInfo.reserve0 === 0 ? 'bg-gray-700/50' : 'bg-gradient-to-r from-pink-500 to-purple-500'} rounded px-1.5 py-0.5 flex items-center min-w-[70px] justify-between`}
+              >
+                <span className="text-white text-xs mr-1">{token0Symbol}</span>
+                <span className="text-white font-medium text-xs">
+                  {poolInfo?.reserve0 !== undefined
+                    ? formatCompact(poolInfo.reserve0, poolInfo.baseAssetDecimals ?? 0)
+                    : '0'}
+                </span>
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            {loading ? (
+              <Skeleton className="h-6 w-20" />
+            ) : (
+              <span
+                className={`${!poolInfo || poolInfo.reserve1 === 0 ? 'bg-gray-700/50' : 'bg-gradient-to-r from-cyan-400 to-blue-500'} rounded px-1.5 py-0.5 flex items-center min-w-[70px] justify-between`}
+              >
+                <span className="text-white text-xs mr-1">{token1Symbol}</span>
+                <span className="text-white font-medium text-xs">
+                  {poolInfo?.reserve1 !== undefined
+                    ? formatCompact(poolInfo.reserve1, poolInfo.quoteAssetDecimals ?? 0)
+                    : '0'}
+                </span>
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

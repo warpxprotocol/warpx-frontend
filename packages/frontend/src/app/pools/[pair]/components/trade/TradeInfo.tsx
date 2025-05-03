@@ -3,7 +3,7 @@ import React from 'react';
 export default function TradeInfo() {
   return (
     <div
-      className="bg-[#23232A] p-2 flex flex-col gap-1 text-[11px] text-gray-400 shadow-inner"
+      className="bg-[#23232A] mt-2 p-2 flex flex-col gap-1 text-[11px] text-gray-400 shadow-inner"
       style={{ borderRadius: 0 }}
     >
       <div className="flex justify-between">

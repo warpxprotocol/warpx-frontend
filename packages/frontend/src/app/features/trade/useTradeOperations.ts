@@ -50,16 +50,6 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
   }, [connected, selectedAccount]);
 
   /**
-   * Helper function to convert a decimal string to integer
-   * Blockchain doesn't accept decimal values, so we need to convert them
-   */
-  const convertToInteger = (value: string): string => {
-    // Remove decimal points, simplest approach for now
-    // In a real app, you'd want to multiply by 10^decimals and handle precision better
-    return value ? value.replace('.', '') : '0';
-  };
-
-  /**
    * Helper function to create a properly formatted asset ID object
    * The API expects an enum like { WithId: 123 } rather than just the number
    */
@@ -67,23 +57,32 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
     return { WithId: assetId };
   };
 
+  const toAssetEnum = (id: number) => ({ WithId: id });
+
   // 주문 파라미터 변환 함수
   function formatOrderParams(params: TradeParameters) {
     if (!poolInfo) throw new Error('Pool info is not available');
 
-    const { amountIn, amountOut, price, side } = params;
+    const { amountIn, amountOut, price, side, assetIn, assetOut } = params;
     const baseDecimals = poolInfo.baseAssetDecimals ?? 0;
     const quoteDecimals = poolInfo.quoteAssetDecimals ?? 0;
     const poolDecimals = poolInfo.poolDecimals ?? 0;
 
+    // assetIn이 baseAsset이면 baseDecimals, quoteAsset이면 quoteDecimals
+    const assetInDecimals = assetIn === poolInfo.baseAssetId ? baseDecimals : quoteDecimals;
+    const assetOutDecimals =
+      assetOut === poolInfo.baseAssetId ? baseDecimals : quoteDecimals;
+
+    const baseAssetEnum = toAssetEnum(poolInfo.baseAssetId);
+    const quoteAssetEnum = toAssetEnum(poolInfo.quoteAssetId);
+    const poolKey = [baseAssetEnum, quoteAssetEnum];
+
     return {
       ...params,
-      amountIn: amountIn
-        ? toChainAmount(amountIn, side === 'sell' ? baseDecimals : quoteDecimals)
-        : undefined,
-      amountOut: amountOut
-        ? toChainAmount(amountOut, side === 'buy' ? baseDecimals : quoteDecimals)
-        : undefined,
+      // ✅ 항상 assetIn 기준으로 amountIn 변환
+      amountIn: amountIn ? toChainAmount(amountIn, assetInDecimals) : undefined,
+      // ✅ 항상 assetOut 기준으로 amountOut 변환 (limit order 등에서 사용)
+      amountOut: amountOut ? toChainAmount(amountOut, assetOutDecimals) : undefined,
       price: price ? toChainPrice(price, poolDecimals) : undefined,
     };
   }
@@ -92,7 +91,7 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
    * Creates a market order extrinsic
    */
   const createMarketOrderExtrinsic = useCallback(
-    (params: TradeParameters) => {
+    async (params: TradeParameters) => {
       const formatted = formatOrderParams(params);
       if (!api || isLoading) return null;
 
@@ -117,10 +116,48 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           console.log('Using hybridOrderbook.marketOrder method');
 
           const isBuy = side === 'buy';
-          const amount = side === 'buy' ? amountOut : amountIn;
+          const amount = isBuy ? amountOut : amountIn;
+          const integerAmount = amount || '0';
 
-          // Convert the amount to integer (no decimals)
-          const integerAmount = convertToInteger(amount || '0');
+          // 최소 주문 단위 체크 (예: DOT은 1 Planck = 1, USDT는 1 micro = 1)
+          const MIN_AMOUNT = 1;
+          if (BigInt(integerAmount) < BigInt(MIN_AMOUNT)) {
+            alert('주문 수량이 너무 작습니다. 최소 주문 단위를 확인해주세요.');
+            return null;
+          }
+
+          // lotSize를 poolId로 직접 쿼리해서 가져온다고 가정
+          const NATIVE_ID = 1; // 실제 네이티브 ID로 교체 필요
+          const baseAssetEnum = toAssetEnum(poolInfo?.baseAssetId ?? 0);
+          const quoteAssetEnum = toAssetEnum(poolInfo?.quoteAssetId ?? 0);
+          const poolKey = [baseAssetEnum, quoteAssetEnum];
+
+          const poolOpt = await api.query.hybridOrderbook.pools(poolKey);
+          const poolJson =
+            typeof poolOpt?.toJSON === 'function' ? poolOpt.toJSON() : undefined;
+          const exists = !!(
+            poolJson &&
+            typeof poolJson === 'object' &&
+            Object.keys(poolJson).length > 0
+          );
+
+          console.log('[Pool Check]', {
+            base: baseAssetEnum,
+            quote: quoteAssetEnum,
+            exists,
+          });
+
+          const pool = poolOpt && poolOpt.toJSON && poolOpt.toJSON();
+          const lotSize =
+            pool && typeof pool === 'object' && 'lotSize' in pool && pool.lotSize
+              ? pool.lotSize.toString()
+              : '1';
+
+          // 주문 수량이 lotSize의 배수인지 체크
+          if (BigInt(integerAmount) % BigInt(lotSize) !== BigInt(0)) {
+            alert(`주문 수량은 lot size(${lotSize})의 배수여야 합니다.`);
+            return null;
+          }
 
           console.log('Creating market order with params:', {
             poolId,
@@ -143,11 +180,23 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
             isBuy,
           });
 
+          console.log(
+            '[DEBUG] amount:',
+            amount,
+            'side:',
+            side,
+            'baseDecimals:',
+            poolInfo?.baseAssetDecimals ?? 0,
+            'quoteDecimals:',
+            poolInfo?.quoteAssetDecimals ?? 0,
+          );
+          console.log('[DEBUG] integerAmount:', integerAmount);
+
           return api.tx.hybridOrderbook.marketOrder(
-            baseAssetObj, // baseAsset as enum object
-            quoteAssetObj, // quoteAsset as enum object
+            baseAssetEnum,
+            quoteAssetEnum,
             integerAmount,
-            isBuy, // isBid parameter
+            isBuy,
           );
         }
 
@@ -270,8 +319,13 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           // Where baseAsset and quoteAsset must be formatted as { WithId: assetId }
 
           // Let's convert our decimal amounts to integers
-          const integerAmount = convertToInteger(amount || '0');
-          const integerPrice = convertToInteger(price || '0');
+          const baseDecimals = poolInfo?.baseAssetDecimals ?? 0;
+          const quoteDecimals = poolInfo?.quoteAssetDecimals ?? 0;
+          const integerAmount = toChainAmount(
+            amount || '0',
+            side === 'sell' ? baseDecimals : quoteDecimals,
+          );
+          const integerPrice = toChainAmount(price || '0', poolInfo?.poolDecimals ?? 0);
 
           // Create properly formatted asset ID objects
           const baseAssetObj = createAssetIdObject(assetOut); // The asset we want to trade
@@ -400,7 +454,7 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
         }
 
         setIsSubmitting(true);
-        const extrinsic = createMarketOrderExtrinsic(params);
+        const extrinsic = await createMarketOrderExtrinsic(params);
 
         if (!extrinsic) {
           throw new Error(

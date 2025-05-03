@@ -21,7 +21,7 @@ export interface PoolInfoDisplay extends PoolInfo {
   lpTokenDecimals?: number;
   poolDecimals?: number;
   poolPrice?: number;
-
+  lotSize?: number;
   // 오더북 데이터
   asks?: any;
   bids?: any;
@@ -437,8 +437,18 @@ export function usePoolDataFetcher() {
           return;
         }
 
+        // Create proper tuple format for asset IDs
+        if (!api) {
+          console.error('API가 초기화되지 않았습니다');
+          return;
+        }
+        const assetTuple = api.createType(
+          '(FrameSupportTokensFungibleUnionOfNativeOrWithId,FrameSupportTokensFungibleUnionOfNativeOrWithId)',
+          [{ WithId: baseIdFromUrl }, { WithId: quoteIdFromUrl }],
+        );
+
         const unsub = await api?.query.hybridOrderbook.pools(
-          poolIndex,
+          assetTuple,
           async (poolData: any) => {
             if (!poolData || (poolData.isNone !== undefined && poolData.isNone)) {
               console.log('[PoolSubscription] poolData가 None이므로 무시');

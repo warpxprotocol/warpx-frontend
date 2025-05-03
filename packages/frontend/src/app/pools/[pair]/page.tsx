@@ -5,7 +5,7 @@ import ChartSection from './ChartSection';
 import FundsActionSection from './FundsActionSection';
 import OrderTableSection from './components/order/OrderTableSection';
 import OrderbookSection from './components/order/OrderbookSection';
-import TradeSection from './components/trade';
+import TradeSectionClient from './components/trade/TradeSectionClient';
 
 // This is a server component
 export default async function PoolDetailPage({
@@ -49,7 +49,7 @@ export default async function PoolDetailPage({
         <OrderbookSection baseAssetId={baseAssetId} quoteAssetId={quoteAssetId} />
       </div>
       <div className="row-start-1 col-start-3 col-span-1">
-        <TradeSection baseAssetId={baseAssetId} quoteAssetId={quoteAssetId} />
+        <TradeSectionClient baseAssetId={baseAssetId} quoteAssetId={quoteAssetId} />
       </div>
       <div className="row-start-2 col-start-1 col-span-2">
         <OrderTableSection />

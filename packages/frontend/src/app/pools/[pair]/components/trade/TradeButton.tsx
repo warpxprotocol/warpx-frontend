@@ -17,6 +17,7 @@ export interface TradeButtonProps {
   isValid: boolean;
   tokenIn: string;
   tokenOut: string;
+  decimals: number;
   onSubmit?: () => void | Promise<void>;
   isSubmitting?: boolean;
 }
@@ -32,6 +33,7 @@ export default function TradeButton({
   isValid,
   tokenIn,
   tokenOut,
+  decimals,
   onSubmit,
   isSubmitting,
 }: TradeButtonProps) {

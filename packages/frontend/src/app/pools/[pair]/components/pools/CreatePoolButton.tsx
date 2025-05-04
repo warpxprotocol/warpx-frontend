@@ -20,6 +20,7 @@ import { useExtrinsic } from '@/hooks/useExtrinsic';
 
 import { PoolParametersForm } from './PoolParametersForm';
 import { usePoolCreation } from './poolCreation';
+import { usePoolOperations } from './usePoolOperations';
 
 interface CreatePoolButtonProps {
   className?: string;
@@ -27,7 +28,7 @@ interface CreatePoolButtonProps {
 
 export function CreatePoolButton({ className }: CreatePoolButtonProps) {
   const { handleExtrinsic } = useExtrinsic();
-  const { createPool } = usePoolCreation();
+  const { createPool, addLiquidity } = usePoolOperations();
   const { showTxToast } = useTxToast();
   const { selectedAccount, connected } = useWalletStore();
   const { api } = useApi();
@@ -54,7 +55,7 @@ export function CreatePoolButton({ className }: CreatePoolButtonProps) {
   const [takerFeeRate, setTakerFeeRate] = useState<string>('0');
   const [tickSize, setTickSize] = useState<string>('1');
   const [lotSize, setLotSize] = useState<string>('1');
-  const [poolDecimals, setPoolDecimals] = useState<string>('18');
+  const [poolDecimals, setPoolDecimals] = useState<string>('2');
   const [currentStep, setCurrentStep] = useState<'pair' | 'parameters'>('pair');
 
   // 컴포넌트가 마운트되었는지 확인하는 useEffect
@@ -108,7 +109,7 @@ export function CreatePoolButton({ className }: CreatePoolButtonProps) {
     setIsLoading(true);
     try {
       // Fetch asset metadata to get decimals
-      let decimals = 18; // Default fallback
+      let decimals = 2; // Default fallback
       if (api) {
         try {
           const assetMetadata = await api.query.assets.metadata(asset.id);
@@ -153,6 +154,10 @@ export function CreatePoolButton({ className }: CreatePoolButtonProps) {
     }
   };
 
+  // 임시: 초기 유동성 값 (실제 구현시 폼에서 입력받도록 개선)
+  const INITIAL_BASE_AMOUNT = 1; // 예시: 1 base asset
+  const INITIAL_QUOTE_AMOUNT = 1; // 예시: 1 quote asset
+
   const createPoolHandler = async () => {
     if (!connected || !selectedAccount || !api || !signer) {
       console.error('Wallet not connected or API not ready');
@@ -163,35 +168,12 @@ export function CreatePoolButton({ className }: CreatePoolButtonProps) {
       try {
         setIsLoading(true);
 
-        // Set pool parameters from form inputs
-        const baseDecimals = selectedBaseAsset.decimals || 18;
-        const quoteDecimals = selectedQuoteAsset.decimals || 18;
-
-        // Log the actual values being sent to the transaction
-        console.log('Creating pool with parameters:');
-        console.log(
-          `- Base Asset: ${selectedBaseAsset.symbol} (ID: ${selectedBaseAsset.id}, Decimals: ${baseDecimals})`,
-        );
-        console.log(
-          `- Quote Asset: ${selectedQuoteAsset.symbol} (ID: ${selectedQuoteAsset.id}, Decimals: ${quoteDecimals})`,
-        );
-        console.log(
-          `- Taker Fee Rate: ${takerFeeRate} (Applied as: ${parseFloat(takerFeeRate).toFixed(6)}%)`,
-        );
-        console.log(
-          `- Tick Size: ${tickSize} (Applied with ${poolDecimals} decimals: ${parseFloat(tickSize).toFixed(parseInt(poolDecimals))})`,
-        );
-        console.log(
-          `- Lot Size: ${lotSize} (Applied with ${baseDecimals} decimals: ${parseFloat(lotSize).toFixed(baseDecimals)})`,
-        );
-        console.log(`- Pool Decimals: ${poolDecimals}`);
-
-        // Call the createPool function from the usePoolCreation hook
+        // 1. 풀 생성
         const txHash = await createPool(
           selectedBaseAsset.id,
-          baseDecimals,
+          selectedBaseAsset.decimals || 2,
           selectedQuoteAsset.id,
-          quoteDecimals,
+          selectedQuoteAsset.decimals || 2,
           takerFeeRate,
           tickSize,
           lotSize,
@@ -199,15 +181,27 @@ export function CreatePoolButton({ className }: CreatePoolButtonProps) {
           selectedAccount,
           { signer },
         );
-
         console.log('Pool created with txHash:', txHash);
-        showTxToast('success', 'Pool created successfully!');
+
+        // 2. 풀 생성 성공 시, addLiquidity 실행
+        // 실제로는 사용자가 입력한 값으로 대체해야 함
+        const addLpTxHash = await addLiquidity(
+          selectedBaseAsset.id,
+          selectedQuoteAsset.id,
+          INITIAL_BASE_AMOUNT,
+          INITIAL_QUOTE_AMOUNT,
+          selectedAccount,
+          { signer },
+        );
+        console.log('Liquidity added with txHash:', addLpTxHash);
+
+        showTxToast('success', 'Pool created and liquidity added successfully!');
         setOpen(false);
       } catch (error) {
-        console.error('Failed to create pool:', error);
+        console.error('Failed to create pool or add liquidity:', error);
         showTxToast(
           'error',
-          `Failed to create pool: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          `Failed to create pool or add liquidity: ${error instanceof Error ? error.message : 'Unknown error'}`,
         );
       } finally {
         setIsLoading(false);
@@ -313,23 +307,9 @@ export function CreatePoolButton({ className }: CreatePoolButtonProps) {
                     className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
                     size="lg"
                     disabled={!(selectedBaseAsset && selectedQuoteAsset) || isLoading}
-                    onClick={() => {
-                      if (
-                        currentStep === 'pair' &&
-                        selectedBaseAsset &&
-                        selectedQuoteAsset
-                      ) {
-                        setCurrentStep('parameters');
-                      } else {
-                        createPoolHandler();
-                      }
-                    }}
+                    onClick={createPoolHandler}
                   >
-                    {isLoading
-                      ? 'CREATING POOL...'
-                      : currentStep === 'pair' && selectedBaseAsset && selectedQuoteAsset
-                        ? 'CONTINUE TO PARAMETERS'
-                        : 'CREATE POOL'}
+                    {isLoading ? 'CREATING POOL...' : 'CREATE POOL'}
                   </Button>
                 </div>
                 <AssetSelector

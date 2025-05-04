@@ -1,5 +1,8 @@
+'use client';
+
 import { web3Accounts, web3Enable } from '@polkadot/extension-dapp';
 import { AccountInfo } from '@polkadot/types/interfaces';
+import { useEffect } from 'react';
 import { create } from 'zustand';
 
 import { NetworkType, disconnectApi, getPolkadotApi } from '@/services/config/polkadot';
@@ -58,18 +61,9 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       // 최신 블록 번호 가져오기
       const latestBlock = await api.rpc.chain.getHeader();
       const blockNumber = latestBlock.number.toNumber();
-
-      console.log(`===== ${network} 네트워크 정보 =====`);
-      console.log(`체인 이름: ${chainName}`);
-      console.log(`체인 소수점: ${chainDecimals}`);
-      console.log(`현재 블록: ${blockNumber}`);
-      console.log(`API 엔드포인트: ${api.runtimeVersion.specName.toString()}`);
-      console.log(`================================`);
-
       const accountInfo = (await api.query.system.account(selected.address)) as AccountInfo;
 
       const balance = accountInfo.data.free.toHuman();
-      console.log(`계정 잔액: ${balance}`);
 
       set({
         connected: true,
@@ -114,3 +108,17 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     await get().connect(network);
   },
 }));
+
+// Hook to initialize wallet connection on mount
+export const useInitializeWallet = () => {
+  const { connect, connected } = useWalletStore();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !connected) {
+      const isConnected = localStorage.getItem('connected') === 'true';
+      if (isConnected) {
+        connect();
+      }
+    }
+  }, [connect, connected]);
+};

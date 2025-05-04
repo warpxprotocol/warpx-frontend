@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 import { TradeInputProps } from '@/app/pools/[pair]/components/trade/TradeInput';
 import TradeSlider from '@/app/pools/[pair]/components/trade/TradeSlider';
+import { PoolInfoDisplay } from '@/app/pools/[pair]/context/PoolDataContext';
 
 const DISPLAY_DECIMALS = 2;
 
@@ -19,6 +20,13 @@ function formatDisplayAmount(amount: string) {
     maximumFractionDigits: DISPLAY_DECIMALS,
     minimumFractionDigits: DISPLAY_DECIMALS,
   });
+}
+
+// 소수점 자리수 제한 함수
+function limitDecimals(value: string, decimals: number) {
+  if (!value.includes('.')) return value;
+  const [int, frac] = value.split('.');
+  return frac.length > decimals ? `${int}.${frac.slice(0, decimals)}` : value;
 }
 
 export default function TradeInputLimit({
@@ -41,8 +49,18 @@ export default function TradeInputLimit({
     ? Number(poolInfo.poolPrice) / 10 ** poolDecimals
     : 0;
 
+  const tickSize = poolInfo?.tickSize ?? 0.01;
+
   // 상태
   const [orderValue, setOrderValue] = useState('');
+
+  useEffect(() => {
+    if (amount && price) {
+      setOrderValue((Number(amount) * Number(price)).toString());
+    } else {
+      setOrderValue('');
+    }
+  }, [amount, price]);
 
   // 첫 렌더링 시 poolPrice로 price 세팅
   useEffect(() => {
@@ -51,30 +69,44 @@ export default function TradeInputLimit({
     }
   }, [realPoolPrice, price, setPrice]);
 
+  // base/quote decimals 가져오기
+  const baseDecimals = poolInfo?.baseAssetDecimals ?? decimals;
+  const quoteDecimals = poolInfo?.quoteAssetDecimals ?? decimals;
+
   // price 입력 핸들러
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9.]/g, '');
+    let value = e.target.value.replace(/[^0-9.]/g, '');
+    // tickSize의 배수로 반올림
+    if (value) {
+      value = (Math.round(Number(value) / tickSize) * tickSize).toFixed(poolDecimals);
+    }
     setPrice(value);
     if (amount) {
       setOrderValue((Number(value) * Number(amount)).toString());
     }
   };
 
-  // quantity 입력 핸들러
+  // quantity 입력 핸들러 (base asset 기준)
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9.]/g, '');
+    let value = e.target.value.replace(/[^0-9.]/g, '');
+    value = limitDecimals(value, baseDecimals); // base asset decimal만큼 제한
     setAmount(value);
     if (price) {
-      setOrderValue((Number(price) * Number(value)).toString());
+      const orderValueRaw = Number(value) * Number(price);
+      setOrderValue(
+        orderValueRaw ? limitDecimals(orderValueRaw.toString(), quoteDecimals) : '',
+      );
     }
   };
 
-  // orderValue(quote) 입력 핸들러
+  // orderValue 입력 핸들러 (quote asset 기준)
   const handleOrderValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9.]/g, '');
+    let value = e.target.value.replace(/[^0-9.]/g, '');
+    value = limitDecimals(value, quoteDecimals); // quote asset decimal만큼 제한
     setOrderValue(value);
     if (price && Number(price) !== 0) {
-      setAmount((Number(value) / Number(price)).toString());
+      const baseAmountRaw = Number(value) / Number(price);
+      setAmount(baseAmountRaw ? limitDecimals(baseAmountRaw.toString(), baseDecimals) : '');
     }
   };
 
@@ -82,9 +114,9 @@ export default function TradeInputLimit({
   let priceDiffMsg = '';
   if (price && poolInfo?.poolPrice) {
     const diff = ((Number(price) - realPoolPrice) / realPoolPrice) * 100;
-    if (diff > 0) priceDiffMsg = `현재가보다 +${diff.toFixed(2)}% 높음`;
-    else if (diff < 0) priceDiffMsg = `현재가보다 ${diff.toFixed(2)}% 낮음`;
-    else priceDiffMsg = '현재가와 동일';
+    if (diff > 0) priceDiffMsg = `Current price is ${diff.toFixed(2)}% higher`;
+    else if (diff < 0) priceDiffMsg = `Current price is ${diff.toFixed(2)}% lower`;
+    else priceDiffMsg = 'Current price is the same';
   }
 
   // 슬라이더 → 수량 입력
@@ -110,6 +142,7 @@ export default function TradeInputLimit({
       <div className="flex items-center gap-2">
         <input
           type="number"
+          step={tickSize}
           className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 h-8 border border-gray-800 focus:border-teal-500 outline-none transition"
           value={price}
           onChange={handlePriceChange}
@@ -125,6 +158,7 @@ export default function TradeInputLimit({
       <div className="flex items-center gap-2">
         <input
           type="number"
+          step={1 / 10 ** baseDecimals}
           className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 h-8 border border-gray-800 focus:border-teal-500 outline-none transition"
           value={amount}
           onChange={handleQuantityChange}
@@ -136,6 +170,7 @@ export default function TradeInputLimit({
       <div className="flex items-center gap-2">
         <input
           type="number"
+          step={1 / 10 ** quoteDecimals}
           className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 h-8 border border-gray-800 focus:border-teal-500 outline-none transition"
           value={orderValue}
           onChange={handleOrderValueChange}
@@ -154,7 +189,12 @@ export default function TradeInputLimit({
         </div>
       )}
       {/* 슬라이더 */}
-      <TradeSlider value={percent} onChange={handleSliderChange} />
+      <TradeSlider
+        value={percent}
+        onChange={handleSliderChange}
+        amount={amount}
+        price={price}
+      />
     </form>
   );
 }

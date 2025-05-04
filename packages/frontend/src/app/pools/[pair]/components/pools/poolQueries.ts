@@ -32,6 +32,7 @@ export const usePoolQueries = () => {
 
   const poolIndexCache = useRef(new Map());
   const poolInfoCache = useRef(new Map());
+  const poolMetadataCache = useRef(new Map<string, any>());
 
   /**
    * 토큰 페어로 풀 인덱스를 찾는 함수
@@ -701,6 +702,37 @@ export const usePoolQueries = () => {
     [findPoolIndexByPair, getOrderbookData],
   );
 
+  const getPoolMetadata = useCallback(
+    async (baseAssetId: number, quoteAssetId: number) => {
+      const key = `${baseAssetId}-${quoteAssetId}`;
+      if (poolMetadataCache.current.has(key)) {
+        return poolMetadataCache.current.get(key);
+      }
+      return withApiReady(api, isConnected, isReady, async () => {
+        if (!api) throw new Error('API not connected');
+        try {
+          const base = api.createType('FrameSupportTokensFungibleUnionOfNativeOrWithId', {
+            WithId: baseAssetId,
+          });
+          const quote = api.createType('FrameSupportTokensFungibleUnionOfNativeOrWithId', {
+            WithId: quoteAssetId,
+          });
+          const result = await (api.call as any).hybridOrderbookApi.getPoolMetadata(
+            base,
+            quote,
+          );
+          const metadata = result.toHuman();
+          poolMetadataCache.current.set(key, metadata);
+          return metadata;
+        } catch (error) {
+          console.error('[getPoolMetadata] Error fetching pool metadata:', error);
+          return null;
+        }
+      });
+    },
+    [api, isConnected, isReady],
+  );
+
   // return 문에 추가
   return {
     findPoolIndexByPair,
@@ -709,6 +741,7 @@ export const usePoolQueries = () => {
     getPoolPriceRatio,
     getPoolQueryRpc,
     subscribeToOrderbook,
-    getOrderbookData, // 추가
+    getOrderbookData,
+    getPoolMetadata,
   };
 };

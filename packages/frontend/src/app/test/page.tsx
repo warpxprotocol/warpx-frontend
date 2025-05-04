@@ -148,7 +148,7 @@ export default function TestPage() {
   useEffect(() => {
     const checkBalance = async () => {
       if (api && selectedAccount) {
-        const { data: balance } = await api.query.system.account(selectedAccount);
+        const balance = (await api.query.system.account(selectedAccount)) as any;
         const free = api.createType('Balance', balance.free);
         console.log('Account balance:', {
           free: free.toHuman(),

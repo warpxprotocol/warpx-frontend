@@ -280,7 +280,7 @@ export default function TradeInputMarket({
           className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 border border-gray-800"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          placeholder={`${side === 'buy' ? tokenOut : tokenIn} 수량`}
+          placeholder={`${side === 'buy' ? tokenOut : tokenIn} Quantity`}
         />
       </div>
       {amount && poolInfo?.poolPrice && (
@@ -292,7 +292,12 @@ export default function TradeInputMarket({
           </span>
         </div>
       )}
-      <TradeSlider value={percent} onChange={handleSliderChange} />
+      <TradeSlider
+        value={percent}
+        onChange={handleSliderChange}
+        amount={amount}
+        price={price}
+      />
     </form>
   );
 }

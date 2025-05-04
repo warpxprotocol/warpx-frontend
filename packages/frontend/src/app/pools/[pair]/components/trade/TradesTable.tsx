@@ -257,7 +257,7 @@ export default function TradesTable() {
         <div className="w-1/3 text-right">Hash</div>
       </div>
 
-      <div className="flex flex-col w-full gap-[1px]">
+      <div className="flex flex-col w-full gap-[1px] max-h-[220px] overflow-y-auto">
         {trades.map((trade, index) => (
           <div
             key={`trade-${trade.hash}-${index}`}

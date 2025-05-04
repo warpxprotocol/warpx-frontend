@@ -1,11 +1,17 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import React, { useState } from 'react';
 
 import TradesTable from '../trade/TradesTable';
 import OrderbookTable from './OrderbookTable';
 
-export default function OrderbookSection({
+// Create a dynamic import of the OrderbookSection component with no SSR
+const OrderbookSectionClient = dynamic(() => Promise.resolve(OrderbookSection), {
+  ssr: false,
+});
+
+function OrderbookSection({
   baseAssetId,
   quoteAssetId,
 }: {
@@ -43,4 +49,13 @@ export default function OrderbookSection({
       </div>
     </div>
   );
+}
+export default function OrderbookSectionWrapper({
+  baseAssetId,
+  quoteAssetId,
+}: {
+  baseAssetId?: number;
+  quoteAssetId?: number;
+}) {
+  return <OrderbookSectionClient baseAssetId={baseAssetId} quoteAssetId={quoteAssetId} />;
 }

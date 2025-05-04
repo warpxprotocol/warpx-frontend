@@ -1,3 +1,6 @@
+'use client';
+
+import dynamic from 'next/dynamic';
 import React, { useEffect, useRef, useState } from 'react';
 
 import AMMInfoBox from '@/app/pools/[pair]/AMMInfoBox';
@@ -43,29 +46,29 @@ function convertOrderBookData(
   let cumulativeTotal = 0;
 
   try {
-    console.log(`${orderType} orderbook data:`, orderBookData);
+    // console.log(`${orderType} orderbook data:`, orderBookData);
 
     // 데이터가 없으면 빈 배열 반환
     if (!orderBookData) {
-      console.log(`${orderType} orderbook data is null or undefined`);
+      // console.log(`${orderType} orderbook data is null or undefined`);
       return [];
     }
 
     // 데이터 구조 분석을 위한 로깅
-    console.log(`${orderType} orderbook 키:`, Object.keys(orderBookData));
+    // console.log(`${orderType} orderbook 키:`, Object.keys(orderBookData));
 
     // leaves 객체가 없거나 비어있으면 빈 배열 반환
     if (!orderBookData.leaves || Object.keys(orderBookData.leaves).length === 0) {
-      console.log(`${orderType} orderbook leaves is empty or missing`);
+      // console.log(`${orderType} orderbook leaves is empty or missing`);
 
       // 다른 형태의 데이터가 있는지 확인
       if (orderType === 'ask' && orderBookData.asks) {
-        console.log(`Using nested 'asks' data:`, orderBookData.asks);
+        // console.log(`Using nested 'asks' data:`, orderBookData.asks);
         return convertOrderBookData(orderBookData.asks, orderType);
       }
 
       if (orderType === 'bid' && orderBookData.bids) {
-        console.log(`Using nested 'bids' data:`, orderBookData.bids);
+        // console.log(`Using nested 'bids' data:`, orderBookData.bids);
         return convertOrderBookData(orderBookData.bids, orderType);
       }
 
@@ -79,7 +82,7 @@ function convertOrderBookData(
       return parseFloat(keyStr);
     });
 
-    console.log(`${orderType} extracted prices:`, prices);
+    // console.log(`${orderType} extracted prices:`, prices);
 
     // 정렬 방향 설정
     let sortedPrices;
@@ -91,7 +94,7 @@ function convertOrderBookData(
       sortedPrices = prices.sort((a, b) => b - a);
     }
 
-    console.log(`${orderType} sorted prices:`, sortedPrices);
+    // console.log(`${orderType} sorted prices:`, sortedPrices);
 
     // 정렬된 가격 순서대로 주문 정보 생성
     for (const price of sortedPrices) {
@@ -103,7 +106,7 @@ function convertOrderBookData(
       });
 
       if (!leafNodeKey) {
-        console.log(`Leaf node not found for price ${price}`);
+        // console.log(`Leaf node not found for price ${price}`);
         continue;
       }
 
@@ -121,14 +124,14 @@ function convertOrderBookData(
         totalQuantity += orderQuantity;
 
         // 주문 상세 정보 로깅 (개발 시에만)
-        console.log(
-          `  - 주문 수량: ${formatNumber(orderQuantity)}, 만료: ${order.expiredAt}`,
-        );
+        // console.log(
+        //   `  - 주문 수량: ${formatNumber(orderQuantity)}, 만료: ${order.expiredAt}`,
+        // );
       });
 
       // 수량이 0인 경우 스킵
       if (totalQuantity <= 0) {
-        console.log(`Skipping price ${price} with zero quantity`);
+        // console.log(`Skipping price ${price} with zero quantity`);
         continue;
       }
 
@@ -146,25 +149,25 @@ function convertOrderBookData(
         cumulative: cumulativeTotal, // 누적 수량은 별도 필드로 저장
       };
 
-      console.log(
-        `  [${orderType.toUpperCase()}] 가격: ${adjustedPrice}, 수량: ${formatNumber(totalQuantity)}, 가치: ${formatNumber(adjustedPrice * totalQuantity)}`,
-      );
+      // console.log(
+      //   `  [${orderType.toUpperCase()}] 가격: ${adjustedPrice}, 수량: ${formatNumber(totalQuantity)}, 가치: ${formatNumber(adjustedPrice * totalQuantity)}`,
+      // );
 
       result.push(orderItem);
     }
 
-    console.log(
-      `Converted ${orderType} orders (${result.length} items):`,
-      result
-        .map(
-          (o) =>
-            `{price: ${o.price}, size: ${formatNumber(o.size)}, total: ${formatNumber(o.total)}}`,
-        )
-        .join('\n'),
-    );
+    // console.log(
+    //   `Converted ${orderType} orders (${result.length} items):`,
+    //   result
+    //     .map(
+    //       (o) =>
+    //         `{price: ${o.price}, size: ${formatNumber(o.size)}, total: ${formatNumber(o.total)}}`,
+    //     )
+    //     .join('\n'),
+    // );
     return result;
   } catch (error) {
-    console.error(`Error converting ${orderType} orderbook data:`, error);
+    // console.error(`Error converting ${orderType} orderbook data:`, error);
     return [];
   }
 }
@@ -209,7 +212,7 @@ function createOrderbookHash(data: any) {
       return `json:${JSON.stringify(data)}`.substring(0, 200); // 너무 길지 않게 제한
     }
   } catch (error) {
-    console.error('해시 생성 중 오류 발생:', error);
+    // console.error('해시 생성 중 오류 발생:', error);
     // 에러가 발생해도 매번 다른 해시를 반환하여 업데이트가 일어나도록 함
     return `error:${Date.now()}`;
   }
@@ -242,7 +245,7 @@ function generateOrders(
   return orders;
 }
 
-export default function OrderbookTable() {
+function OrderbookTable() {
   usePoolDataFetcher();
 
   const [mounted, setMounted] = useState(false);
@@ -273,29 +276,29 @@ export default function OrderbookTable() {
     }
 
     // 데이터 로그 추가
-    console.log('현재 orderbook 데이터:', { asks: poolInfo.asks, bids: poolInfo.bids });
+    // console.log('현재 orderbook 데이터:', { asks: poolInfo.asks, bids: poolInfo.bids });
 
     // 현재 asks/bids 해시 계산
     const currentAsksHash = poolInfo.asks ? createOrderbookHash(poolInfo.asks) : 'empty';
     const currentBidsHash = poolInfo.bids ? createOrderbookHash(poolInfo.bids) : 'empty';
 
-    console.log('해시값:', {
-      currentAsksHash,
-      prevAsksHash: prevAsksHashRef.current,
-      currentBidsHash,
-      prevBidsHash: prevBidsHashRef.current,
-    });
+    // console.log('해시값:', {
+    //   currentAsksHash,
+    //   prevAsksHash: prevAsksHashRef.current,
+    //   currentBidsHash,
+    //   prevBidsHash: prevBidsHashRef.current,
+    // });
 
     // asks 데이터 처리 - 항상 최신 데이터로 변환 시도
     if (poolInfo.asks) {
       const convertedAsks = convertOrderBookData(poolInfo.asks, 'ask');
       // 변환된 데이터가 있거나 이전 해시와 다른 경우에만 업데이트
       if (convertedAsks.length > 0 || currentAsksHash !== prevAsksHashRef.current) {
-        console.log(
-          'asks 데이터가 변경되어 업데이트합니다:',
-          convertedAsks.length,
-          '개 항목',
-        );
+        // console.log(
+        //   'asks 데이터가 변경되어 업데이트합니다:',
+        //   convertedAsks.length,
+        //   '개 항목',
+        // );
         prevAsksHashRef.current = currentAsksHash;
         setAsks(convertedAsks);
       }
@@ -306,11 +309,11 @@ export default function OrderbookTable() {
       const convertedBids = convertOrderBookData(poolInfo.bids, 'bid');
       // 변환된 데이터가 있거나 이전 해시와 다른 경우에만 업데이트
       if (convertedBids.length > 0 || currentBidsHash !== prevBidsHashRef.current) {
-        console.log(
-          'bids 데이터가 변경되어 업데이트합니다:',
-          convertedBids.length,
-          '개 항목',
-        );
+        // console.log(
+        //   'bids 데이터가 변경되어 업데이트합니다:',
+        //   convertedBids.length,
+        //   '개 항목',
+        // );
         prevBidsHashRef.current = currentBidsHash;
         setBids(convertedBids);
       }
@@ -335,10 +338,10 @@ export default function OrderbookTable() {
         <div className="w-1/3 text-right">Total</div>
       </div>
 
-      <div className="flex flex-col w-full gap-[1px]">
+      <div className="flex flex-col w-full gap-[1px] max-h-[220px] overflow-y-auto">
         {[...asks].reverse().map((ask, i) => (
           <div
-            key={`ask-${ask.price}-${Date.now()}-${i}`} // 고유 키 사용하여 렌더링 강제
+            key={`ask-${ask.price}-${i}`}
             className="relative flex text-sm text-red-400 h-5 items-center w-full"
           >
             {/* 색상 바 */}
@@ -360,7 +363,7 @@ export default function OrderbookTable() {
       <div className="flex flex-col w-full gap-[1px]">
         {bids.map((bid, i) => (
           <div
-            key={`bid-${bid.price}-${Date.now()}-${i}`} // 고유 키 사용하여 렌더링 강제
+            key={`bid-${bid.price}-${i}`}
             className="relative flex text-sm text-green-400 h-5 items-center w-full"
           >
             {/* 색상 바 */}
@@ -376,4 +379,13 @@ export default function OrderbookTable() {
       </div>
     </div>
   );
+}
+
+// Create a dynamic import of the OrderbookTable component with no SSR
+const OrderbookTableClient = dynamic(() => Promise.resolve(OrderbookTable), {
+  ssr: false,
+});
+
+export default function OrderbookTableWrapper() {
+  return <OrderbookTableClient />;
 }

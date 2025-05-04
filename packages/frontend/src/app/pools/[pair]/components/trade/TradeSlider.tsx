@@ -1,13 +1,25 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface TradeSliderProps {
   value: number | 'custom'; // 0, 25, 50, 75, 100, or 'custom'
   onChange: (value: number) => void;
+  amount: string;
+  price: string;
 }
 
 const marks = [0, 25, 50, 75, 100];
 
-export default function TradeSlider({ value, onChange }: TradeSliderProps) {
+export default function TradeSlider({ value, onChange, amount, price }: TradeSliderProps) {
+  const [orderValue, setOrderValue] = useState('');
+
+  useEffect(() => {
+    if (amount && price) {
+      setOrderValue((Number(amount) * Number(price)).toString());
+    } else {
+      setOrderValue('');
+    }
+  }, [amount, price]);
+
   const snappedValue =
     typeof value === 'number'
       ? marks.reduce((prev, curr) =>

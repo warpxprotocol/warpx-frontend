@@ -90,6 +90,30 @@ export function useApi() {
                 type: 'ChainProperties',
               },
             },
+            hybridOrderbookApi: {
+              poolMetadata: {
+                description: 'Get pool metadata',
+                params: [
+                  { name: 'base', type: 'FrameSupportTokensFungibleUnionOfNativeOrWithId' },
+                  {
+                    name: 'quote',
+                    type: 'FrameSupportTokensFungibleUnionOfNativeOrWithId',
+                  },
+                ],
+                type: 'Option<PalletHybridOrderbookPoolMetadata>',
+              },
+              getPoolQuery: {
+                description: 'Get pool query',
+                params: [
+                  { name: 'base', type: 'FrameSupportTokensFungibleUnionOfNativeOrWithId' },
+                  {
+                    name: 'quote',
+                    type: 'FrameSupportTokensFungibleUnionOfNativeOrWithId',
+                  },
+                ],
+                type: 'PoolQuery',
+              },
+            },
           },
         });
 

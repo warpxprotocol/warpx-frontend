@@ -1,7 +1,7 @@
 'use client';
 
 import { Info } from 'lucide-react';
-import { Dispatch, SetStateAction } from 'react';
+import { Dispatch, SetStateAction, useEffect } from 'react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,154 +23,99 @@ interface PoolParametersFormProps {
 export function PoolParametersForm({
   takerFeeRate,
   setTakerFeeRate,
-  tickSize,
-  setTickSize,
-  lotSize,
-  setLotSize,
   poolDecimals,
   setPoolDecimals,
   baseAssetDecimals,
   quoteAssetDecimals,
 }: PoolParametersFormProps) {
-  // Only allow numeric input
-  const handleNumberInput = (value: string, setter: Dispatch<SetStateAction<string>>) => {
-    // Allow empty string or numbers with optional decimal point
-    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-      setter(value);
+  // Tick Size: 1 * 10^(-poolDecimals)
+  const tickSizeRaw =
+    poolDecimals && !isNaN(Number(poolDecimals))
+      ? 1 * Math.pow(10, -parseInt(poolDecimals))
+      : 0;
+
+  // Lot Size: 1 * 10^(baseAssetDecimals - poolDecimals)
+  const lotSizeRaw =
+    baseAssetDecimals !== undefined && poolDecimals && !isNaN(Number(poolDecimals))
+      ? 1 * Math.pow(10, baseAssetDecimals - parseInt(poolDecimals))
+      : 0;
+
+  // Human readable format
+  const tickSizeHuman =
+    poolDecimals && !isNaN(Number(poolDecimals))
+      ? tickSizeRaw.toLocaleString(undefined, {
+          minimumFractionDigits: parseInt(poolDecimals),
+          useGrouping: false,
+        })
+      : '0';
+
+  const lotSizeHuman =
+    baseAssetDecimals !== undefined && poolDecimals && !isNaN(Number(poolDecimals))
+      ? lotSizeRaw.toLocaleString(undefined, {
+          minimumFractionDigits: 0,
+          useGrouping: false,
+        })
+      : '0';
+
+  useEffect(() => {
+    console.log('--- Pool Parameter Calculation ---');
+    console.log(`Taker Fee Rate: ${takerFeeRate}`);
+    console.log(`Pool Decimals: ${poolDecimals}`);
+    console.log(`Base Asset Decimals: ${baseAssetDecimals}`);
+    console.log(`Quote Asset Decimals: ${quoteAssetDecimals}`);
+    console.log(
+      `Tick Size = 1 * 10^(-${poolDecimals}) = ${tickSizeRaw} (human: ${tickSizeHuman})`,
+    );
+    if (baseAssetDecimals !== undefined) {
+      console.log(
+        `Lot Size = 1 * 10^(${baseAssetDecimals} - ${poolDecimals}) = ${lotSizeRaw} (human: ${lotSizeHuman})`,
+      );
     }
-  };
-
-  // Calculate the actual applied value for decimals
-  const calculateDecimalValue = (value: string, decimals?: number): string => {
-    if (!value || !decimals) return '0';
-
-    try {
-      const numValue = parseFloat(value);
-      if (isNaN(numValue)) return '0';
-
-      // Calculate the actual value: input * 10^(-decimals)
-      const actualValue = numValue * Math.pow(10, -decimals);
-
-      // Format with appropriate decimal places
-      return actualValue.toFixed(decimals);
-    } catch (e) {
-      return '0';
-    }
-  };
+    console.log('----------------------------------');
+  }, [
+    takerFeeRate,
+    poolDecimals,
+    baseAssetDecimals,
+    quoteAssetDecimals,
+    tickSizeRaw,
+    lotSizeRaw,
+    tickSizeHuman,
+    lotSizeHuman,
+  ]);
 
   return (
     <div className="space-y-4 mt-6">
-      <h3 className="text-lg font-semibold text-white">풀 파라미터 설정</h3>
-
       {/* Taker Fee Rate */}
       <div className="space-y-2">
-        <div className="flex items-center">
-          <Label htmlFor="takerFeeRate" className="text-gray-400 text-sm">
-            Taker Fee Rate (%)
-          </Label>
-          <div className="ml-1" title="거래 수수료 비율 (%)">
-            <Info className="h-4 w-4 text-gray-500" />
-          </div>
-        </div>
-        <div className="flex flex-col w-full">
-          <Input
-            type="text"
-            min={0}
-            max={100}
-            value={takerFeeRate}
-            onChange={(e) => handleNumberInput(e.target.value, setTakerFeeRate)}
-            className="w-full text-white"
-            inputMode="decimal"
-          />
-          <p className="mt-1 text-xs text-gray-500">Taker Fee Rate: {takerFeeRate}%</p>
-        </div>
-      </div>
-
-      {/* Tick Size */}
-      <div className="space-y-2">
-        <div className="flex items-center">
-          <Label htmlFor="tickSize" className="text-gray-400 text-sm">
-            Tick Size
-          </Label>
-          <div className="ml-1" title="최소 가격 변동 단위">
-            <Info className="h-4 w-4 text-gray-500" />
-          </div>
-        </div>
-        <div className="flex flex-col w-full">
-          <Input
-            id="tickSize"
-            type="text"
-            min={1}
-            value={tickSize}
-            onChange={(e) => handleNumberInput(e.target.value, setTickSize)}
-            className="w-full text-white"
-            inputMode="decimal"
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Tick Size: {calculateDecimalValue(tickSize, parseInt(poolDecimals))} (Pool
-            Decimals: {poolDecimals})
-          </p>
-        </div>
-      </div>
-
-      {/* Lot Size */}
-      <div className="space-y-2">
-        <div className="flex items-center">
-          <Label htmlFor="lotSize" className="text-gray-400 text-sm">
-            Lot Size
-          </Label>
-          <div className="ml-1" title="최소 거래 단위">
-            <Info className="h-4 w-4 text-gray-500" />
-          </div>
-        </div>
-        <div className="flex flex-col w-full">
-          <Input
-            id="lotSize"
-            type="text"
-            min={1}
-            value={lotSize}
-            onChange={(e) => handleNumberInput(e.target.value, setLotSize)}
-            className="w-full text-white"
-            inputMode="decimal"
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Lot Size:{' '}
-            {baseAssetDecimals !== undefined
-              ? calculateDecimalValue(lotSize, baseAssetDecimals)
-              : lotSize}{' '}
-            (Base Asset Decimals: {baseAssetDecimals})
-          </p>
-        </div>
+        <Label htmlFor="takerFeeRate" className="text-gray-400 text-sm">
+          Taker Fee Rate (%)
+        </Label>
+        <Input
+          type="text"
+          min={0}
+          max={100}
+          value={takerFeeRate}
+          onChange={(e) => setTakerFeeRate(e.target.value)}
+          className="w-full text-white"
+          inputMode="decimal"
+        />
       </div>
 
       {/* Pool Decimals */}
       <div className="space-y-2">
-        <div className="flex items-center">
-          <Label htmlFor="poolDecimals" className="text-gray-400 text-sm">
-            Pool Decimals
-          </Label>
-          <div className="ml-1" title="풀 토큰의 소수점 자릿수">
-            <Info className="h-4 w-4 text-gray-500" />
-          </div>
-        </div>
-        <div className="flex flex-col w-full">
-          <Input
-            id="poolDecimals"
-            type="text"
-            min={0}
-            max={18}
-            value={poolDecimals}
-            onChange={(e) => handleNumberInput(e.target.value, setPoolDecimals)}
-            className="w-full text-white"
-            inputMode="decimal"
-          />
-          {baseAssetDecimals !== undefined && quoteAssetDecimals !== undefined && (
-            <p className="mt-1 text-xs text-gray-500">
-              Base Asset ({baseAssetDecimals} decimals) and Quote Asset (
-              {quoteAssetDecimals} decimals)
-            </p>
-          )}
-        </div>
+        <Label htmlFor="poolDecimals" className="text-gray-400 text-sm">
+          Pool Decimals
+        </Label>
+        <Input
+          id="poolDecimals"
+          type="text"
+          min={0}
+          max={18}
+          value={poolDecimals}
+          onChange={(e) => setPoolDecimals(e.target.value)}
+          className="w-full text-white"
+          inputMode="decimal"
+        />
       </div>
     </div>
   );

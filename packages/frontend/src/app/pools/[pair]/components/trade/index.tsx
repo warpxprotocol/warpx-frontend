@@ -10,11 +10,9 @@ import Modal from '@/app/pools/[pair]/components/trade/modal';
 import { usePoolDataStore } from '@/app/pools/[pair]/context/PoolDataContext';
 import { useApi } from '@/hooks/useApi';
 
-import MarketOrderSummary from './MarketOrderSummary';
 import OrderSummary from './MarketOrderSummary';
 import SideToggle from './SideToggle';
 import TradeButton from './TradeButton';
-import TradeInfo from './TradeInfo';
 import TradeInput from './TradeInput';
 import TradeTabs from './TradeTabs';
 
@@ -36,23 +34,6 @@ function getFractionDigits(lotSize: number, decimals: number) {
 
 function toHumanAmount(raw: string, decimals: number) {
   return (Number(raw) / 10 ** decimals).toString();
-}
-
-function canSell(amount: string, decimals: number, availableBalance: string, minUnit = 1) {
-  // 1. 문자열 → 숫자 변환 및 NaN 체크
-  const parsed = parseFloat(amount);
-  if (isNaN(parsed)) return { ok: false, reason: '수량 입력이 올바르지 않습니다.' };
-
-  // 2. 최소 단위 이상인지 체크
-  const rawAmount = BigInt(Math.floor(parsed * 10 ** decimals));
-
-  // 3. 잔고 체크
-  const balance = BigInt(availableBalance);
-  if (rawAmount > balance) return { ok: false, reason: '잔고가 부족합니다.' };
-
-  // 4. (Optional) 수수료 포함 체크는 별도 로직 필요
-
-  return { ok: true, rawAmount };
 }
 
 export default function TradeSection({
@@ -107,22 +88,10 @@ export default function TradeSection({
 
   // base asset 기준 잔액, lotSize, min/max
   const baseDecimalsNum = Number(baseDecimals);
-  const lotSize = 10 ** baseDecimals;
+  const lotSize = 10 ** (baseDecimals - (poolInfo?.poolDecimals ?? 2));
   const minUnit = lotSize / 10 ** baseDecimals;
 
-  console.log('DEBUG lotSize:', lotSize);
-  console.log('DEBUG minUnit:', minUnit);
-  console.log('DEBUG baseDecimalsNum:', baseDecimalsNum);
-
   const fractionDigits = getFractionDigits(lotSize ?? 1, baseDecimalsNum);
-
-  console.log('DEBUG lotSize (raw):', lotSize, '(최소 거래 단위, base unit)');
-  console.log('DEBUG baseDecimals:', baseDecimals, '(자산 소수점 자리수)');
-  console.log(
-    'DEBUG humanLotSize:',
-    lotSize ? lotSize / 10 ** baseDecimals : undefined,
-    '(사람이 읽는 최소 단위)',
-  );
 
   const humanLotSize = useMemo(() => {
     if (!lotSize || !baseDecimals) return '';
@@ -499,52 +468,22 @@ export default function TradeSection({
       </div>
       {showSummary && (
         <Modal>
-          <div className="bg-[#202027] px-6 py-3 rounded-xl shadow-2xl w-full max-w-[380px] mx-auto border border-[#353545]">
-            {/* 헤더 */}
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <span className="text-green-500 font-bold text-lg">
-                  Market {side === 'buy' ? 'Buy' : 'Sell'}
-                </span>
-                <span className="text-white font-bold text-lg ml-1">{baseToken}</span>
-              </div>
-              <button
-                onClick={() => setShowSummary(false)}
-                className="text-gray-400 hover:text-white text-xl font-bold"
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-            {/* 주문 요약 */}
-            <div className="mb-8">
-              <OrderSummary
-                orderType={orderType}
-                side={side}
-                amount={Number(amount)}
-                baseToken={baseToken}
-                quoteToken={quoteToken}
-                price={Number(price)}
-                lotSize={lotSize}
-                decimals={baseDecimalsNum}
-              />
-            </div>
-            {/* 버튼 */}
-            <div className="flex gap-3">
-              <button
-                onClick={handleSubmit}
-                className="flex-1 py-2 rounded-lg bg-green-500 text-white font-bold hover:bg-green-600 transition"
-              >
-                {side === 'sell' ? `Sell ${baseToken}` : `Buy ${baseToken}`}
-              </button>
-              <button
-                onClick={() => setShowSummary(false)}
-                className="flex-1 py-2 rounded-lg border border-[#353545] text-white font-bold hover:bg-[#23232b] transition"
-              >
-                No
-              </button>
-            </div>
-          </div>
+          <OrderSummary
+            orderType={orderType}
+            side={side}
+            amount={Number(amount)}
+            baseToken={baseToken}
+            quoteToken={quoteToken}
+            price={
+              orderType === 'market'
+                ? Number(poolInfo?.poolPrice) / 10 ** (poolInfo?.poolDecimals ?? 2)
+                : Number(price)
+            }
+            lotSize={lotSize}
+            decimals={baseDecimalsNum}
+            onClose={() => setShowSummary(false)}
+            onSubmit={handleSubmit}
+          />
         </Modal>
       )}
     </div>

@@ -2,11 +2,10 @@ import React, { useEffect, useState } from 'react';
 
 import { TradeInputProps } from '@/app/pools/[pair]/components/trade/TradeInput';
 import TradeSlider from '@/app/pools/[pair]/components/trade/TradeSlider';
-import { PoolInfoDisplay } from '@/app/pools/[pair]/context/PoolDataContext';
 
 const DISPLAY_DECIMALS = 2;
 
-function formatBalance(raw: string, decimals: number = 6) {
+function formatBalance(raw: string, decimals: number = 2) {
   if (!raw) return '0';
   return (Number(raw) / 10 ** decimals).toLocaleString(undefined, {
     maximumFractionDigits: DISPLAY_DECIMALS,
@@ -29,37 +28,47 @@ function limitDecimals(value: string, decimals: number) {
   return frac.length > decimals ? `${int}.${frac.slice(0, decimals)}` : value;
 }
 
+// lotsize 단위로 스냅하는 함수
+function snapToLotSize(value: number, lotSize: number) {
+  return Math.round(value / lotSize) * lotSize;
+}
+
 export default function TradeInputLimit({
   side,
   tokenIn,
   tokenOut,
   availableBalance,
-  decimals = 6,
+  decimals = 2,
   poolInfo,
   price,
   setPrice,
   amount,
   setAmount,
+  poolMetadata,
 }: TradeInputProps) {
   const baseToken = side === 'buy' ? tokenOut : tokenIn;
   const quoteToken = side === 'buy' ? tokenIn : tokenOut;
 
-  const poolDecimals = poolInfo?.poolDecimals ?? 2;
+  const poolDecimals = poolMetadata?.poolDecimals ?? 2;
   const realPoolPrice = poolInfo?.poolPrice
     ? Number(poolInfo.poolPrice) / 10 ** poolDecimals
     : 0;
 
-  const tickSize = poolInfo?.tickSize ?? 0.01;
+  const tickSize = poolMetadata?.tickSize ?? 0.01;
 
   // 상태
   const [orderValue, setOrderValue] = useState('');
+  const [isOrderValueInput, setIsOrderValueInput] = useState(false);
 
   useEffect(() => {
-    if (amount && price) {
-      setOrderValue((Number(amount) * Number(price)).toString());
-    } else {
-      setOrderValue('');
+    if (!isOrderValueInput) {
+      if (amount && price) {
+        setOrderValue((Number(amount) * Number(price)).toFixed(quoteDecimals));
+      } else {
+        setOrderValue('');
+      }
     }
+    // eslint-disable-next-line
   }, [amount, price]);
 
   // 첫 렌더링 시 poolPrice로 price 세팅
@@ -70,8 +79,8 @@ export default function TradeInputLimit({
   }, [realPoolPrice, price, setPrice]);
 
   // base/quote decimals 가져오기
-  const baseDecimals = poolInfo?.baseAssetDecimals ?? decimals;
-  const quoteDecimals = poolInfo?.quoteAssetDecimals ?? decimals;
+  const baseDecimals = Math.min(poolMetadata?.baseDecimals ?? decimals, 2);
+  const quoteDecimals = Math.min(poolMetadata?.quoteDecimals ?? decimals, 2);
 
   // price 입력 핸들러
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,25 +97,58 @@ export default function TradeInputLimit({
 
   // quantity 입력 핸들러 (base asset 기준)
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/[^0-9.]/g, '');
-    value = limitDecimals(value, baseDecimals); // base asset decimal만큼 제한
-    setAmount(value);
+    setAmount(e.target.value);
+  };
+
+  // onBlur에서만 lotsize/tickSize 스냅 및 소수점 자리수 제한
+  const handleQuantityBlur = () => {
+    let value = amount;
+    if (value === '' || value === '.') {
+      setAmount('');
+      return;
+    }
+    let num = Number(value);
+    if (isNaN(num)) {
+      setAmount('');
+      return;
+    }
+    num = snapToLotSize(num, tickSize);
+    const fixed = num.toFixed(baseDecimals);
+    setAmount(fixed);
+
     if (price) {
-      const orderValueRaw = Number(value) * Number(price);
-      setOrderValue(
-        orderValueRaw ? limitDecimals(orderValueRaw.toString(), quoteDecimals) : '',
-      );
+      let orderValueRaw = num * Number(price);
+      orderValueRaw = snapToLotSize(orderValueRaw, tickSize);
+      setOrderValue(orderValueRaw ? orderValueRaw.toFixed(quoteDecimals) : '');
     }
   };
 
   // orderValue 입력 핸들러 (quote asset 기준)
   const handleOrderValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/[^0-9.]/g, '');
-    value = limitDecimals(value, quoteDecimals); // quote asset decimal만큼 제한
-    setOrderValue(value);
+    setIsOrderValueInput(true);
+    setOrderValue(e.target.value);
+  };
+
+  const handleOrderValueBlur = () => {
+    setIsOrderValueInput(false);
+    let value = orderValue;
+    if (value === '' || value === '.') {
+      setOrderValue('');
+      return;
+    }
+    let num = Number(value);
+    if (isNaN(num)) {
+      setOrderValue('');
+      return;
+    }
+    num = snapToLotSize(num, tickSize);
+    const fixed = num.toFixed(quoteDecimals);
+    setOrderValue(fixed);
+
     if (price && Number(price) !== 0) {
-      const baseAmountRaw = Number(value) / Number(price);
-      setAmount(baseAmountRaw ? limitDecimals(baseAmountRaw.toString(), baseDecimals) : '');
+      let baseAmountRaw = num / Number(price);
+      baseAmountRaw = snapToLotSize(baseAmountRaw, tickSize);
+      setAmount(baseAmountRaw ? baseAmountRaw.toFixed(baseDecimals) : '');
     }
   };
 
@@ -158,10 +200,11 @@ export default function TradeInputLimit({
       <div className="flex items-center gap-2">
         <input
           type="number"
-          step={1 / 10 ** baseDecimals}
+          step={1 / 10 ** poolDecimals}
           className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 h-8 border border-gray-800 focus:border-teal-500 outline-none transition"
           value={amount}
           onChange={handleQuantityChange}
+          onBlur={handleQuantityBlur}
           placeholder="Quantity"
         />
         <span className="text-gray-400 text-[11px]">{baseToken}</span>
@@ -170,10 +213,11 @@ export default function TradeInputLimit({
       <div className="flex items-center gap-2">
         <input
           type="number"
-          step={1 / 10 ** quoteDecimals}
+          step={1 / 10 ** poolDecimals}
           className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 h-8 border border-gray-800 focus:border-teal-500 outline-none transition"
           value={orderValue}
           onChange={handleOrderValueChange}
+          onBlur={handleOrderValueBlur}
           placeholder="Order Value"
         />
         <span className="text-gray-400 text-[11px]">{quoteToken}</span>

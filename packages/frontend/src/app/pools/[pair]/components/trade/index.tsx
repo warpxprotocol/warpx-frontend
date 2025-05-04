@@ -73,6 +73,7 @@ export default function TradeSection({
   const { connected, selectedAccount } = useWalletStore();
 
   const poolInfo = usePoolDataStore((state) => state.poolInfo);
+  const poolMetadata = usePoolDataStore((state) => state.metadata);
   const { submitMarketOrder, submitLimitOrder, isSubmitting, isTradingSupported } =
     useTradeOperations(poolInfo ?? undefined);
   const apiSupportsTrading = isTradingSupported();
@@ -83,12 +84,12 @@ export default function TradeSection({
   // base/quote asset 구분
   const baseToken = side === 'buy' ? tokenOut : tokenIn;
   const quoteToken = side === 'buy' ? tokenIn : tokenOut;
-  const baseDecimals = poolInfo?.baseAssetDecimals ?? 9;
-  const quoteDecimals = quoteAssetDecimals ?? 6;
+  const baseDecimals = poolMetadata?.baseDecimals ?? 9;
+  const quoteDecimals = poolMetadata?.quoteDecimals ?? 6;
 
   // base asset 기준 잔액, lotSize, min/max
   const baseDecimalsNum = Number(baseDecimals);
-  const lotSize = 10 ** (baseDecimals - (poolInfo?.poolDecimals ?? 2));
+  const lotSize = 10 ** (baseDecimals - (poolMetadata?.poolDecimals ?? 2));
   const minUnit = lotSize / 10 ** baseDecimals;
 
   const fractionDigits = getFractionDigits(lotSize ?? 1, baseDecimalsNum);
@@ -420,6 +421,7 @@ export default function TradeSection({
             setPrice={setPrice}
             availableBalance={side === 'buy' ? quoteAssetBalance : baseAssetBalance}
             poolInfo={poolInfo ?? undefined}
+            poolMetadata={poolMetadata ?? undefined}
             decimals={decimals}
             baseAssetBalance={baseAssetBalance}
             quoteAssetBalance={quoteAssetBalance}

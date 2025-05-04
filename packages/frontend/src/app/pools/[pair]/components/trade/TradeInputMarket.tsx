@@ -101,6 +101,7 @@ export default function TradeInputMarket({
   baseAssetBalance,
   quoteAssetBalance,
   decimals,
+  poolMetadata,
   poolInfo,
 }: TradeInputProps & {
   baseAssetBalance: string;
@@ -260,7 +261,7 @@ export default function TradeInputMarket({
     adjustedQuantity: adjustedQuantity.toString(),
   });
 
-  const poolDecimals = poolInfo?.poolDecimals ?? 2;
+  const poolDecimals = poolMetadata?.poolDecimals ?? 2;
   const realPrice = poolInfo?.poolPrice
     ? Number(poolInfo.poolPrice) / 10 ** poolDecimals
     : 0;

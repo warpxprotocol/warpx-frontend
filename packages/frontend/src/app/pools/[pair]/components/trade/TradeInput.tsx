@@ -16,6 +16,7 @@ export interface TradeInputProps {
   setPrice: (price: string) => void;
   availableBalance: string;
   poolInfo?: PoolInfoDisplay;
+  poolMetadata?: any;
   decimals?: number;
 }
 

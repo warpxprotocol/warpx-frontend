@@ -15,10 +15,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useApi } from '@/hooks/useApi';
 import { useExtrinsic } from '@/hooks/useExtrinsic';
 
+import { PoolParameterSummaryTooltip } from './PoolParameterSummaryTooltip';
 import { PoolParametersForm } from './PoolParametersForm';
+import { useLiquidityOperations } from './liquidityOperations';
 import { usePoolCreation } from './poolCreation';
 import { usePoolOperations } from './usePoolOperations';
 
@@ -57,6 +65,8 @@ export function CreatePoolButton({ className }: CreatePoolButtonProps) {
   const [lotSize, setLotSize] = useState<string>('1');
   const [poolDecimals, setPoolDecimals] = useState<string>('2');
   const [currentStep, setCurrentStep] = useState<'pair' | 'parameters'>('pair');
+
+  const { createPoolWithInitialLiquidity } = useLiquidityOperations();
 
   // 컴포넌트가 마운트되었는지 확인하는 useEffect
   useEffect(() => {
@@ -209,6 +219,43 @@ export function CreatePoolButton({ className }: CreatePoolButtonProps) {
     }
   };
 
+  const createPoolWithInitialLiquidityHandler = async () => {
+    if (!connected || !selectedAccount || !api || !signer) {
+      console.error('Wallet not connected or API not ready');
+      return;
+    }
+
+    if (selectedBaseAsset && selectedQuoteAsset) {
+      try {
+        setIsLoading(true);
+
+        await createPoolWithInitialLiquidity(
+          selectedBaseAsset.id,
+          selectedBaseAsset.decimals || 2,
+          selectedQuoteAsset.id,
+          selectedQuoteAsset.decimals || 2,
+          takerFeeRate,
+          tickSize,
+          lotSize,
+          poolDecimals,
+          selectedAccount,
+          { signer },
+        );
+
+        showTxToast('success', 'Pool created and initial liquidity added!');
+        setOpen(false);
+      } catch (error) {
+        console.error('Failed to create pool or add initial liquidity:', error);
+        showTxToast(
+          'error',
+          `Failed to create pool or add initial liquidity: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
   return (
     <>
       {isMounted ? (
@@ -302,12 +349,28 @@ export function CreatePoolButton({ className }: CreatePoolButtonProps) {
                     baseAssetDecimals={selectedBaseAsset?.decimals}
                     quoteAssetDecimals={selectedQuoteAsset?.decimals}
                   />
+                  {selectedBaseAsset && selectedQuoteAsset && (
+                    <PoolParameterSummaryTooltip
+                      baseAsset={{
+                        ...selectedBaseAsset,
+                        decimals: selectedBaseAsset.decimals ?? 0,
+                      }}
+                      quoteAsset={{
+                        ...selectedQuoteAsset,
+                        decimals: selectedQuoteAsset.decimals ?? 0,
+                      }}
+                      takerFeeRate={takerFeeRate}
+                      tickSize={tickSize}
+                      lotSize={lotSize}
+                      poolDecimals={poolDecimals}
+                    />
+                  )}
 
                   <Button
                     className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
                     size="lg"
                     disabled={!(selectedBaseAsset && selectedQuoteAsset) || isLoading}
-                    onClick={createPoolHandler}
+                    onClick={createPoolWithInitialLiquidityHandler}
                   >
                     {isLoading ? 'CREATING POOL...' : 'CREATE POOL'}
                   </Button>

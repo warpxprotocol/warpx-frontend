@@ -221,8 +221,88 @@ export const useLiquidityOperations = () => {
     [api],
   );
 
+  /**
+   * 풀 생성 + 최소 유동성 추가를 batch로 처리
+   */
+  const createPoolWithInitialLiquidity = useCallback(
+    async (
+      baseAssetId: number,
+      baseDecimals: number,
+      quoteAssetId: number,
+      quoteDecimals: number,
+      takerFeeRate: string,
+      tickSize: string,
+      lotSize: string,
+      poolDecimals: string,
+      address: string,
+      selectedAccountObj?: any,
+    ): Promise<string> => {
+      if (!api) throw new Error('API not connected');
+
+      // 1. createPool extrinsic
+      const takerFeeRateNumber = Number(takerFeeRate);
+      const tickSizeNumber = Number(tickSize);
+      const lotSizeNumber = Number(lotSize);
+      const poolDecimalsNumber = Number(poolDecimals);
+      const takerFeeRatePermill = Math.floor(takerFeeRateNumber * 10000);
+
+      const createPoolTx = api.tx.hybridOrderbook.createPool(
+        { WithId: baseAssetId },
+        baseDecimals,
+        { WithId: quoteAssetId },
+        quoteDecimals,
+        takerFeeRatePermill,
+        tickSizeNumber,
+        lotSizeNumber,
+        poolDecimalsNumber,
+      );
+
+      // 2. 최소 유동성 값 (예: 1, 1)
+      const baseAmount = 1;
+      const quoteAmount = 1;
+      const addLiquidityTx = api.tx.hybridOrderbook.addLiquidity(
+        { WithId: baseAssetId },
+        { WithId: quoteAssetId },
+        baseAmount.toString(),
+        quoteAmount.toString(),
+        baseAmount.toString(),
+        quoteAmount.toString(),
+        address,
+      );
+
+      // 3. batch extrinsic
+      const batchTx = api.tx.utility.batch([createPoolTx, addLiquidityTx]);
+
+      // 4. 서명자
+      const { signer } = await getAccountSigner(address, selectedAccountObj);
+
+      // 5. 트랜잭션 처리
+      const txMessages = {
+        pending: 'Creating pool and adding initial liquidity...',
+        success: 'Pool created and initial liquidity added!',
+        error: 'Failed to create pool or add liquidity',
+      };
+
+      const result = await handleExtrinsic(
+        batchTx,
+        { signer, account: address },
+        txMessages,
+      );
+
+      const status = (result as any).status;
+      if (status?.isFinalized) {
+        return status.asFinalized.toString();
+      } else if (status?.isInBlock) {
+        return status.asInBlock.toString();
+      }
+      return '';
+    },
+    [api, handleExtrinsic],
+  );
+
   return {
     addLiquidity,
     removeLiquidity,
+    createPoolWithInitialLiquidity,
   };
 };

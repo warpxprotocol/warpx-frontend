@@ -77,7 +77,20 @@ export default function TradeButton({
           return;
         }
         console.log('Submitting limit order with params:', params);
-        await submitLimitOrder(params);
+        await submitLimitOrder({
+          baseAsset: baseAsset,
+          quoteAsset: quoteAsset,
+          quantity: amount,
+          isBid: side === 'buy',
+          price,
+        });
+        console.log('LIMIT ORDER PARAMS', {
+          baseAsset,
+          quoteAsset,
+          amount,
+          price,
+          isBid: side === 'buy',
+        });
       }
     } catch (error) {
       console.error('Trade submission error:', error);

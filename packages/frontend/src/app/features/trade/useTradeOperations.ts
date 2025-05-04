@@ -65,7 +65,7 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
   const toAssetEnum = (id: number) => ({ WithId: id });
 
   // 주문 파라미터 변환 함수
-  function formatOrderParams(params: MarketOrderParameters | LimitOrderParameters) {
+  function formatMarketOrderParams(params: MarketOrderParameters) {
     if (!poolInfo) throw new Error('Pool info is not available');
 
     const { quantity, baseAsset, quoteAsset } = params;
@@ -80,12 +80,34 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
     };
   }
 
+  function formatLimitOrderParams(params: LimitOrderParameters) {
+    if (!poolInfo) throw new Error('Pool info is not available');
+
+    const { quantity, baseAsset, quoteAsset, price, isBid } = params;
+
+    // For limit orders, quantity should be in base asset decimals
+    const baseDecimals = poolInfo.baseAssetDecimals ?? 0;
+    const chainQuantity = toChainAmount(quantity, baseDecimals);
+
+    // Price should be in pool decimals
+    const poolDecimals = poolInfo.poolDecimals ?? 0;
+    const chainPrice = toChainAmount(price, poolDecimals);
+
+    return {
+      ...params,
+      quantity: chainQuantity, // Keep the original quantity without adjustment
+      baseAsset: baseAsset,
+      quoteAsset: quoteAsset,
+      price: chainPrice,
+    };
+  }
+
   /**
    * Creates a market order extrinsic
    */
   const createMarketOrderExtrinsic = useCallback(
     async (params: MarketOrderParameters) => {
-      const formatted = formatOrderParams(params);
+      const formatted = formatMarketOrderParams(params);
       if (!api || isLoading) return null;
 
       console.log('Creating market order extrinsic with params:', formatted);
@@ -107,7 +129,7 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           typeof api.tx.hybridOrderbook.marketOrder === 'function'
         ) {
           const isBuy = isBid;
-          const integerAmount = quantity;
+          const amount = quantity;
 
           const baseAssetEnum = toAssetEnum(poolInfo?.baseAssetId ?? 0);
           const quoteAssetEnum = toAssetEnum(poolInfo?.quoteAssetId ?? 0);
@@ -122,7 +144,7 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           return api.tx.hybridOrderbook.marketOrder(
             baseAssetEnum,
             quoteAssetEnum,
-            integerAmount,
+            amount,
             isBuy,
           );
         }
@@ -195,98 +217,35 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
    * Creates a limit order extrinsic
    */
   const createLimitOrderExtrinsic = useCallback(
-    (
-      params: LimitOrderParameters,
-    ): SubmittableExtrinsic<'promise', ISubmittableResult> | null => {
+    (params: LimitOrderParameters) => {
+      const formatted = formatLimitOrderParams(params);
       if (!api || isLoading) return null;
 
-      console.log('Creating limit order extrinsic with params:', params);
+      console.log('Creating limit order extrinsic with params:', formatted);
 
-      const { baseAsset, quoteAsset, price, quantity, isBid } = params;
+      const { baseAsset, quoteAsset, price, quantity, isBid } = formatted;
 
-      if (!price) {
-        throw new Error('Price is required for limit orders');
-      }
-
-      if (isBid && !quantity) {
-        throw new Error('Quantity is required for buy orders');
-      }
-
-      if (!isBid && !quantity) {
-        throw new Error('Quantity is required for sell orders');
+      if (!quantity) {
+        throw new Error('Quantity is required for limit orders');
       }
 
       try {
-        // List available methods for debugging
-        if (api.tx.hybridOrderbook) {
-          console.log(
-            'Available hybridOrderbook methods:',
-            Object.keys(api.tx.hybridOrderbook),
-          );
-        }
-
-        // Try different module options based on what's available in the API
-        // Option 1: hybridOrderbook module with limitOrder method
         if (
           api.tx.hybridOrderbook &&
           typeof api.tx.hybridOrderbook.limitOrder === 'function'
         ) {
-          console.log('Using hybridOrderbook.limitOrder method');
+          const baseAssetObj = createAssetIdObject(Number(baseAsset));
+          const quoteAssetObj = createAssetIdObject(Number(quoteAsset));
+          const priceBN = BigInt(price);
+          const quantityBN = BigInt(quantity);
 
-          // Parameters for the generic limitOrder method
-          // According to error: limitOrder expects 5 arguments, not 6
-          // We need to figure out the exact parameter order
-          const isBuy = isBid;
-          const amount = isBid ? quantity : '0';
-
-          // Based on the API documentation and error message:
-          // limitOrder(baseAsset, quoteAsset, isBid, price, quantity)
-          // Where baseAsset and quoteAsset must be formatted as { WithId: assetId }
-
-          // Let's convert our decimal amounts to integers
-          const baseDecimals = poolInfo?.baseAssetDecimals ?? 0;
-          const quoteDecimals = poolInfo?.quoteAssetDecimals ?? 0;
-          const integerAmount = toChainAmount(
-            amount || '0',
-            isBid ? baseDecimals : quoteDecimals,
+          return api.tx.hybridOrderbook.limitOrder(
+            baseAssetObj,
+            quoteAssetObj,
+            isBid,
+            priceBN,
+            quantityBN,
           );
-          const integerPrice = toChainAmount(price || '0', poolInfo?.poolDecimals ?? 0);
-
-          // Create properly formatted asset ID objects
-          const baseAssetObj = createAssetIdObject(baseAsset); // The asset we want to trade
-          const quoteAssetObj = createAssetIdObject(quoteAsset); // The asset we're paying with
-
-          console.log('Using limitOrder with corrected parameters: ', {
-            baseAsset: baseAssetObj,
-            quoteAsset: quoteAssetObj,
-            isBuy, // isBid
-            integerPrice,
-            integerAmount,
-          });
-
-          try {
-            // Based on API documentation and the error message about enum format:
-            // limitOrder(baseAsset: {WithId: number}, quoteAsset: {WithId: number}, isBid, price, quantity)
-            return api.tx.hybridOrderbook.limitOrder(
-              baseAssetObj, // Properly formatted asset ID object
-              quoteAssetObj, // Properly formatted asset ID object
-              isBuy, // isBid parameter
-              integerPrice,
-              integerAmount,
-            );
-          } catch (err) {
-            console.error('limitOrder attempt failed, falling back to marketOrder:', err);
-
-            // Fall back to marketOrder if limitOrder fails
-            // Using the correct parameter structure with proper asset ID format:
-            // marketOrder(baseAsset: {WithId: number}, quoteAsset: {WithId: number}, quantity, isBid)
-            return api.tx.hybridOrderbook.marketOrder(
-              baseAssetObj, // The asset we want to trade (assetOut) as an enum object
-              quoteAssetObj, // The asset we're paying with (assetIn) as an enum object
-              integerAmount,
-              isBuy, // isBid parameter
-            );
-          }
         }
 
         // Option 2: Use any available swapExactOutputForInput / swapExactInputForOutput methods
@@ -295,26 +254,29 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           const module = api.tx[moduleName];
 
           // Check if the module has the needed swap methods
-          if (isBid && typeof module.swapExactOutputForInput === 'function') {
+          if (params.isBid && typeof module.swapExactOutputForInput === 'function') {
             console.log(`Using ${moduleName}.swapExactOutputForInput for limit buy order`);
             try {
               return module.swapExactOutputForInput(
                 baseAsset,
                 quoteAsset,
                 quantity,
-                price, // Max price for limit order
+                params.price, // Max price for limit order
               );
             } catch (err) {
               console.error(`Error using ${moduleName}.swapExactOutputForInput:`, err);
             }
-          } else if (!isBid && typeof module.swapExactInputForOutput === 'function') {
+          } else if (
+            !params.isBid &&
+            typeof module.swapExactInputForOutput === 'function'
+          ) {
             console.log(`Using ${moduleName}.swapExactInputForOutput for limit sell order`);
             try {
               return module.swapExactInputForOutput(
                 baseAsset,
                 quoteAsset,
                 quantity,
-                price, // Min price for limit order
+                params.price, // Min price for limit order
               );
             } catch (err) {
               console.error(`Error using ${moduleName}.swapExactInputForOutput:`, err);
@@ -331,8 +293,8 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
 
           // Parameters for the generic marketOrder method
           // Format is expected to be: marketOrder(poolId, isBuy, assetIn, assetOut, amount)
-          const isBuy = isBid;
-          const amount = isBid ? quantity : '0';
+          const isBuy = params.isBid;
+          const amount = quantity;
 
           console.log('Creating market order as fallback with params:', {
             isBuy,

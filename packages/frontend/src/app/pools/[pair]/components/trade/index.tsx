@@ -11,6 +11,7 @@ import { usePoolDataStore } from '@/app/pools/[pair]/context/PoolDataContext';
 import { useApi } from '@/hooks/useApi';
 
 import MarketOrderSummary from './MarketOrderSummary';
+import OrderSummary from './MarketOrderSummary';
 import SideToggle from './SideToggle';
 import TradeButton from './TradeButton';
 import TradeInfo from './TradeInfo';
@@ -64,8 +65,8 @@ export default function TradeSection({
   // Order state
   const [orderType, setOrderType] = useState<OrderType>('market');
   const [side, setSide] = useState<TradeSide>('buy');
-  const [amount, setAmount] = useState<string>('');
-  const [price, setPrice] = useState<string>('');
+  const [amount, setAmount] = useState('');
+  const [price, setPrice] = useState('');
   const [percent, setPercent] = useState(0);
   const [isValid, setIsValid] = useState(false);
 
@@ -277,19 +278,8 @@ export default function TradeSection({
 
   // Validate the order
   useEffect(() => {
-    // Basic validation - just check the amount and price are valid
     const amountValid = amount && parseFloat(amount) > 0;
     const priceValid = orderType === 'market' || (price && parseFloat(price) > 0);
-
-    console.log('Order validation:', {
-      orderType,
-      amount,
-      price,
-      amountValid,
-      priceValid,
-      isValid: Boolean(amountValid && priceValid),
-    });
-
     setIsValid(Boolean(amountValid && priceValid));
   }, [amount, price, orderType]);
 
@@ -380,6 +370,14 @@ export default function TradeSection({
         alert('Please enter a valid price for limit orders');
         return;
       }
+      console.log('Submitting limit order with params:', {
+        baseAsset: baseAssetId,
+        quoteAsset: quoteAssetId,
+        quantity: amount,
+        isBid: side === 'buy',
+        price,
+        poolInfo,
+      });
       await submitLimitOrder({
         baseAsset: baseAssetId,
         quoteAsset: quoteAssetId,
@@ -420,13 +418,18 @@ export default function TradeSection({
     maximumFractionDigits: baseDecimalsNum,
   });
 
-  const [baseValue, setBaseValue] = useState('');
-  const [quoteValue, setQuoteValue] = useState('');
-
-  // baseValue/quoteValue가 바뀔 때 amount 동기화
   useEffect(() => {
-    setAmount(side === 'buy' ? quoteValue : baseValue);
-  }, [side, quoteValue, baseValue]);
+    console.log(
+      'isValid:',
+      isValid,
+      'amount:',
+      amount,
+      'price:',
+      price,
+      'orderType:',
+      orderType,
+    );
+  }, [isValid, amount, price, orderType]);
 
   return (
     <div
@@ -442,8 +445,8 @@ export default function TradeSection({
             side={side}
             tokenIn={tokenIn}
             tokenOut={tokenOut}
-            amount={side === 'buy' ? quoteValue : baseValue}
-            setAmount={side === 'buy' ? setQuoteValue : setBaseValue}
+            amount={amount}
+            setAmount={setAmount}
             price={price}
             setPrice={setPrice}
             availableBalance={side === 'buy' ? quoteAssetBalance : baseAssetBalance}
@@ -515,15 +518,15 @@ export default function TradeSection({
             </div>
             {/* 주문 요약 */}
             <div className="mb-8">
-              <MarketOrderSummary
-                orderType={side === 'buy' ? 'Market Buy' : 'Market Sell'}
-                amount={side === 'buy' ? Number(quoteValue) : Number(baseValue)}
+              <OrderSummary
+                orderType={orderType}
+                side={side}
+                amount={Number(amount)}
                 baseToken={baseToken}
                 quoteToken={quoteToken}
-                marketPrice={Number(poolInfo?.poolPrice ?? 0)}
+                price={Number(price)}
                 lotSize={lotSize}
                 decimals={baseDecimalsNum}
-                orderValue={orderValue}
               />
             </div>
             {/* 버튼 */}

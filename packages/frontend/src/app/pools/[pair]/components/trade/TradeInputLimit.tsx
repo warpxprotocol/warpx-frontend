@@ -28,6 +28,10 @@ export default function TradeInputLimit({
   availableBalance,
   decimals = 6,
   poolInfo,
+  price,
+  setPrice,
+  amount,
+  setAmount,
 }: TradeInputProps) {
   const baseToken = side === 'buy' ? tokenOut : tokenIn;
   const quoteToken = side === 'buy' ? tokenIn : tokenOut;
@@ -38,8 +42,6 @@ export default function TradeInputLimit({
     : 0;
 
   // 상태
-  const [price, setPrice] = useState('');
-  const [quantity, setQuantity] = useState('');
   const [orderValue, setOrderValue] = useState('');
 
   // 첫 렌더링 시 poolPrice로 price 세팅
@@ -47,21 +49,21 @@ export default function TradeInputLimit({
     if (realPoolPrice && !price) {
       setPrice(realPoolPrice.toString());
     }
-  }, [realPoolPrice, price]);
+  }, [realPoolPrice, price, setPrice]);
 
   // price 입력 핸들러
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9.]/g, '');
     setPrice(value);
-    if (quantity) {
-      setOrderValue((Number(value) * Number(quantity)).toString());
+    if (amount) {
+      setOrderValue((Number(value) * Number(amount)).toString());
     }
   };
 
   // quantity 입력 핸들러
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9.]/g, '');
-    setQuantity(value);
+    setAmount(value);
     if (price) {
       setOrderValue((Number(price) * Number(value)).toString());
     }
@@ -72,7 +74,7 @@ export default function TradeInputLimit({
     const value = e.target.value.replace(/[^0-9.]/g, '');
     setOrderValue(value);
     if (price && Number(price) !== 0) {
-      setQuantity((Number(value) / Number(price)).toString());
+      setAmount((Number(value) / Number(price)).toString());
     }
   };
 
@@ -92,7 +94,7 @@ export default function TradeInputLimit({
   const handleSliderChange = (v: number) => {
     setPercent(v);
     const value = (available * (v / 100)).toFixed(2);
-    setQuantity(value);
+    setAmount(value);
   };
 
   return (
@@ -124,7 +126,7 @@ export default function TradeInputLimit({
         <input
           type="number"
           className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 h-8 border border-gray-800 focus:border-teal-500 outline-none transition"
-          value={quantity}
+          value={amount}
           onChange={handleQuantityChange}
           placeholder="Quantity"
         />
@@ -142,7 +144,7 @@ export default function TradeInputLimit({
         <span className="text-gray-400 text-[11px]">{quoteToken}</span>
       </div>
       {/* Order Value 텍스트 */}
-      {quantity && price && (
+      {amount && price && (
         <div className="text-[11px] text-gray-400 flex justify-between">
           <span>Order Value</span>
           <span className="text-white font-medium">

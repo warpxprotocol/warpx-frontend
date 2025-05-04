@@ -8,6 +8,13 @@ interface TradeSliderProps {
 const marks = [0, 25, 50, 75, 100];
 
 export default function TradeSlider({ value, onChange }: TradeSliderProps) {
+  const snappedValue =
+    typeof value === 'number'
+      ? marks.reduce((prev, curr) =>
+          Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev,
+        )
+      : value;
+
   // 드래그 시: snap to nearest mark
   const handleRangeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = Number(e.target.value);
@@ -22,8 +29,6 @@ export default function TradeSlider({ value, onChange }: TradeSliderProps) {
     onChange(mark);
   };
 
-  console.log('TradeSlider value:', value);
-
   return (
     <div className="relative w-full" style={{ height: 44 }}>
       {/* Track (배경) */}
@@ -32,7 +37,7 @@ export default function TradeSlider({ value, onChange }: TradeSliderProps) {
       <div
         className="absolute left-0 top-1/2 h-0.5 bg-teal-400 rounded-full -translate-y-1/2 z-0 transition-all duration-200"
         style={{
-          width: value === 'custom' ? '0%' : `${value}%`,
+          width: snappedValue === 'custom' ? '0%' : `${snappedValue}%`,
           pointerEvents: 'none',
         }}
       />

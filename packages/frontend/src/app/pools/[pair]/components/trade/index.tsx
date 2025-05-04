@@ -15,8 +15,6 @@ import SideToggle from './SideToggle';
 import TradeButton from './TradeButton';
 import TradeInfo from './TradeInfo';
 import TradeInput from './TradeInput';
-import TradeInputMarket from './TradeInputMarket';
-import TradeSlider from './TradeSlider';
 import TradeTabs from './TradeTabs';
 
 interface AssetPair {
@@ -46,8 +44,6 @@ function canSell(amount: string, decimals: number, availableBalance: string, min
 
   // 2. 최소 단위 이상인지 체크
   const rawAmount = BigInt(Math.floor(parsed * 10 ** decimals));
-  if (rawAmount < BigInt(minUnit))
-    return { ok: false, reason: `최소 주문 단위는 ${minUnit / 10 ** decimals} 입니다.` };
 
   // 3. 잔고 체크
   const balance = BigInt(availableBalance);
@@ -97,6 +93,7 @@ export default function TradeSection({
   const poolInfo = usePoolDataStore((state) => state.poolInfo);
   const { submitMarketOrder, submitLimitOrder, isSubmitting, isTradingSupported } =
     useTradeOperations(poolInfo ?? undefined);
+  const apiSupportsTrading = isTradingSupported();
 
   const [baseAssetDecimals, setBaseAssetDecimals] = useState<number>();
   const [quoteAssetDecimals, setQuoteAssetDecimals] = useState<number>();
@@ -104,22 +101,27 @@ export default function TradeSection({
   // base/quote asset 구분
   const baseToken = side === 'buy' ? tokenOut : tokenIn;
   const quoteToken = side === 'buy' ? tokenIn : tokenOut;
-  const baseDecimals = baseAssetDecimals ?? 6;
+  const baseDecimals = poolInfo?.baseAssetDecimals ?? 9;
   const quoteDecimals = quoteAssetDecimals ?? 6;
 
   // base asset 기준 잔액, lotSize, min/max
-  const lotSize = poolInfo?.lotSize ?? 1;
-  const lot = Number(lotSize);
   const baseDecimalsNum = Number(baseDecimals);
-  const value = lot / 10 ** baseDecimalsNum;
-  const fractionDigits = getFractionDigits(lot, baseDecimalsNum);
+  const lotSize = 10 ** baseDecimals;
+  const minUnit = lotSize / 10 ** baseDecimals;
 
   console.log('DEBUG lotSize:', lotSize);
-  console.log('DEBUG baseDecimals:', baseDecimals);
-  console.log('DEBUG lot:', lot);
+  console.log('DEBUG minUnit:', minUnit);
   console.log('DEBUG baseDecimalsNum:', baseDecimalsNum);
-  console.log('DEBUG value:', value);
-  console.log('DEBUG fractionDigits:', fractionDigits);
+
+  const fractionDigits = getFractionDigits(lotSize ?? 1, baseDecimalsNum);
+
+  console.log('DEBUG lotSize (raw):', lotSize, '(최소 거래 단위, base unit)');
+  console.log('DEBUG baseDecimals:', baseDecimals, '(자산 소수점 자리수)');
+  console.log(
+    'DEBUG humanLotSize:',
+    lotSize ? lotSize / 10 ** baseDecimals : undefined,
+    '(사람이 읽는 최소 단위)',
+  );
 
   const humanLotSize = useMemo(() => {
     if (!lotSize || !baseDecimals) return '';
@@ -335,19 +337,58 @@ export default function TradeSection({
     setShowSummary(true);
   };
 
-  const handleConfirmOrder = async () => {
-    setShowSummary(false);
-    if (orderType === 'market') {
-      await submitMarketOrder({
-        poolId,
-        assetIn: assetInId,
-        assetOut: assetOutId,
-        amountIn: side === 'sell' ? amount : undefined,
-        amountOut: side === 'buy' ? amount : undefined,
-        side,
+  const handleSubmit = async () => {
+    try {
+      if (!apiSupportsTrading) {
+        alert('Trading operations are not supported by the current API');
+        return;
+      }
+
+      if (baseAssetId == null || quoteAssetId == null) {
+        alert('Asset IDs are not set');
+        return;
+      }
+
+      // orderType이 market이면 market order만 처리
+      if (orderType === 'market') {
+        if (side === 'buy') {
+          await submitMarketOrder({
+            baseAsset: baseAssetId,
+            quoteAsset: quoteAssetId,
+            quantity: amount,
+            isBid: true,
+          });
+        } else {
+          await submitMarketOrder({
+            baseAsset: baseAssetId,
+            quoteAsset: quoteAssetId,
+            quantity: amount,
+            isBid: false,
+          });
+          console.log('DEBUG submitMarketOrder:', {
+            baseAsset: baseAssetId,
+            quoteAsset: quoteAssetId,
+            quantity: amount,
+            isBid: false,
+          });
+        }
+        return;
+      }
+
+      // orderType이 limit일 때만 아래 코드 실행
+      if (!price || parseFloat(price) <= 0) {
+        alert('Please enter a valid price for limit orders');
+        return;
+      }
+      await submitLimitOrder({
+        baseAsset: baseAssetId,
+        quoteAsset: quoteAssetId,
+        quantity: amount,
+        isBid: side === 'buy',
+        price,
       });
-    } else {
-      // limit order 등 다른 타입 처리
+    } catch (error) {
+      console.log('DEBUG error:', error);
     }
   };
 
@@ -374,6 +415,19 @@ export default function TradeSection({
 
   const decimals = side === 'buy' ? quoteAssetDecimals : baseAssetDecimals;
 
+  const minUnitStr = minUnit.toLocaleString(undefined, {
+    minimumFractionDigits: baseDecimalsNum,
+    maximumFractionDigits: baseDecimalsNum,
+  });
+
+  const [baseValue, setBaseValue] = useState('');
+  const [quoteValue, setQuoteValue] = useState('');
+
+  // baseValue/quoteValue가 바뀔 때 amount 동기화
+  useEffect(() => {
+    setAmount(side === 'buy' ? quoteValue : baseValue);
+  }, [side, quoteValue, baseValue]);
+
   return (
     <div
       className="bg-[#202027] flex flex-col min-w-0 h-full shadow-md p-3 max-w-[340px] mx-auto overflow-hidden"
@@ -382,14 +436,14 @@ export default function TradeSection({
       <div className="flex flex-col gap-2 flex-1">
         <TradeTabs activeOrderType={orderType} setOrderType={handleOrderTypeChange} />
         <SideToggle side={side} setSide={setSide} />
-        <div className="flex gap-2 mb-2 flex-col">
+        <div className="flex gap-2 mb-2 flex-col min-w-[250px]">
           <TradeInput
             orderType={orderType}
             side={side}
             tokenIn={tokenIn}
             tokenOut={tokenOut}
-            amount={amount}
-            setAmount={setAmount}
+            amount={side === 'buy' ? quoteValue : baseValue}
+            setAmount={side === 'buy' ? setQuoteValue : setBaseValue}
             price={price}
             setPrice={setPrice}
             availableBalance={side === 'buy' ? quoteAssetBalance : baseAssetBalance}
@@ -407,7 +461,7 @@ export default function TradeSection({
         </div>
         <div className="text-[11px] text-gray-400 mb-2">
           <span>
-            Minimum unit: {humanLotSize} {baseToken}
+            Minimum unit: {minUnit} {baseToken}
           </span>
         </div>
         <div className="text-[11px] text-gray-400 mb-2 flex justify-between">
@@ -417,16 +471,16 @@ export default function TradeSection({
             {availableToken}
           </span>
         </div>
-        <TradeSlider value={percent} onChange={handleSliderChange} />
-        <TradeInfo />
+        {/* <TradeInfo /> */}
       </div>
       <div className="mt-2">
         <TradeButton
           orderType={orderType}
           side={side}
-          poolId={poolId}
-          assetInId={assetInId}
-          assetOutId={assetOutId}
+          baseAsset={baseAssetId!}
+          quoteAsset={quoteAssetId!}
+          quantity={amount}
+          isBid={side === 'buy'}
           amount={amount}
           price={price}
           isValid={isValid}
@@ -435,6 +489,9 @@ export default function TradeSection({
           decimals={baseAssetDecimals ?? 6}
           onSubmit={handleTradeClick}
           isSubmitting={isSubmitting}
+          poolId={poolId}
+          assetInId={assetInId}
+          assetOutId={assetOutId}
         />
       </div>
       {showSummary && (
@@ -458,36 +515,21 @@ export default function TradeSection({
             </div>
             {/* 주문 요약 */}
             <div className="mb-8">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-400 font-medium">Order Price</span>
-                <span className="text-white font-medium">Market Price</span>
-              </div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-400 font-medium">Qty</span>
-                <span className="text-white font-medium">
-                  ≈{Number(amount).toFixed(fractionDigits)} {baseToken}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400 font-medium">Order Value</span>
-                <div className="flex flex-col items-end">
-                  <span className="text-white font-medium">
-                    {orderValue.toLocaleString(undefined, {
-                      maximumFractionDigits: quoteDecimals,
-                    })}{' '}
-                    {quoteToken}
-                  </span>
-                  <span className="text-gray-400 text-xs">
-                    ≈{orderValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}{' '}
-                    USD
-                  </span>
-                </div>
-              </div>
+              <MarketOrderSummary
+                orderType={side === 'buy' ? 'Market Buy' : 'Market Sell'}
+                amount={side === 'buy' ? Number(quoteValue) : Number(baseValue)}
+                baseToken={baseToken}
+                quoteToken={quoteToken}
+                marketPrice={Number(poolInfo?.poolPrice ?? 0)}
+                lotSize={lotSize}
+                decimals={baseDecimalsNum}
+                orderValue={orderValue}
+              />
             </div>
             {/* 버튼 */}
             <div className="flex gap-3">
               <button
-                onClick={handleConfirmOrder}
+                onClick={handleSubmit}
                 className="flex-1 py-2 rounded-lg bg-green-500 text-white font-bold hover:bg-green-600 transition"
               >
                 {side === 'sell' ? `Sell ${baseToken}` : `Buy ${baseToken}`}

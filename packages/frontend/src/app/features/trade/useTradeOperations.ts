@@ -21,14 +21,19 @@ export type TradeSide = 'buy' | 'sell';
 // market order는 baseasset 기준으로(decimal 고려해서) token quantiatiy 전달
 // limit order는 baseasset 기준으로(decimal 고려해서), pool price 기준으로 설정해서 base Asset의 가격 전달
 
-interface TradeParameters {
-  poolId: number;
-  assetIn: number;
-  assetOut: number;
-  amountIn?: string; // For selling
-  amountOut?: string; // For buying
-  price?: string; // For limit orders
-  side: TradeSide;
+interface MarketOrderParameters {
+  baseAsset: number;
+  quoteAsset: number;
+  quantity: string;
+  isBid: boolean;
+}
+
+interface LimitOrderParameters {
+  baseAsset: number;
+  quoteAsset: number;
+  isBid: boolean;
+  price: string;
+  quantity: string;
 }
 
 export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
@@ -60,30 +65,18 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
   const toAssetEnum = (id: number) => ({ WithId: id });
 
   // 주문 파라미터 변환 함수
-  function formatOrderParams(params: TradeParameters) {
+  function formatOrderParams(params: MarketOrderParameters | LimitOrderParameters) {
     if (!poolInfo) throw new Error('Pool info is not available');
 
-    const { amountIn, amountOut, price, side, assetIn, assetOut } = params;
-    const baseDecimals = poolInfo.baseAssetDecimals ?? 0;
-    const quoteDecimals = poolInfo.quoteAssetDecimals ?? 0;
-    const poolDecimals = poolInfo.poolDecimals ?? 0;
+    const { quantity, baseAsset, quoteAsset } = params;
 
-    // assetIn이 baseAsset이면 baseDecimals, quoteAsset이면 quoteDecimals
-    const assetInDecimals = assetIn === poolInfo.baseAssetId ? baseDecimals : quoteDecimals;
-    const assetOutDecimals =
-      assetOut === poolInfo.baseAssetId ? baseDecimals : quoteDecimals;
-
-    const baseAssetEnum = toAssetEnum(poolInfo.baseAssetId);
-    const quoteAssetEnum = toAssetEnum(poolInfo.quoteAssetId);
-    const poolKey = [baseAssetEnum, quoteAssetEnum];
+    const decimals = poolInfo.baseAssetDecimals ?? 0;
 
     return {
       ...params,
-      // ✅ 항상 assetIn 기준으로 amountIn 변환
-      amountIn: amountIn ? toChainAmount(amountIn, assetInDecimals) : undefined,
-      // ✅ 항상 assetOut 기준으로 amountOut 변환 (limit order 등에서 사용)
-      amountOut: amountOut ? toChainAmount(amountOut, assetOutDecimals) : undefined,
-      price: price ? toChainPrice(price, poolDecimals) : undefined,
+      quantity: toChainAmount(quantity, decimals),
+      baseAsset: baseAsset,
+      quoteAsset: quoteAsset,
     };
   }
 
@@ -91,20 +84,20 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
    * Creates a market order extrinsic
    */
   const createMarketOrderExtrinsic = useCallback(
-    async (params: TradeParameters) => {
+    async (params: MarketOrderParameters) => {
       const formatted = formatOrderParams(params);
       if (!api || isLoading) return null;
 
       console.log('Creating market order extrinsic with params:', formatted);
 
-      const { poolId, assetIn, assetOut, amountIn, amountOut, side } = formatted;
+      const { baseAsset, quoteAsset, quantity, isBid } = formatted;
 
-      if (side === 'buy' && !amountOut) {
-        throw new Error('Amount out is required for buy orders');
+      if (isBid && !quantity) {
+        throw new Error('Quantity is required for buy orders');
       }
 
-      if (side === 'sell' && !amountIn) {
-        throw new Error('Amount in is required for sell orders');
+      if (!isBid && !quantity) {
+        throw new Error('Quantity is required for sell orders');
       }
 
       try {
@@ -113,21 +106,9 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           api.tx.hybridOrderbook &&
           typeof api.tx.hybridOrderbook.marketOrder === 'function'
         ) {
-          console.log('Using hybridOrderbook.marketOrder method');
+          const isBuy = isBid;
+          const integerAmount = quantity;
 
-          const isBuy = side === 'buy';
-          const amount = isBuy ? amountOut : amountIn;
-          const integerAmount = amount || '0';
-
-          // 최소 주문 단위 체크 (예: DOT은 1 Planck = 1, USDT는 1 micro = 1)
-          const MIN_AMOUNT = 1;
-          if (BigInt(integerAmount) < BigInt(MIN_AMOUNT)) {
-            alert('주문 수량이 너무 작습니다. 최소 주문 단위를 확인해주세요.');
-            return null;
-          }
-
-          // lotSize를 poolId로 직접 쿼리해서 가져온다고 가정
-          const NATIVE_ID = 1; // 실제 네이티브 ID로 교체 필요
           const baseAssetEnum = toAssetEnum(poolInfo?.baseAssetId ?? 0);
           const quoteAssetEnum = toAssetEnum(poolInfo?.quoteAssetId ?? 0);
           const poolKey = [baseAssetEnum, quoteAssetEnum];
@@ -135,62 +116,8 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           const poolOpt = await api.query.hybridOrderbook.pools(poolKey);
           const poolJson =
             typeof poolOpt?.toJSON === 'function' ? poolOpt.toJSON() : undefined;
-          const exists = !!(
-            poolJson &&
-            typeof poolJson === 'object' &&
-            Object.keys(poolJson).length > 0
-          );
-
-          console.log('[Pool Check]', {
-            base: baseAssetEnum,
-            quote: quoteAssetEnum,
-            exists,
-          });
 
           const pool = poolOpt && poolOpt.toJSON && poolOpt.toJSON();
-          const lotSize =
-            pool && typeof pool === 'object' && 'lotSize' in pool && pool.lotSize
-              ? pool.lotSize.toString()
-              : '1';
-
-          // 주문 수량이 lotSize의 배수인지 체크
-          if (BigInt(integerAmount) % BigInt(lotSize) !== BigInt(0)) {
-            alert(`주문 수량은 lot size(${lotSize})의 배수여야 합니다.`);
-            return null;
-          }
-
-          console.log('Creating market order with params:', {
-            poolId,
-            isBuy,
-            amount: integerAmount,
-          });
-
-          // Based on API documentation and the error message:
-          // marketOrder(baseAsset: {WithId: number}, quoteAsset: {WithId: number}, quantity, isBid)
-          // We need to format the asset IDs properly
-
-          // Create properly formatted asset ID objects
-          const baseAssetObj = createAssetIdObject(assetOut);
-          const quoteAssetObj = createAssetIdObject(assetIn);
-
-          console.log('Using marketOrder with corrected parameters: ', {
-            baseAsset: baseAssetObj,
-            quoteAsset: quoteAssetObj,
-            integerAmount,
-            isBuy,
-          });
-
-          console.log(
-            '[DEBUG] amount:',
-            amount,
-            'side:',
-            side,
-            'baseDecimals:',
-            poolInfo?.baseAssetDecimals ?? 0,
-            'quoteDecimals:',
-            poolInfo?.quoteAssetDecimals ?? 0,
-          );
-          console.log('[DEBUG] integerAmount:', integerAmount);
 
           return api.tx.hybridOrderbook.marketOrder(
             baseAssetEnum,
@@ -203,19 +130,19 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
         // Option 2: dex module
         if (api.tx.dex) {
           console.log('Using dex module for market order');
-          if (side === 'buy') {
+          if (isBid) {
             // Adjust parameter order if needed for dex module
             return api.tx.dex.swapExactOutputForInput(
-              assetOut,
-              assetIn,
-              amountOut,
+              baseAsset,
+              quoteAsset,
+              quantity,
               null, // No limit for market orders
             );
           } else {
             return api.tx.dex.swapExactInputForOutput(
-              assetIn,
-              assetOut,
-              amountIn,
+              baseAsset,
+              quoteAsset,
+              quantity,
               null, // No limit for market orders
             );
           }
@@ -224,20 +151,18 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
         // Option 3: warpx module
         if (api.tx.warpx) {
           console.log('Using warpx module for market order');
-          if (side === 'buy') {
+          if (isBid) {
             return api.tx.warpx.swapExactOutputForInput(
-              poolId,
-              assetOut,
-              assetIn,
-              amountOut,
+              baseAsset,
+              quoteAsset,
+              quantity,
               null, // No limit for market order
             );
           } else {
             return api.tx.warpx.swapExactInputForOutput(
-              poolId,
-              assetIn,
-              assetOut,
-              amountIn,
+              baseAsset,
+              quoteAsset,
+              quantity,
               null, // No limit for market order
             );
           }
@@ -271,24 +196,24 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
    */
   const createLimitOrderExtrinsic = useCallback(
     (
-      params: TradeParameters,
+      params: LimitOrderParameters,
     ): SubmittableExtrinsic<'promise', ISubmittableResult> | null => {
       if (!api || isLoading) return null;
 
       console.log('Creating limit order extrinsic with params:', params);
 
-      const { poolId, assetIn, assetOut, amountIn, amountOut, price, side } = params;
+      const { baseAsset, quoteAsset, price, quantity, isBid } = params;
 
       if (!price) {
         throw new Error('Price is required for limit orders');
       }
 
-      if (side === 'buy' && !amountOut) {
-        throw new Error('Amount out is required for buy orders');
+      if (isBid && !quantity) {
+        throw new Error('Quantity is required for buy orders');
       }
 
-      if (side === 'sell' && !amountIn) {
-        throw new Error('Amount in is required for sell orders');
+      if (!isBid && !quantity) {
+        throw new Error('Quantity is required for sell orders');
       }
 
       try {
@@ -311,8 +236,8 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           // Parameters for the generic limitOrder method
           // According to error: limitOrder expects 5 arguments, not 6
           // We need to figure out the exact parameter order
-          const isBuy = side === 'buy';
-          const amount = side === 'buy' ? amountOut : amountIn;
+          const isBuy = isBid;
+          const amount = isBid ? quantity : '0';
 
           // Based on the API documentation and error message:
           // limitOrder(baseAsset, quoteAsset, isBid, price, quantity)
@@ -323,13 +248,13 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           const quoteDecimals = poolInfo?.quoteAssetDecimals ?? 0;
           const integerAmount = toChainAmount(
             amount || '0',
-            side === 'sell' ? baseDecimals : quoteDecimals,
+            isBid ? baseDecimals : quoteDecimals,
           );
           const integerPrice = toChainAmount(price || '0', poolInfo?.poolDecimals ?? 0);
 
           // Create properly formatted asset ID objects
-          const baseAssetObj = createAssetIdObject(assetOut); // The asset we want to trade
-          const quoteAssetObj = createAssetIdObject(assetIn); // The asset we're paying with
+          const baseAssetObj = createAssetIdObject(baseAsset); // The asset we want to trade
+          const quoteAssetObj = createAssetIdObject(quoteAsset); // The asset we're paying with
 
           console.log('Using limitOrder with corrected parameters: ', {
             baseAsset: baseAssetObj,
@@ -370,28 +295,25 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           const module = api.tx[moduleName];
 
           // Check if the module has the needed swap methods
-          if (side === 'buy' && typeof module.swapExactOutputForInput === 'function') {
+          if (isBid && typeof module.swapExactOutputForInput === 'function') {
             console.log(`Using ${moduleName}.swapExactOutputForInput for limit buy order`);
             try {
               return module.swapExactOutputForInput(
-                assetOut,
-                assetIn,
-                amountOut,
+                baseAsset,
+                quoteAsset,
+                quantity,
                 price, // Max price for limit order
               );
             } catch (err) {
               console.error(`Error using ${moduleName}.swapExactOutputForInput:`, err);
             }
-          } else if (
-            side === 'sell' &&
-            typeof module.swapExactInputForOutput === 'function'
-          ) {
+          } else if (!isBid && typeof module.swapExactInputForOutput === 'function') {
             console.log(`Using ${moduleName}.swapExactInputForOutput for limit sell order`);
             try {
               return module.swapExactInputForOutput(
-                assetIn,
-                assetOut,
-                amountIn,
+                baseAsset,
+                quoteAsset,
+                quantity,
                 price, // Min price for limit order
               );
             } catch (err) {
@@ -409,23 +331,21 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
 
           // Parameters for the generic marketOrder method
           // Format is expected to be: marketOrder(poolId, isBuy, assetIn, assetOut, amount)
-          const isBuy = side === 'buy';
-          const amount = side === 'buy' ? amountOut : amountIn;
+          const isBuy = isBid;
+          const amount = isBid ? quantity : '0';
 
           console.log('Creating market order as fallback with params:', {
-            poolId,
             isBuy,
-            assetIn,
-            assetOut,
+            baseAsset,
+            quoteAsset,
             amount,
           });
 
           return api.tx.hybridOrderbook.marketOrder(
-            poolId,
-            isBuy, // true for buy, false for sell
-            assetIn,
-            assetOut,
+            baseAsset,
+            quoteAsset,
             amount,
+            isBuy, // true for buy, false for sell
           );
         }
 
@@ -443,7 +363,7 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
    * Submits a market order
    */
   const submitMarketOrder = useCallback(
-    async (params: TradeParameters) => {
+    async (params: MarketOrderParameters) => {
       try {
         if (!isWalletReady) {
           throw new Error('Wallet is not connected. Please connect your wallet first.');
@@ -462,8 +382,8 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           );
         }
 
-        const { side } = params;
-        const actionType = side === 'buy' ? 'buying' : 'selling';
+        const { isBid } = params;
+        const actionType = isBid ? 'buying' : 'selling';
 
         console.log('Getting signer for account:', selectedAccount);
 
@@ -505,7 +425,7 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
    * Submits a limit order
    */
   const submitLimitOrder = useCallback(
-    async (params: TradeParameters) => {
+    async (params: LimitOrderParameters) => {
       try {
         if (!isWalletReady) {
           throw new Error('Wallet is not connected. Please connect your wallet first.');
@@ -524,8 +444,8 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           );
         }
 
-        const { side } = params;
-        const actionType = side === 'buy' ? 'buying' : 'selling';
+        const { isBid } = params;
+        const actionType = isBid ? 'buying' : 'selling';
 
         console.log('Getting signer for account:', selectedAccount);
 

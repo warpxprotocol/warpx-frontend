@@ -20,14 +20,15 @@ export interface TradeButtonProps {
   decimals: number;
   onSubmit?: () => void | Promise<void>;
   isSubmitting?: boolean;
+  baseAsset: number;
+  quoteAsset: number;
+  quantity: string;
+  isBid: boolean;
 }
 
 export default function TradeButton({
   orderType,
   side,
-  poolId,
-  assetInId,
-  assetOutId,
   amount,
   price,
   isValid,
@@ -36,6 +37,10 @@ export default function TradeButton({
   decimals,
   onSubmit,
   isSubmitting,
+  baseAsset,
+  quoteAsset,
+  quantity,
+  isBid,
 }: TradeButtonProps) {
   const { submitMarketOrder, submitLimitOrder, isTradingSupported } = useTradeOperations();
   const [apiSupportsTrading, setApiSupportsTrading] = useState<boolean>(true);
@@ -55,27 +60,12 @@ export default function TradeButton({
         return;
       }
 
-      // Debug information for order submission
-      console.log(`Submitting ${orderType} order:`, {
-        orderType,
-        side,
-        amount,
-        price,
-        poolId,
-        assetInId,
-        assetOutId,
-        hasPrice: !!price,
-        priceValue: price ? parseFloat(price) : 'none',
-      });
-
       const params = {
-        poolId,
-        assetIn: assetInId,
-        assetOut: assetOutId,
-        amountIn: side === 'sell' ? amount : undefined,
-        amountOut: side === 'buy' ? amount : undefined,
-        price: orderType === 'limit' ? price : undefined,
-        side,
+        baseAsset,
+        quoteAsset,
+        quantity,
+        isBid,
+        price,
       };
 
       if (orderType === 'market') {
@@ -105,10 +95,11 @@ export default function TradeButton({
       return 'Invalid Order';
     }
 
+    const orderTypeText = orderType === 'market' ? 'market' : 'limit';
     const actionText = side === 'buy' ? 'Buy' : 'Sell';
     const tokenText = side === 'buy' ? tokenOut : tokenIn;
 
-    return `${actionText} ${tokenText}`;
+    return `${actionText} ${orderTypeText} ${tokenText}`;
   };
 
   return (

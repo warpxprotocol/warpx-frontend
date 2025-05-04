@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { TradeInputProps } from '@/app/pools/[pair]/components/trade/TradeInput';
+import TradeSlider from '@/app/pools/[pair]/components/trade/TradeSlider';
 
 const DISPLAY_DECIMALS = 2;
 
@@ -24,103 +25,134 @@ export default function TradeInputLimit({
   side,
   tokenIn,
   tokenOut,
-  amount,
-  setAmount,
-  price,
-  setPrice,
   availableBalance,
   decimals = 6,
   poolInfo,
 }: TradeInputProps) {
   const baseToken = side === 'buy' ? tokenOut : tokenIn;
   const quoteToken = side === 'buy' ? tokenIn : tokenOut;
+
+  const poolDecimals = poolInfo?.poolDecimals ?? 2;
+  const realPoolPrice = poolInfo?.poolPrice
+    ? Number(poolInfo.poolPrice) / 10 ** poolDecimals
+    : 0;
+
+  // 상태
+  const [price, setPrice] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [orderValue, setOrderValue] = useState('');
+
+  // 첫 렌더링 시 poolPrice로 price 세팅
+  useEffect(() => {
+    if (realPoolPrice && !price) {
+      setPrice(realPoolPrice.toString());
+    }
+  }, [realPoolPrice, price]);
+
+  // price 입력 핸들러
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^0-9.]/g, '');
+    setPrice(value);
+    if (quantity) {
+      setOrderValue((Number(value) * Number(quantity)).toString());
+    }
+  };
+
+  // quantity 입력 핸들러
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^0-9.]/g, '');
+    setQuantity(value);
+    if (price) {
+      setOrderValue((Number(price) * Number(value)).toString());
+    }
+  };
+
+  // orderValue(quote) 입력 핸들러
+  const handleOrderValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^0-9.]/g, '');
+    setOrderValue(value);
+    if (price && Number(price) !== 0) {
+      setQuantity((Number(value) / Number(price)).toString());
+    }
+  };
+
+  // 가격 차이 안내
+  let priceDiffMsg = '';
+  if (price && poolInfo?.poolPrice) {
+    const diff = ((Number(price) - realPoolPrice) / realPoolPrice) * 100;
+    if (diff > 0) priceDiffMsg = `현재가보다 +${diff.toFixed(2)}% 높음`;
+    else if (diff < 0) priceDiffMsg = `현재가보다 ${diff.toFixed(2)}% 낮음`;
+    else priceDiffMsg = '현재가와 동일';
+  }
+
+  // 슬라이더 → 수량 입력
   const available = Number(availableBalance) / 10 ** decimals;
   const [percent, setPercent] = useState(0);
 
-  // 슬라이더 → input 연동
   const handleSliderChange = (v: number) => {
     setPercent(v);
-    const value = (available * (v / 100)).toFixed(DISPLAY_DECIMALS);
-    setAmount(value);
+    const value = (available * (v / 100)).toFixed(2);
+    setQuantity(value);
   };
-
-  // input → 슬라이더 연동
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/[^0-9.]/g, '');
-    const [int, dec] = value.split('.');
-    if (dec && dec.length > DISPLAY_DECIMALS) {
-      value = `${int}.${dec.slice(0, DISPLAY_DECIMALS)}`;
-    }
-    setAmount(value);
-    const num = parseFloat(value);
-    setPercent(available > 0 && num ? Math.min((num / available) * 100, 100) : 0);
-  };
-
-  // 가격 입력 핸들러
-  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/[^0-9.]/g, '');
-    const [int, dec] = value.split('.');
-    if (dec && dec.length > 4) {
-      value = `${int}.${dec.slice(0, 4)}`;
-    }
-    setPrice(value);
-  };
-
-  // 예상 체결 금액
-  const estimatedValue = amount && price ? Number(amount) * Number(price) : 0;
 
   return (
-    <>
-      <div className="text-[11px] text-gray-400 mb-1 flex justify-between">
+    <form onSubmit={(e) => e.preventDefault()} className="space-y-2">
+      {/* 잔고 */}
+      <div className="text-[11px] text-gray-400 flex justify-between">
         <span>Available</span>
         <span className="text-white font-medium">
           {formatBalance(availableBalance, decimals)} {baseToken}
         </span>
       </div>
-      <div className="flex gap-2 mb-2 flex-col">
+      {/* Price 입력 */}
+      <div className="flex items-center gap-2">
         <input
-          className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 border border-gray-800 focus:border-teal-500 outline-none transition"
-          style={{ borderRadius: 0 }}
-          placeholder="Size"
-          value={formatDisplayAmount(amount)}
-          onChange={handleInputChange}
-          type="text"
-          inputMode="decimal"
-        />
-        <div
-          className="bg-[#23232A] text-[11px] text-white px-2 py-1 border border-gray-800 flex items-center justify-center"
-          style={{ minWidth: '70px' }}
-        >
-          {baseToken}
-        </div>
-      </div>
-      <div className="flex gap-2 mb-2 flex-col">
-        <input
-          className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 border border-gray-800 focus:border-teal-500 outline-none transition"
-          style={{ borderRadius: 0 }}
-          placeholder="Price"
+          type="number"
+          className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 h-8 border border-gray-800 focus:border-teal-500 outline-none transition"
           value={price}
           onChange={handlePriceChange}
-          type="text"
-          inputMode="decimal"
+          placeholder="Price"
         />
-        <div
-          className="bg-[#23232A] text-[11px] text-white px-2 py-1 border border-gray-800 flex items-center justify-center"
-          style={{ minWidth: '70px' }}
-        >
-          {quoteToken}
-        </div>
+        <span className="text-gray-400 text-[11px]">{quoteToken}</span>
       </div>
-      {/* 예상 체결 금액 */}
-      {amount && price && (
-        <div className="text-[11px] text-gray-400 mb-2 flex justify-between">
+      {/* 가격 차이 안내 */}
+      {price && poolInfo?.poolPrice && (
+        <div className="text-[10px] text-gray-400">{priceDiffMsg}</div>
+      )}
+      {/* Quantity 입력 */}
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 h-8 border border-gray-800 focus:border-teal-500 outline-none transition"
+          value={quantity}
+          onChange={handleQuantityChange}
+          placeholder="Quantity"
+        />
+        <span className="text-gray-400 text-[11px]">{baseToken}</span>
+      </div>
+      {/* Order Value 입력 */}
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 h-8 border border-gray-800 focus:border-teal-500 outline-none transition"
+          value={orderValue}
+          onChange={handleOrderValueChange}
+          placeholder="Order Value"
+        />
+        <span className="text-gray-400 text-[11px]">{quoteToken}</span>
+      </div>
+      {/* Order Value 텍스트 */}
+      {quantity && price && (
+        <div className="text-[11px] text-gray-400 flex justify-between">
           <span>Order Value</span>
           <span className="text-white font-medium">
-            {estimatedValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}{' '}
+            {Number(orderValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}{' '}
             {quoteToken}
           </span>
         </div>
       )}
-    </>
+      {/* 슬라이더 */}
+      <TradeSlider value={percent} onChange={handleSliderChange} />
+    </form>
   );
 }

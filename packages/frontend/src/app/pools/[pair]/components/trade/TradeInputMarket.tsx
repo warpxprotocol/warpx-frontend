@@ -96,13 +96,19 @@ export default function TradeInputMarket({
   amount,
   setAmount,
   price,
+  setPrice,
   availableBalance,
   baseAssetBalance,
   quoteAssetBalance,
   decimals,
   poolInfo,
-}: TradeInputProps & { baseAssetBalance: string; quoteAssetBalance: string }) {
+}: TradeInputProps & {
+  baseAssetBalance: string;
+  quoteAssetBalance: string;
+  setPrice?: (v: string) => void;
+}) {
   // 자산 구분
+  const lotSize = 10_000_000; // 0.01 DOT 단위
   const baseToken = side === 'buy' ? tokenOut : tokenIn;
   const quoteToken = side === 'buy' ? tokenIn : tokenOut;
   const availableToken = side === 'buy' ? quoteToken : baseToken;
@@ -110,7 +116,6 @@ export default function TradeInputMarket({
   const { api } = useApi();
 
   // lotSize, step 등은 항상 base asset 기준
-  const [lotSize, setLotSize] = useState<number>(1);
   const [showAdjustmentMessage, setShowAdjustmentMessage] = useState(false);
 
   // Max Amount: Buy는 quote, Sell은 base 기준
@@ -127,30 +132,6 @@ export default function TradeInputMarket({
     }
   }, [availableBalance, lotSize, decimals, side]);
 
-  useEffect(() => {
-    async function fetchLotSize() {
-      if (!poolInfo?.baseAssetId || !poolInfo?.quoteAssetId || !api) return;
-      try {
-        const base = { WithId: poolInfo.baseAssetId };
-        const quote = { WithId: poolInfo.quoteAssetId };
-        const poolOpt = await api.query.hybridOrderbook.pools([base, quote]);
-        const poolJson =
-          typeof poolOpt?.toJSON === 'function' ? poolOpt.toJSON() : undefined;
-        if (
-          poolJson &&
-          typeof poolJson === 'object' &&
-          'lotSize' in poolJson &&
-          poolJson.lotSize
-        ) {
-          setLotSize(Number(poolJson.lotSize));
-        }
-      } catch (e) {
-        setLotSize(1); // fallback
-      }
-    }
-    fetchLotSize();
-  }, [poolInfo?.baseAssetId, poolInfo?.quoteAssetId, api]);
-
   // 예상 체결 가격 계산
   const estimatedPrice = poolInfo?.poolPrice ? Number(poolInfo.poolPrice) : 0;
   // You will receive 계산
@@ -159,81 +140,159 @@ export default function TradeInputMarket({
 
   // lotSize, step 등은 base 기준
   const humanLotSize = formatLotSize(lotSize, decimals ?? 6);
-  const fractionDigits = getFractionDigits(lotSize, decimals ?? 6);
-  const step = (lotSize / 10 ** (decimals ?? 6)).toFixed(fractionDigits);
 
-  // input에서 직접 입력 시
-  const handleInputChange = (value: string) => {
-    if (!value) {
-      setAmount('');
-      setShowAdjustmentMessage(false);
-      return;
-    }
-    const num = parseFloat(value);
-    if (isNaN(num)) {
-      setAmount('');
-      setShowAdjustmentMessage(false);
-      return;
-    }
-    // Sell: lotSize 내림 적용, Buy: 그대로
-    if (side === 'sell') {
-      const rawAmount = BigInt(Math.floor(num * 10 ** (decimals ?? 6)));
-      const adjustedAmount = adjustToLotSize(rawAmount.toString(), lotSize);
-      if (adjustedAmount !== rawAmount.toString()) {
+  // base/quote 입력값과 percent 상태
+  const [baseValue, setBaseValue] = useState('');
+  const [quoteValue, setQuoteValue] = useState('');
+  const [percent, setPercent] = useState(0);
+
+  // 사용 가능한 base 잔고 (슬라이더/percent 기준)
+  const availableBase =
+    Number(side === 'buy' ? baseAssetBalance : availableBalance) / 10 ** (decimals ?? 6);
+
+  // base 입력 → quote 자동 계산, percent 계산
+  const handleBaseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let v = e.target.value;
+    if (side === 'sell' && v) {
+      // lot size 내림 적용
+      const rawAmount = BigInt(Math.floor(Number(v) * 10 ** (decimals ?? 6)));
+      const adjustedAmount = adjustToLotSize(rawAmount.toString(), lotSize, 'down');
+      const adjusted = (Number(adjustedAmount) / 10 ** (decimals ?? 6)).toString();
+      if (adjusted !== v) {
         setShowAdjustmentMessage(true);
+        v = adjusted;
       } else {
         setShowAdjustmentMessage(false);
       }
-      setAmount((Number(adjustedAmount) / 10 ** (decimals ?? 6)).toString());
+      setBaseValue(v);
+      setQuoteValue(
+        estimatedPrice ? (Number(v) * estimatedPrice).toFixed(DISPLAY_DECIMALS) : '',
+      );
+      setPercent(availableBase > 0 ? Math.min((Number(v) / availableBase) * 100, 100) : 0);
     } else {
-      setAmount(value);
       setShowAdjustmentMessage(false);
+      setBaseValue(v);
+      setQuoteValue(
+        v && estimatedPrice ? (Number(v) * estimatedPrice).toFixed(DISPLAY_DECIMALS) : '',
+      );
+      setPercent(availableBase > 0 ? Math.min((Number(v) / availableBase) * 100, 100) : 0);
     }
   };
 
+  // quote 입력 → base 자동 계산, lot size 내림 적용
+  const handleQuoteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let v = e.target.value;
+    if (side === 'sell' && v && estimatedPrice) {
+      let base = (Number(v) / estimatedPrice).toString();
+      // lot size 내림 적용
+      const rawAmount = BigInt(Math.floor(Number(base) * 10 ** (decimals ?? 6)));
+      const adjustedAmount = adjustToLotSize(rawAmount.toString(), lotSize, 'down');
+      const adjusted = (Number(adjustedAmount) / 10 ** (decimals ?? 6)).toString();
+      if (adjusted !== base) {
+        setShowAdjustmentMessage(true);
+        base = adjusted;
+      } else {
+        setShowAdjustmentMessage(false);
+      }
+      setBaseValue(base);
+      setQuoteValue(v);
+      setPercent(
+        availableBase > 0 ? Math.min((Number(base) / availableBase) * 100, 100) : 0,
+      );
+    } else {
+      setShowAdjustmentMessage(false);
+      setQuoteValue(v);
+      setBaseValue(
+        v && estimatedPrice
+          ? ((Number(v) * 100) / estimatedPrice).toFixed(DISPLAY_DECIMALS)
+          : '',
+      );
+      setPercent(
+        availableBase > 0 && estimatedPrice > 0
+          ? Math.min((Number(v) / estimatedPrice / availableBase) * 100, 100)
+          : 0,
+      );
+    }
+  };
+
+  // 슬라이더 → base/quote 자동 계산, lot size 내림 적용
+  const handleSliderChange = (p: number) => {
+    setPercent(p);
+    let base = availableBase * (p / 100);
+    if (side === 'sell') {
+      const rawAmount = BigInt(Math.floor(base * 10 ** (decimals ?? 6)));
+      const adjustedAmount = adjustToLotSize(rawAmount.toString(), lotSize, 'down');
+      base = Number(adjustedAmount) / 10 ** (decimals ?? 6);
+    }
+    setBaseValue(base ? base.toFixed(DISPLAY_DECIMALS) : '');
+    setQuoteValue(estimatedPrice ? (base * estimatedPrice).toFixed(DISPLAY_DECIMALS) : '');
+  };
+
+  // 입력값이 바뀔 때 부모로 값 올려주기
+  useEffect(() => {
+    setAmount(baseValue);
+    if (setPrice && quoteValue) setPrice(quoteValue);
+    // 필요하다면 percent도 부모로 올려줄 수 있음
+  }, [baseValue, quoteValue, setAmount, setPrice]);
+
+  // 잔고/side가 바뀌면 입력값 초기화
+  useEffect(() => {
+    setBaseValue('');
+    setQuoteValue('');
+    setPercent(0);
+  }, [availableBase, side]);
+
+  // amountIn을 extrinsic에 넘기기 전에
+  let amountIn = baseValue;
+  if (side === 'sell') {
+    const rawAmount = BigInt(Math.floor(Number(baseValue) * 10 ** (decimals ?? 6)));
+    const adjustedAmount = adjustToLotSize(rawAmount.toString(), lotSize, 'down');
+    amountIn = (Number(adjustedAmount) / 10 ** (decimals ?? 6)).toString();
+  }
+
+  const baseDecimals = 9;
+  const quantity = BigInt(Math.floor(Number(amount) * 10 ** baseDecimals));
+  const adjustedQuantity = (quantity / BigInt(lotSize)) * BigInt(lotSize);
+
+  console.log({
+    amount,
+    quantity: quantity.toString(),
+    adjustedQuantity: adjustedQuantity.toString(),
+  });
+
+  const poolDecimals = poolInfo?.poolDecimals ?? 2;
+  const realPrice = poolInfo?.poolPrice
+    ? Number(poolInfo.poolPrice) / 10 ** poolDecimals
+    : 0;
+  const orderValue = amount ? Number(amount) * realPrice : 0;
+
   return (
-    <>
+    <form onSubmit={(e) => e.preventDefault()}>
       <div className="text-[11px] text-gray-400 mb-1 flex justify-between">
-        <span>Available {availableToken}</span>
+        <span>Available {side === 'buy' ? tokenIn : tokenOut}</span>
         <span className="text-white font-medium">
-          {formatBalance(availableBalance, decimals)} {availableToken}
+          {formatBalance(availableBalance, decimals)} {side === 'buy' ? tokenIn : tokenOut}
         </span>
       </div>
-      <div className="flex gap-2 mb-2 flex-col">
+      <div className="flex gap-2 mb-2">
         <input
           type="number"
-          className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 border border-gray-800 flex items-center"
+          className="flex-1 bg-[#23232A] text-[11px] text-white px-2 py-1 border border-gray-800"
           value={amount}
-          onChange={(e) => handleInputChange(e.target.value)}
-          min={0}
-          step={step}
-          placeholder={`Enter ${side === 'buy' ? quoteToken : baseToken} amount to ${side}`}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder={`${side === 'buy' ? tokenOut : tokenIn} 수량`}
         />
-        <div
-          className="bg-[#23232A] text-[11px] text-white px-2 py-1 border border-gray-800 flex items-center justify-center"
-          style={{ minWidth: '70px' }}
-        >
-          {side === 'buy' ? quoteToken : baseToken}
-        </div>
       </div>
-
-      {showAdjustmentMessage && (
-        <div className="text-[11px] text-yellow-400 mb-2">
-          <span>
-            Amount adjusted to match lot size ({humanLotSize} {baseToken})
-          </span>
-        </div>
-      )}
-      {/* 예상 수령액 표시 */}
-      {amount && estimatedPrice > 0 && (
+      {amount && poolInfo?.poolPrice && (
         <div className="text-[11px] text-gray-400 mb-2 flex justify-between">
-          <span>You will receive</span>
+          <span>Order Value</span>
           <span className="text-white font-medium">
-            {formatDisplayAmount(youReceiveAmount?.toString() ?? '')}{' '}
-            {side === 'buy' ? baseToken : quoteToken}
+            {orderValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}{' '}
+            {side === 'buy' ? tokenIn : tokenOut}
           </span>
         </div>
       )}
-    </>
+      <TradeSlider value={percent} onChange={handleSliderChange} />
+    </form>
   );
 }

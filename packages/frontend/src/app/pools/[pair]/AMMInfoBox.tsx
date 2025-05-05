@@ -74,58 +74,54 @@ function AMMInfoBox() {
 
   // 메인 렌더링
   return (
-    <div className="relative bg-[#18181C] rounded-xl px-4 py-3 flex flex-col gap-2 min-w-[260px] w-full">
+    <div className="relative bg-[#18181C] rounded-xl px-2 py-1 flex flex-col gap-1 w-full">
       {/* 상단: PRICE / DEPTH */}
       <div className="flex w-full justify-between items-center mb-0.5">
-        <span className="text-gray-400 text-xs font-medium tracking-widest">PRICE</span>
-        <span className="text-gray-400 text-xs font-medium tracking-widest">DEPTH</span>
+        <span className="text-gray-400 text-[10px] font-medium tracking-widest">PRICE</span>
+        <span className="text-gray-400 text-[10px] font-medium tracking-widest">DEPTH</span>
       </div>
 
       {/* 중앙: 가격 & 페어 정보 */}
-      <div className="flex w-full items-center justify-between mb-1">
+      <div className="flex w-full items-center justify-between mb-0.5">
         <div className="flex flex-col">
-          <div className="flex items-end mb-1">
-            <>
-              <span className="text-xl font-semibold text-white leading-none">
-                {poolPrice !== undefined && poolPrice !== null
-                  ? (poolPrice / Math.pow(10, poolInfo?.poolDecimals ?? 0)).toFixed(
-                      poolInfo?.poolDecimals ?? 0,
-                    )
-                  : '-'}
-              </span>
-              <span className="ml-1 text-xs text-gray-400 font-medium">{token1Symbol}</span>
-            </>
+          <div className="flex items-end mb-0.5">
+            <span className="text-base font-semibold text-white leading-none">
+              {poolPrice !== undefined && poolPrice !== null
+                ? (poolPrice / Math.pow(10, poolInfo?.poolDecimals ?? 0)).toFixed(
+                    poolInfo?.poolDecimals ?? 0,
+                  )
+                : '-'}
+            </span>
+            <span className="ml-1 text-[10px] text-gray-400 font-medium">
+              {token1Symbol}
+            </span>
           </div>
           {/* Fee & Pair 정보 */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-gray-400 text-xs">
+          <div className="flex items-center gap-1">
+            <span className="text-gray-400 text-[10px]">
               Fee: {feeRate !== undefined ? (feeRate * 100).toFixed(2) : '0.00'}%
             </span>
           </div>
         </div>
 
         {/* 우측 Depth 바 */}
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex flex-col items-end gap-1">
-            <span
-              className={`${!poolInfo || poolInfo.reserve0 === 0 ? 'bg-gray-700/50' : 'bg-gradient-to-r from-pink-500 to-purple-500'} rounded px-1.5 py-0.5 flex items-center min-w-[70px] justify-between`}
-            >
-              <span className="text-white text-xs mr-1">{token0Symbol}</span>
-              <span className="text-white font-medium text-xs">
-                {reserve0 !== undefined ? formatCompact(reserve0, baseDecimals) : '0'}
-              </span>
+        <div className="flex flex-col items-end gap-0.5">
+          <span
+            className={`bg-gray-700/50 rounded px-1 py-0.5 flex items-center min-w-[50px] justify-between`}
+          >
+            <span className="text-white text-[10px] mr-1">{token0Symbol}</span>
+            <span className="text-white font-medium text-[10px]">
+              {reserve0 !== undefined ? formatCompact(reserve0, baseDecimals) : '0'}
             </span>
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <span
-              className={`${!poolInfo || poolInfo.reserve1 === 0 ? 'bg-gray-700/50' : 'bg-gradient-to-r from-cyan-400 to-blue-500'} rounded px-1.5 py-0.5 flex items-center min-w-[70px] justify-between`}
-            >
-              <span className="text-white text-xs mr-1">{token1Symbol}</span>
-              <span className="text-white font-medium text-xs">
-                {reserve1 !== undefined ? formatCompact(reserve1, quoteDecimals) : '0'}
-              </span>
+          </span>
+          <span
+            className={`bg-gray-700/50 rounded px-1 py-0.5 flex items-center min-w-[50px] justify-between`}
+          >
+            <span className="text-white text-[10px] mr-1">{token1Symbol}</span>
+            <span className="text-white font-medium text-[10px]">
+              {reserve1 !== undefined ? formatCompact(reserve1, quoteDecimals) : '0'}
             </span>
-          </div>
+          </span>
         </div>
       </div>
     </div>

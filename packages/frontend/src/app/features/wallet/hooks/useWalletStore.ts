@@ -38,14 +38,12 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
       const extensions = await web3Enable('My DApp');
       if (extensions.length === 0) {
-        console.error('폴카닷 익스텐션이 설치되지 않았거나 접근이 허용되지 않았습니다.');
         set({ isConnecting: false });
         return;
       }
 
       const accounts = await web3Accounts();
       if (accounts.length === 0) {
-        console.error('계정이 없습니다. 폴카닷 익스텐션에서 계정을 생성하세요.');
         set({ isConnecting: false });
         return;
       }
@@ -74,10 +72,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         isConnecting: false,
       });
       localStorage.setItem('connected', 'true');
-
-      console.log(`${network} 네트워크에 연결됨: ${selected.address}`);
     } catch (error) {
-      console.error('지갑 연결 중 오류 발생:', error);
       set({ isConnecting: false });
     }
   },

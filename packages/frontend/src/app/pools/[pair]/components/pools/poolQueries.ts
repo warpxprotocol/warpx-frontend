@@ -210,12 +210,6 @@ export const usePoolQueries = () => {
               poolAssetIds[1] === id1 &&
               poolIndex !== null
             ) {
-              console.log('[findPoolIndexByPair] 매칭 성공', {
-                poolIndex,
-                poolAssetIds,
-                baseAssetId: id0,
-                quoteAssetId: id1,
-              });
               return poolIndex;
             }
           } catch (e) {
@@ -234,179 +228,179 @@ export const usePoolQueries = () => {
    * @param poolIndex 풀 인덱스
    * @returns 풀 정보
    */
-  const getPoolInfo = useCallback(
-    async (poolIndex: number): Promise<PoolInfo> => {
-      // 캐시 확인
-      if (poolInfoCache.current.has(poolIndex)) {
-        return poolInfoCache.current.get(poolIndex);
-      }
+  // const getPoolInfo = useCallback(
+  //   async (poolIndex: number): Promise<PoolInfo> => {
+  //     // 캐시 확인
+  //     if (poolInfoCache.current.has(poolIndex)) {
+  //       return poolInfoCache.current.get(poolIndex);
+  //     }
 
-      return withApiReady(api, isConnected, isReady, async () => {
-        if (!api) throw new Error('API not connected');
+  //     return withApiReady(api, isConnected, isReady, async () => {
+  //       if (!api) throw new Error('API not connected');
 
-        // 방어적 코딩: poolIndex가 유효한 숫자인지 확인
-        if (isNaN(poolIndex)) {
-          console.error('[getPoolInfo] Invalid pool index: NaN');
-          // 풀이 없을 때와 동일한 기본 구조 반환
-          return {
-            baseAssetId: 0,
-            quoteAssetId: 0,
-            reserve0: 0,
-            reserve1: 0,
-            lpTokenId: 0,
-            feeTier: 0,
-            poolExists: false,
-          };
-        }
+  //       // 방어적 코딩: poolIndex가 유효한 숫자인지 확인
+  //       if (isNaN(poolIndex)) {
+  //         console.error('[getPoolInfo] Invalid pool index: NaN');
+  //         // 풀이 없을 때와 동일한 기본 구조 반환
+  //         return {
+  //           baseAssetId: 0,
+  //           quoteAssetId: 0,
+  //           reserve0: 0,
+  //           reserve1: 0,
+  //           lpTokenId: 0,
+  //           feeTier: 0,
+  //           poolExists: false,
+  //         };
+  //       }
 
-        try {
-          // 풀 인덱스로 직접 쿼리
-          const poolRawData = await api.query.hybridOrderbook.pools(poolIndex);
-          const valueHuman = poolRawData.toHuman();
+  //       try {
+  //         // 풀 인덱스로 직접 쿼리
+  //         const poolRawData = await api.query.hybridOrderbook.pools(poolIndex);
+  //         const valueHuman = poolRawData.toHuman();
 
-          if (!valueHuman || Object.keys(valueHuman).length === 0) {
-            return {
-              baseAssetId: 0,
-              quoteAssetId: 0,
-              reserve0: 0,
-              reserve1: 0,
-              lpTokenId: 0,
-              feeTier: 0,
-              poolExists: false,
-            };
-          }
+  //         if (!valueHuman || Object.keys(valueHuman).length === 0) {
+  //           return {
+  //             baseAssetId: 0,
+  //             quoteAssetId: 0,
+  //             reserve0: 0,
+  //             reserve1: 0,
+  //             lpTokenId: 0,
+  //             feeTier: 0,
+  //             poolExists: false,
+  //           };
+  //         }
 
-          // 필요한 인터페이스 정의 (valueHuman에 대한 타입 힌트)
-          interface PoolData {
-            baseAssetId?: unknown;
-            base_asset_id?: unknown;
-            quoteAssetId?: unknown;
-            quote_asset_id?: unknown;
-            reserve0?: unknown;
-            reserve1?: unknown;
-            balance?: unknown[];
-            liquidity?: {
-              base?: unknown;
-              quote?: unknown;
-            };
-            lpToken?: unknown;
-            lp_token?: unknown;
-            feeTier?: unknown;
-            fee_tier?: unknown;
-          }
+  //         // 필요한 인터페이스 정의 (valueHuman에 대한 타입 힌트)
+  //         interface PoolData {
+  //           baseAssetId?: unknown;
+  //           base_asset_id?: unknown;
+  //           quoteAssetId?: unknown;
+  //           quote_asset_id?: unknown;
+  //           reserve0?: unknown;
+  //           reserve1?: unknown;
+  //           balance?: unknown[];
+  //           liquidity?: {
+  //             base?: unknown;
+  //             quote?: unknown;
+  //           };
+  //           lpToken?: unknown;
+  //           lp_token?: unknown;
+  //           feeTier?: unknown;
+  //           fee_tier?: unknown;
+  //         }
 
-          // 타입 캐스팅으로 더 안전한 접근 제공
-          const poolData = valueHuman as PoolData; // valueHuman을 타입이 정의된 PoolData로 변환
+  //         // 타입 캐스팅으로 더 안전한 접근 제공
+  //         const poolData = valueHuman as PoolData; // valueHuman을 타입이 정의된 PoolData로 변환
 
-          // 풀 데이터에서 필요한 정보 추출 (필드 이름 일관성 문제 해결)
-          const baseAssetId = extractId(poolData.baseAssetId || poolData.base_asset_id);
-          const quoteAssetId = extractId(poolData.quoteAssetId || poolData.quote_asset_id);
+  //         // 풀 데이터에서 필요한 정보 추출 (필드 이름 일관성 문제 해결)
+  //         const baseAssetId = extractId(poolData.baseAssetId || poolData.base_asset_id);
+  //         const quoteAssetId = extractId(poolData.quoteAssetId || poolData.quote_asset_id);
 
-          // 유동성 데이터 추출 (우선순위를 명확히 설정)
-          let reserve0: number = 0;
-          let reserve1: number = 0;
+  //         // 유동성 데이터 추출 (우선순위를 명확히 설정)
+  //         let reserve0: number = 0;
+  //         let reserve1: number = 0;
 
-          // 데이터 소스 우선순위를 명확히 함
-          // 1. liquidity 필드 (가장 우선)
-          // 2. direct reserve 필드
-          // 3. balance 배열
-          let dataSource = 'default';
+  //         // 데이터 소스 우선순위를 명확히 함
+  //         // 1. liquidity 필드 (가장 우선)
+  //         // 2. direct reserve 필드
+  //         // 3. balance 배열
+  //         let dataSource = 'default';
 
-          // 1. liquidity 필드에서 확인 (최우선)
-          if (poolData.liquidity) {
-            try {
-              if (poolData.liquidity.base !== undefined) {
-                reserve0 = Number(poolData.liquidity.base);
-                dataSource = 'liquidity.base';
-              }
-              if (poolData.liquidity.quote !== undefined) {
-                reserve1 = Number(poolData.liquidity.quote);
-                dataSource = 'liquidity.quote';
-              }
-            } catch (e) {
-              console.error('[getPoolInfo] Error parsing liquidity data:', e);
-              // 오류 발생 시 다음 데이터 소스로 진행 (폴백 전략)
-            }
-          }
+  //         // 1. liquidity 필드에서 확인 (최우선)
+  //         if (poolData.liquidity) {
+  //           try {
+  //             if (poolData.liquidity.base !== undefined) {
+  //               reserve0 = Number(poolData.liquidity.base);
+  //               dataSource = 'liquidity.base';
+  //             }
+  //             if (poolData.liquidity.quote !== undefined) {
+  //               reserve1 = Number(poolData.liquidity.quote);
+  //               dataSource = 'liquidity.quote';
+  //             }
+  //           } catch (e) {
+  //             console.error('[getPoolInfo] Error parsing liquidity data:', e);
+  //             // 오류 발생 시 다음 데이터 소스로 진행 (폴백 전략)
+  //           }
+  //         }
 
-          // 2. reserve 필드에서 확인 (liquidity에서 찾지 못한 경우에만)
-          if (reserve0 === 0 && poolData.reserve0 !== undefined) {
-            reserve0 = Number(poolData.reserve0);
-            dataSource = 'reserve0';
-          }
+  //         // 2. reserve 필드에서 확인 (liquidity에서 찾지 못한 경우에만)
+  //         if (reserve0 === 0 && poolData.reserve0 !== undefined) {
+  //           reserve0 = Number(poolData.reserve0);
+  //           dataSource = 'reserve0';
+  //         }
 
-          if (reserve1 === 0 && poolData.reserve1 !== undefined) {
-            reserve1 = Number(poolData.reserve1);
-            dataSource = 'reserve1';
-          }
+  //         if (reserve1 === 0 && poolData.reserve1 !== undefined) {
+  //           reserve1 = Number(poolData.reserve1);
+  //           dataSource = 'reserve1';
+  //         }
 
-          // 3. balance 배열에서 확인 (가장 낮은 우선순위)
-          if (
-            (reserve0 === 0 || reserve1 === 0) &&
-            poolData.balance &&
-            Array.isArray(poolData.balance)
-          ) {
-            try {
-              if (reserve0 === 0 && poolData.balance[0] !== undefined) {
-                reserve0 = Number(poolData.balance[0]);
-                dataSource = 'balance[0]';
-              }
-              if (reserve1 === 0 && poolData.balance[1] !== undefined) {
-                reserve1 = Number(poolData.balance[1]);
-                dataSource = 'balance[1]';
-              }
-            } catch (e) {
-              console.error('[getPoolInfo] Error parsing balance array:', e);
-            }
-          }
+  //         // 3. balance 배열에서 확인 (가장 낮은 우선순위)
+  //         if (
+  //           (reserve0 === 0 || reserve1 === 0) &&
+  //           poolData.balance &&
+  //           Array.isArray(poolData.balance)
+  //         ) {
+  //           try {
+  //             if (reserve0 === 0 && poolData.balance[0] !== undefined) {
+  //               reserve0 = Number(poolData.balance[0]);
+  //               dataSource = 'balance[0]';
+  //             }
+  //             if (reserve1 === 0 && poolData.balance[1] !== undefined) {
+  //               reserve1 = Number(poolData.balance[1]);
+  //               dataSource = 'balance[1]';
+  //             }
+  //           } catch (e) {
+  //             console.error('[getPoolInfo] Error parsing balance array:', e);
+  //           }
+  //         }
 
-          // 필수 필드 유효성 검사
-          const lpTokenId = extractId(poolData.lpToken || poolData.lp_token);
+  //         // 필수 필드 유효성 검사
+  //         const lpTokenId = extractId(poolData.lpToken || poolData.lp_token);
 
-          if (lpTokenId === 0) {
-            console.warn('[getPoolInfo] LP token ID is zero, potential data issue');
-          }
+  //         if (lpTokenId === 0) {
+  //           console.warn('[getPoolInfo] LP token ID is zero, potential data issue');
+  //         }
 
-          // 수수료 등급 정보
-          const feeTier = poolData.feeTier
-            ? Number(poolData.feeTier)
-            : poolData.fee_tier
-              ? Number(poolData.fee_tier)
-              : 0;
+  //         // 수수료 등급 정보
+  //         const feeTier = poolData.feeTier
+  //           ? Number(poolData.feeTier)
+  //           : poolData.fee_tier
+  //             ? Number(poolData.fee_tier)
+  //             : 0;
 
-          const result: PoolInfo = {
-            baseAssetId,
-            quoteAssetId,
-            reserve0,
-            reserve1,
-            lpTokenId,
-            feeTier,
-            poolExists: true,
-            poolIndex,
-          };
-          poolInfoCache.current.set(poolIndex, result);
-          console.log('[PoolDataStore] getPoolInfo 결과:', {
-            poolIndex,
-            poolInfoData: result,
-          });
-          return result;
-        } catch (error) {
-          console.error('[getPoolInfo] Error getting pool info:', error);
-          // 오류 발생 시 기본 구조 반환
-          return {
-            baseAssetId: 0,
-            quoteAssetId: 0,
-            reserve0: 0,
-            reserve1: 0,
-            lpTokenId: 0,
-            feeTier: 0,
-            poolExists: false,
-          };
-        }
-      });
-    },
-    [api, isConnected, isReady],
-  );
+  //         const result: PoolInfo = {
+  //           baseAssetId,
+  //           quoteAssetId,
+  //           reserve0,
+  //           reserve1,
+  //           lpTokenId,
+  //           feeTier,
+  //           poolExists: true,
+  //           poolIndex,
+  //         };
+  //         poolInfoCache.current.set(poolIndex, result);
+  //         console.log('[PoolDataStore] getPoolInfo 결과:', {
+  //           poolIndex,
+  //           poolInfoData: result,
+  //         });
+  //         return result;
+  //       } catch (error) {
+  //         console.error('[getPoolInfo] Error getting pool info:', error);
+  //         // 오류 발생 시 기본 구조 반환
+  //         return {
+  //           baseAssetId: 0,
+  //           quoteAssetId: 0,
+  //           reserve0: 0,
+  //           reserve1: 0,
+  //           lpTokenId: 0,
+  //           feeTier: 0,
+  //           poolExists: false,
+  //         };
+  //       }
+  //     });
+  //   },
+  //   [api, isConnected, isReady],
+  // );
 
   /**
    * 토큰 페어로 풀 정보를 조회하는 함수 (기존 인터페이스와의 호환성 유지)
@@ -414,85 +408,85 @@ export const usePoolQueries = () => {
    * @param quoteAssetId 쿠팅 토큰 ID
    * @returns 풀 정보
    */
-  const getPoolInfoByPair = useCallback(
-    async (baseAssetId: number, quoteAssetId: number): Promise<PoolInfo> => {
-      return withApiReady(api, isConnected, isReady, async () => {
-        if (!api) throw new Error('API not connected');
+  // const getPoolInfoByPair = useCallback(
+  //   async (baseAssetId: number, quoteAssetId: number): Promise<PoolInfo> => {
+  //     return withApiReady(api, isConnected, isReady, async () => {
+  //       if (!api) throw new Error('API not connected');
 
-        try {
-          // 페어를 이용하여 풀 인덱스 찾기
-          const poolIndex = await findPoolIndexByPair(baseAssetId, quoteAssetId);
-          console.log('[PoolDataStore] findPoolIndexByPair 반환값:', poolIndex);
+  //       try {
+  //         // 페어를 이용하여 풀 인덱스 찾기
+  //         const poolIndex = await findPoolIndexByPair(baseAssetId, quoteAssetId);
+  //         console.log('[PoolDataStore] findPoolIndexByPair 반환값:', poolIndex);
 
-          if (poolIndex === null) {
-            return {
-              baseAssetId,
-              quoteAssetId,
-              reserve0: 0,
-              reserve1: 0,
-              lpTokenId: 0,
-              feeTier: 0,
-              poolExists: false,
-            };
-          }
+  //         if (poolIndex === null) {
+  //           return {
+  //             baseAssetId,
+  //             quoteAssetId,
+  //             reserve0: 0,
+  //             reserve1: 0,
+  //             lpTokenId: 0,
+  //             feeTier: 0,
+  //             poolExists: false,
+  //           };
+  //         }
 
-          // 찾은 인덱스로 풀 정보 조회
-          const poolInfo = await getPoolInfo(poolIndex);
-          console.log('[PoolDataStore] getPoolInfo 결과:', {
-            poolIndex,
-            poolInfoData: poolInfo,
-          });
+  //         // 찾은 인덱스로 풀 정보 조회
+  //         const poolInfo = await getPoolInfo(poolIndex);
+  //         console.log('[PoolDataStore] getPoolInfo 결과:', {
+  //           poolIndex,
+  //           poolInfoData: poolInfo,
+  //         });
 
-          if (!poolInfo || !poolInfo.poolExists || poolInfo.reserve0 === 0) {
-            return {
-              baseAssetId,
-              quoteAssetId,
-              reserve0: 0,
-              reserve1: 0,
-              lpTokenId: 0,
-              feeTier: 0,
-              poolExists: false,
-            };
-          }
-          // 단위 변환하여 가격 비율 계산 (reserve1/10^decimals1)/(reserve0/10^decimals0)
-          const baseMetadata = await api.query.assets.metadata(baseAssetId);
-          const quoteMetadata = await api.query.assets.metadata(quoteAssetId);
-          const normalizedReserve0 =
-            poolInfo.reserve0 / Math.pow(10, extractDecimals(baseMetadata.toHuman()));
-          const normalizedReserve1 =
-            poolInfo.reserve1 / Math.pow(10, extractDecimals(quoteMetadata.toHuman()));
+  //         if (!poolInfo || !poolInfo.poolExists || poolInfo.reserve0 === 0) {
+  //           return {
+  //             baseAssetId,
+  //             quoteAssetId,
+  //             reserve0: 0,
+  //             reserve1: 0,
+  //             lpTokenId: 0,
+  //             feeTier: 0,
+  //             poolExists: false,
+  //           };
+  //         }
+  //         // 단위 변환하여 가격 비율 계산 (reserve1/10^decimals1)/(reserve0/10^decimals0)
+  //         const baseMetadata = await api.query.assets.metadata(baseAssetId);
+  //         const quoteMetadata = await api.query.assets.metadata(quoteAssetId);
+  //         const normalizedReserve0 =
+  //           poolInfo.reserve0 / Math.pow(10, extractDecimals(baseMetadata.toHuman()));
+  //         const normalizedReserve1 =
+  //           poolInfo.reserve1 / Math.pow(10, extractDecimals(quoteMetadata.toHuman()));
 
-          if (normalizedReserve0 === 0) {
-            return 1;
-          }
+  //         if (normalizedReserve0 === 0) {
+  //           return 1;
+  //         }
 
-          const ratio = normalizedReserve1 / normalizedReserve0;
-          return {
-            baseAssetId,
-            quoteAssetId,
-            reserve0: poolInfo.reserve0,
-            reserve1: poolInfo.reserve1,
-            lpTokenId: poolInfo.lpTokenId,
-            feeTier: poolInfo.feeTier,
-            poolExists: true,
-            poolIndex,
-          };
-        } catch (error) {
-          console.error('[getPoolInfoByPair] Error getting pool info by pair:', error);
-          return {
-            baseAssetId,
-            quoteAssetId,
-            reserve0: 0,
-            reserve1: 0,
-            lpTokenId: 0,
-            feeTier: 0,
-            poolExists: false,
-          };
-        }
-      });
-    },
-    [api, isConnected, isReady, findPoolIndexByPair, getPoolInfo],
-  );
+  //         const ratio = normalizedReserve1 / normalizedReserve0;
+  //         return {
+  //           baseAssetId,
+  //           quoteAssetId,
+  //           reserve0: poolInfo.reserve0,
+  //           reserve1: poolInfo.reserve1,
+  //           lpTokenId: poolInfo.lpTokenId,
+  //           feeTier: poolInfo.feeTier,
+  //           poolExists: true,
+  //           poolIndex,
+  //         };
+  //       } catch (error) {
+  //         console.error('[getPoolInfoByPair] Error getting pool info by pair:', error);
+  //         return {
+  //           baseAssetId,
+  //           quoteAssetId,
+  //           reserve0: 0,
+  //           reserve1: 0,
+  //           lpTokenId: 0,
+  //           feeTier: 0,
+  //           poolExists: false,
+  //         };
+  //       }
+  //     });
+  //   },
+  //   [api, isConnected, isReady, findPoolIndexByPair, getPoolInfo],
+  // );
 
   /**
    * 토큰 쌍의 가격 비율 계산
@@ -500,66 +494,66 @@ export const usePoolQueries = () => {
    * @param token1Id 두 번째 토큰 ID
    * @returns 가격 비율 (price1 / price0), 오류 시 1을 기본값으로 반환
    */
-  const getPoolPriceRatio = useCallback(
-    async (token0Id: number | string, token1Id: number | string): Promise<number> => {
-      return withApiReady(api, isConnected, isReady, async () => {
-        // 방어적 코딩: ID가 유효한 숫자인지 확인
-        const id0 = Number(token0Id);
-        const id1 = Number(token1Id);
+  // const getPoolPriceRatio = useCallback(
+  //   async (token0Id: number | string, token1Id: number | string): Promise<number> => {
+  //     return withApiReady(api, isConnected, isReady, async () => {
+  //       // 방어적 코딩: ID가 유효한 숫자인지 확인
+  //       const id0 = Number(token0Id);
+  //       const id1 = Number(token1Id);
 
-        if (!api) throw new Error('API not connected');
-        if (isNaN(id0) || isNaN(id1)) {
-          console.error('[getPoolPriceRatio] Invalid token IDs:', token0Id, token1Id);
-          return 1; // 오류 시 기본값
-        }
+  //       if (!api) throw new Error('API not connected');
+  //       if (isNaN(id0) || isNaN(id1)) {
+  //         console.error('[getPoolPriceRatio] Invalid token IDs:', token0Id, token1Id);
+  //         return 1; // 오류 시 기본값
+  //       }
 
-        try {
-          // 토큰 소수점 정보 가져오기 (항상 필요함)
-          const meta0 = await api.query.assets.metadata(id0);
-          const meta1 = await api.query.assets.metadata(id1);
-          const humanMeta0 = meta0.toHuman();
-          const humanMeta1 = meta1.toHuman();
+  //       try {
+  //         // 토큰 소수점 정보 가져오기 (항상 필요함)
+  //         const meta0 = await api.query.assets.metadata(id0);
+  //         const meta1 = await api.query.assets.metadata(id1);
+  //         const humanMeta0 = meta0.toHuman();
+  //         const humanMeta1 = meta1.toHuman();
 
-          // utils의 extractDecimals 함수 사용
-          const decimals0 = extractDecimals(humanMeta0);
-          const decimals1 = extractDecimals(humanMeta1);
+  //         // utils의 extractDecimals 함수 사용
+  //         const decimals0 = extractDecimals(humanMeta0);
+  //         const decimals1 = extractDecimals(humanMeta1);
 
-          // 페어로 풀 정보 찾기
-          const poolIndex = await findPoolIndexByPair(id0, id1);
+  //         // 페어로 풀 정보 찾기
+  //         const poolIndex = await findPoolIndexByPair(id0, id1);
 
-          // 풀이 없는 경우 (신규 풀 생성 등의 경우)
-          if (poolIndex === null) {
-            return 1; // 풀을 찾지 못했을 때 기본값
-          }
+  //         // 풀이 없는 경우 (신규 풀 생성 등의 경우)
+  //         if (poolIndex === null) {
+  //           return 1; // 풀을 찾지 못했을 때 기본값
+  //         }
 
-          // 풀 인덱스로 풀 정보 조회
-          const poolInfo = await getPoolInfo(poolIndex);
+  //         // 풀 인덱스로 풀 정보 조회
+  //         const poolInfo = await getPoolInfo(poolIndex);
 
-          if (!poolInfo || !poolInfo.poolExists || poolInfo.reserve0 === 0) {
-            return 1; // 풀 정보가 없거나 유효하지 않을 때 기본값
-          }
-          // 단위 변환하여 가격 비율 계산 (reserve1/10^decimals1)/(reserve0/10^decimals0)
-          const baseMetadata = await api.query.assets.metadata(id0);
-          const quoteMetadata = await api.query.assets.metadata(id1);
-          const normalizedReserve0 =
-            poolInfo.reserve0 / Math.pow(10, extractDecimals(baseMetadata.toHuman()));
-          const normalizedReserve1 =
-            poolInfo.reserve1 / Math.pow(10, extractDecimals(quoteMetadata.toHuman()));
+  //         if (!poolInfo || !poolInfo.poolExists || poolInfo.reserve0 === 0) {
+  //           return 1; // 풀 정보가 없거나 유효하지 않을 때 기본값
+  //         }
+  //         // 단위 변환하여 가격 비율 계산 (reserve1/10^decimals1)/(reserve0/10^decimals0)
+  //         const baseMetadata = await api.query.assets.metadata(id0);
+  //         const quoteMetadata = await api.query.assets.metadata(id1);
+  //         const normalizedReserve0 =
+  //           poolInfo.reserve0 / Math.pow(10, extractDecimals(baseMetadata.toHuman()));
+  //         const normalizedReserve1 =
+  //           poolInfo.reserve1 / Math.pow(10, extractDecimals(quoteMetadata.toHuman()));
 
-          if (normalizedReserve0 === 0) {
-            return 1;
-          }
+  //         if (normalizedReserve0 === 0) {
+  //           return 1;
+  //         }
 
-          const ratio = normalizedReserve1 / normalizedReserve0;
-          return ratio;
-        } catch (error) {
-          console.error('[getPoolPriceRatio] Price ratio fetch error:', error);
-          return 1; // 오류 발생 시 기본값
-        }
-      });
-    },
-    [api, isConnected, isReady, findPoolIndexByPair, getPoolInfo],
-  );
+  //         const ratio = normalizedReserve1 / normalizedReserve0;
+  //         return ratio;
+  //       } catch (error) {
+  //         console.error('[getPoolPriceRatio] Price ratio fetch error:', error);
+  //         return 1; // 오류 발생 시 기본값
+  //       }
+  //     });
+  //   },
+  //   [api, isConnected, isReady, findPoolIndexByPair, getPoolInfo],
+  // );
 
   /**
    * Runtime call을 사용하여 풀 데이터를 조회하는 함수
@@ -736,9 +730,6 @@ export const usePoolQueries = () => {
   // return 문에 추가
   return {
     findPoolIndexByPair,
-    getPoolInfo,
-    getPoolInfoByPair,
-    getPoolPriceRatio,
     getPoolQueryRpc,
     subscribeToOrderbook,
     getOrderbookData,

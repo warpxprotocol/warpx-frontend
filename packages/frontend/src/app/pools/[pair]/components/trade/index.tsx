@@ -446,8 +446,6 @@ export default function TradeSection({
           </span>
         </div>
         {/* <TradeInfo /> */}
-      </div>
-      <div className="mt-2">
         <TradeButton
           orderType={orderType}
           side={side}

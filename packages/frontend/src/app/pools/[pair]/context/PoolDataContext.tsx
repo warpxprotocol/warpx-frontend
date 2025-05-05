@@ -221,13 +221,7 @@ export function usePoolDataFetcher() {
   // });
 
   // 풀 쿼리 함수들
-  const {
-    getPoolQueryRpc,
-    findPoolIndexByPair,
-    getPoolInfo,
-    subscribeToOrderbook,
-    getPoolMetadata,
-  } = usePoolQueries();
+  const { getPoolQueryRpc, findPoolIndexByPair, getPoolMetadata } = usePoolQueries();
 
   // 개별 액션을 직접 선택하여 객체 생성을 방지
   const setLoading = usePoolDataStore((state) => state.setLoading);
@@ -455,22 +449,15 @@ export function usePoolDataFetcher() {
           return;
         }
 
-        console.log('[PoolDataStore] 풀 데이터 가져오기 시작', {
-          baseId: baseIdFromUrl,
-          quoteId: quoteIdFromUrl,
-          apiReady: isApiReady(api, isConnected, isReady),
-        });
-
         // 최초 1회만 호출 (캐시 활용)
         const poolMetadata = await getPoolMetadata(baseIdFromUrl, quoteIdFromUrl);
-
         const poolQueryResponse = await getPoolQueryRpc(baseIdFromUrl, quoteIdFromUrl);
         const poolIndex = await findPoolIndexByPair(baseIdFromUrl, quoteIdFromUrl);
-
         let poolInfoData: PoolInfo | null = null;
+
         if (poolIndex !== null) {
           try {
-            poolInfoData = await getPoolInfo(poolIndex);
+            poolInfoData = await poolQueryResponse(baseIdFromUrl, quoteIdFromUrl);
           } catch (error) {
             poolInfoData = null;
           }
@@ -527,7 +514,6 @@ export function usePoolDataFetcher() {
       quoteIdFromUrl,
       getPoolQueryRpc,
       findPoolIndexByPair,
-      getPoolInfo,
       setPoolInfo,
       setLoading,
       setError,

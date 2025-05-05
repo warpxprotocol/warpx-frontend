@@ -119,21 +119,17 @@ export function useApi() {
 
         // API가 준비될 때까지 기다림
         await currentApi.isReady;
-        console.log('API is ready');
         setIsReady(true);
 
         // 연결 상태 로깅 및 상태 업데이트
         provider.on('connected', () => {
-          console.log('WS Connected');
           setIsConnected(true);
         });
         provider.on('disconnected', () => {
-          console.log('WS Disconnected');
           setIsConnected(false);
           setIsReady(false);
         });
         provider.on('error', (error) => {
-          console.error('WS Error:', error);
           setIsConnected(false);
           setIsReady(false);
         });

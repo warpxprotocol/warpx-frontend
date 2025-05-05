@@ -324,58 +324,97 @@ function OrderbookTable() {
   const maxAskTotal = Math.max(...asks.map((a) => a.total), 1);
   const maxBidTotal = Math.max(...bids.map((b) => b.total), 1);
 
+  // 보여줄 행 개수
+  const VISIBLE_ROWS = 15;
+
+  // asks/bids 데이터
+  const visibleAsks = [...asks].reverse().slice(0, VISIBLE_ROWS);
+  const visibleBids = bids.slice(0, VISIBLE_ROWS);
+
+  // 부족한 행은 빈 값으로 채우기
+  const paddedAsks = [
+    ...visibleAsks,
+    ...Array(VISIBLE_ROWS - visibleAsks.length).fill(null),
+  ];
+  const paddedBids = [
+    ...visibleBids,
+    ...Array(VISIBLE_ROWS - visibleBids.length).fill(null),
+  ];
+
   // Don't render anything until mounted to avoid hydration mismatch
   if (!mounted) {
     return null;
   }
 
   return (
-    <div className="bg-[#18181C] border border-gray-800 px-2 py-2 w-full h-full max-w-md mx-auto rounded-none flex flex-col justify-start min-h-[260px]">
+    <div className="bg-[#18181C] border border-gray-800 w-full h-full max-w-md mx-auto rounded-none flex flex-col">
       {/* 테이블 헤더 */}
-      <div className="flex text-xs text-gray-400 w-full mb-1" style={{ minWidth: 260 }}>
+      <div
+        className="flex text-xs text-gray-400 w-full flex-shrink-0"
+        style={{ minWidth: 260, padding: '8px' }}
+      >
         <div className="w-1/3">Price</div>
         <div className="w-1/3 text-right">Size</div>
         <div className="w-1/3 text-right">Total</div>
       </div>
 
-      <div className="flex flex-col w-full gap-[1px] max-h-[220px] overflow-y-auto">
-        {[...asks].reverse().map((ask, i) => (
-          <div
-            key={`ask-${ask.price}-${i}`}
-            className="relative flex text-sm text-red-400 h-5 items-center w-full"
-          >
-            {/* 색상 바 */}
-            <div
-              className="absolute left-0 top-0 h-full bg-red-500 opacity-20 rounded"
-              style={{ width: `${(ask.total / maxAskTotal) * 100}%` }}
-            />
-            <div className="w-1/3 relative z-10">{ask.price.toFixed(poolDecimals)}</div>
-            <div className="w-1/3 text-right relative z-10">{formatNumber(ask.size)}</div>
-            <div className="w-1/3 text-right relative z-10">{formatNumber(ask.total)}</div>
-          </div>
-        ))}
-      </div>
+      <div className="flex-1 grid grid-rows-[1fr_auto_1fr] gap-2 h-full px-2 pb-2">
+        {/* asks */}
+        <div className={`grid grid-rows-${VISIBLE_ROWS} gap-[1px]`}>
+          {paddedAsks.map((ask, i) =>
+            ask ? (
+              <div
+                key={i}
+                className="relative flex text-xs text-red-400 h-5 items-center w-full"
+              >
+                <div
+                  className="absolute left-0 top-0 h-full bg-red-500 opacity-20"
+                  style={{ width: `${(ask.total / maxAskTotal) * 100}%` }}
+                />
+                <div className="w-1/3 relative z-10">{ask.price.toFixed(poolDecimals)}</div>
+                <div className="w-1/3 text-right relative z-10">
+                  {formatNumber(ask.size)}
+                </div>
+                <div className="w-1/3 text-right relative z-10">
+                  {formatNumber(ask.total)}
+                </div>
+              </div>
+            ) : (
+              <div key={i} /> // 빈 행
+            ),
+          )}
+        </div>
 
-      <div className="flex w-full my-1">
-        <AMMInfoBox />
-      </div>
+        {/* AMM 정보 섹션 */}
+        <div className="flex w-full">
+          <AMMInfoBox />
+        </div>
 
-      <div className="flex flex-col w-full gap-[1px]">
-        {bids.map((bid, i) => (
-          <div
-            key={`bid-${bid.price}-${i}`}
-            className="relative flex text-sm text-green-400 h-5 items-center w-full"
-          >
-            {/* 색상 바 */}
-            <div
-              className="absolute left-0 top-0 h-full bg-green-500 opacity-20 rounded"
-              style={{ width: `${(bid.total / maxBidTotal) * 100}%` }}
-            />
-            <div className="w-1/3 relative z-10">{bid.price.toFixed(poolDecimals)}</div>
-            <div className="w-1/3 text-right relative z-10">{formatNumber(bid.size)}</div>
-            <div className="w-1/3 text-right relative z-10">{formatNumber(bid.total)}</div>
-          </div>
-        ))}
+        {/* bids */}
+        <div className={`grid grid-rows-${VISIBLE_ROWS} gap-[1px]`}>
+          {paddedBids.map((bid, i) =>
+            bid ? (
+              <div
+                key={i}
+                className="relative flex text-xs text-green-400 h-5 items-center w-full"
+              >
+                <div
+                  className="absolute left-0 top-0 h-full bg-green-500 opacity-20"
+                  style={{ width: `${(bid.total / maxBidTotal) * 100}%` }}
+                />
+                <div className="w-1/3 relative z-10">{bid.price.toFixed(poolDecimals)}</div>
+                <div className="w-1/3 text-right relative z-10">
+                  {formatNumber(bid.size)}
+                </div>
+                <div className="w-1/3 text-right relative z-10">
+                  {formatNumber(bid.total)}
+                </div>
+              </div>
+            ) : (
+              <div key={i} /> // 빈 행
+            ),
+          )}
+        </div>
       </div>
     </div>
   );

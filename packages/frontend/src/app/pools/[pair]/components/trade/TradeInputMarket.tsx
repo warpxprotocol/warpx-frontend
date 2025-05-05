@@ -50,11 +50,11 @@ function canSell(
   estimatedFee = 0,
 ) {
   const parsed = parseFloat(amount);
-  if (isNaN(parsed)) return { ok: false, reason: '수량 입력이 올바르지 않습니다.' };
+  if (isNaN(parsed)) return { ok: false, reason: 'Quantity is not valid' };
 
   const rawAmount = BigInt(Math.floor(parsed * 10 ** decimals));
   if (rawAmount < BigInt(minUnit))
-    return { ok: false, reason: `최소 주문 단위는 ${minUnit / 10 ** decimals} 입니다.` };
+    return { ok: false, reason: `Minimum order unit is ${minUnit / 10 ** decimals}` };
 
   const balance = BigInt(availableBalance);
   const fee = BigInt(estimatedFee);
@@ -64,9 +64,9 @@ function canSell(
   if (balance - rawAmount - fee < ed)
     return {
       ok: false,
-      reason: '잔고에서 최소 잔고(Existential Deposit)와 수수료를 뺀 값이 부족합니다.',
+      reason: 'Insufficient balance',
     };
-  if (rawAmount > balance) return { ok: false, reason: '잔고가 부족합니다.' };
+  if (rawAmount > balance) return { ok: false, reason: 'Insufficient balance' };
 
   return { ok: true, rawAmount };
 }
@@ -255,12 +255,6 @@ export default function TradeInputMarket({
   const quantity = BigInt(Math.floor(Number(amount) * 10 ** baseDecimals));
   const adjustedQuantity = (quantity / BigInt(lotSize)) * BigInt(lotSize);
 
-  console.log({
-    amount,
-    quantity: quantity.toString(),
-    adjustedQuantity: adjustedQuantity.toString(),
-  });
-
   const poolDecimals = poolMetadata?.poolDecimals ?? 2;
   const realPrice = poolInfo?.poolPrice
     ? Number(poolInfo.poolPrice) / 10 ** poolDecimals
@@ -293,12 +287,12 @@ export default function TradeInputMarket({
           </span>
         </div>
       )}
-      <TradeSlider
+      {/* <TradeSlider
         value={percent}
         onChange={handleSliderChange}
         amount={amount}
         price={price}
-      />
+      /> */}
     </form>
   );
 }

@@ -47,10 +47,8 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
   useEffect(() => {
     if (connected && selectedAccount) {
       setIsWalletReady(true);
-      console.log('Wallet is ready for trading operations');
     } else {
       setIsWalletReady(false);
-      console.log('Wallet is not ready, please connect wallet');
     }
   }, [connected, selectedAccount]);
 
@@ -110,8 +108,6 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
       const formatted = formatMarketOrderParams(params);
       if (!api || isLoading) return null;
 
-      console.log('Creating market order extrinsic with params:', formatted);
-
       const { baseAsset, quoteAsset, quantity, isBid } = formatted;
 
       if (isBid && !quantity) {
@@ -151,7 +147,6 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
 
         // Option 2: dex module
         if (api.tx.dex) {
-          console.log('Using dex module for market order');
           if (isBid) {
             // Adjust parameter order if needed for dex module
             return api.tx.dex.swapExactOutputForInput(
@@ -172,7 +167,6 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
 
         // Option 3: warpx module
         if (api.tx.warpx) {
-          console.log('Using warpx module for market order');
           if (isBid) {
             return api.tx.warpx.swapExactOutputForInput(
               baseAsset,
@@ -199,14 +193,11 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
         );
 
         if (possibleModules.length > 0) {
-          console.log(`Using ${possibleModules[0]} module as fallback`);
           // Add handling for other modules if needed
         }
 
-        console.error('No suitable trading module found in the API');
         return null;
       } catch (error) {
-        console.error('Error creating market order extrinsic:', error);
         return null;
       }
     },
@@ -220,8 +211,6 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
     (params: LimitOrderParameters) => {
       const formatted = formatLimitOrderParams(params);
       if (!api || isLoading) return null;
-
-      console.log('Creating limit order extrinsic with params:', formatted);
 
       const { baseAsset, quoteAsset, price, quantity, isBid } = formatted;
 
@@ -255,7 +244,6 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
 
           // Check if the module has the needed swap methods
           if (params.isBid && typeof module.swapExactOutputForInput === 'function') {
-            console.log(`Using ${moduleName}.swapExactOutputForInput for limit buy order`);
             try {
               return module.swapExactOutputForInput(
                 baseAsset,
@@ -263,14 +251,11 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
                 quantity,
                 params.price, // Max price for limit order
               );
-            } catch (err) {
-              console.error(`Error using ${moduleName}.swapExactOutputForInput:`, err);
-            }
+            } catch (err) {}
           } else if (
             !params.isBid &&
             typeof module.swapExactInputForOutput === 'function'
           ) {
-            console.log(`Using ${moduleName}.swapExactInputForOutput for limit sell order`);
             try {
               return module.swapExactInputForOutput(
                 baseAsset,
@@ -278,9 +263,7 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
                 quantity,
                 params.price, // Min price for limit order
               );
-            } catch (err) {
-              console.error(`Error using ${moduleName}.swapExactInputForOutput:`, err);
-            }
+            } catch (err) {}
           }
         }
 
@@ -289,19 +272,10 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           api.tx.hybridOrderbook &&
           typeof api.tx.hybridOrderbook.marketOrder === 'function'
         ) {
-          console.log('FALLBACK: Using hybridOrderbook.marketOrder method for limit order');
-
           // Parameters for the generic marketOrder method
           // Format is expected to be: marketOrder(poolId, isBuy, assetIn, assetOut, amount)
           const isBuy = params.isBid;
           const amount = quantity;
-
-          console.log('Creating market order as fallback with params:', {
-            isBuy,
-            baseAsset,
-            quoteAsset,
-            amount,
-          });
 
           return api.tx.hybridOrderbook.marketOrder(
             baseAsset,
@@ -311,10 +285,8 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           );
         }
 
-        console.error('No suitable limit or market order methods found in the API');
         return null;
       } catch (error) {
-        console.error('Error creating limit order extrinsic:', error);
         return null;
       }
     },
@@ -347,15 +319,8 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
         const { isBid } = params;
         const actionType = isBid ? 'buying' : 'selling';
 
-        console.log('Getting signer for account:', selectedAccount);
-
         // Get the proper signer using the utility function
         const { signer, address } = await getAccountSigner(selectedAccount);
-
-        console.log('Submitting market order with signer:', {
-          accountAddress: address,
-          hasSigner: !!signer,
-        });
 
         // Pass the selected account and signer to the extrinsic handler
         const result = await handleExtrinsic(
@@ -371,10 +336,8 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           },
         );
 
-        console.log('Market order submitted successfully!');
         return result;
       } catch (error) {
-        console.error('Market order error:', error);
         throw error;
       } finally {
         setIsSubmitting(false);
@@ -409,15 +372,8 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
         const { isBid } = params;
         const actionType = isBid ? 'buying' : 'selling';
 
-        console.log('Getting signer for account:', selectedAccount);
-
         // Get the proper signer using the utility function
         const { signer, address } = await getAccountSigner(selectedAccount);
-
-        console.log('Submitting limit order with signer:', {
-          accountAddress: address,
-          hasSigner: !!signer,
-        });
 
         // Pass the selected account and signer to the extrinsic handler
         const result = await handleExtrinsic(
@@ -433,10 +389,8 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
           },
         );
 
-        console.log('Limit order submitted successfully!');
         return result;
       } catch (error) {
-        console.error('Limit order error:', error);
         throw error;
       } finally {
         setIsSubmitting(false);
@@ -450,27 +404,16 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
    */
   const isTradingSupported = useCallback(() => {
     if (!api || isLoading) {
-      console.log('API not ready:', { api: !!api, isLoading });
       return false;
     }
 
     // Check if wallet is connected
     if (!isWalletReady) {
-      console.log('Wallet not connected. Please connect wallet to trade.');
       return false;
     }
 
-    // Debug what modules and methods are available
-    console.log('Available API modules:', Object.keys(api.tx));
-
     // Check for hybridOrderbook module
     const hasHybridOrderbook = !!api.tx.hybridOrderbook;
-    console.log('Has hybridOrderbook module:', hasHybridOrderbook);
-
-    if (hasHybridOrderbook) {
-      // Log available methods on hybridOrderbook
-      console.log('hybridOrderbook methods:', Object.keys(api.tx.hybridOrderbook));
-    }
 
     // For development purposes, check for similar modules
     const possibleTradeModules = Object.keys(api.tx).filter(
@@ -480,7 +423,6 @@ export const useTradeOperations = (poolInfo?: PoolInfoDisplay) => {
         module.toLowerCase().includes('swap') ||
         module.toLowerCase().includes('pool'),
     );
-    console.log('Possible trade-related modules:', possibleTradeModules);
 
     // For testing, we'll now only return true if both API and wallet are ready
     return hasHybridOrderbook && isWalletReady;

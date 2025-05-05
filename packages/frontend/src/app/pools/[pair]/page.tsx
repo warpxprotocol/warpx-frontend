@@ -29,12 +29,6 @@ export default async function PoolDetailPage(props: PageProps) {
     notFound();
   }
 
-  console.log('Pool detail params:', {
-    pair: pairString,
-    baseAssetId,
-    quoteAssetId,
-  });
-
   return (
     <PoolDetailClient
       pair={pairString}

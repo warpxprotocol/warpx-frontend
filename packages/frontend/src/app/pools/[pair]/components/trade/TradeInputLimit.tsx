@@ -233,12 +233,12 @@ export default function TradeInputLimit({
         </div>
       )}
       {/* 슬라이더 */}
-      <TradeSlider
+      {/* <TradeSlider
         value={percent}
         onChange={handleSliderChange}
         amount={amount}
         price={price}
-      />
+      /> */}
     </form>
   );
 }

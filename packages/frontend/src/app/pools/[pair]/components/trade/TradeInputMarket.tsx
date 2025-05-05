@@ -264,9 +264,9 @@ export default function TradeInputMarket({
   return (
     <form onSubmit={(e) => e.preventDefault()}>
       <div className="text-[11px] text-gray-400 mb-1 flex justify-between">
-        <span>Available {side === 'buy' ? tokenIn : tokenOut}</span>
+        <span>Available {side === 'buy' ? tokenIn : tokenIn}</span>
         <span className="text-white font-medium">
-          {formatBalance(availableBalance, decimals)} {side === 'buy' ? tokenIn : tokenOut}
+          {formatBalance(availableBalance, decimals)} {side === 'buy' ? tokenIn : tokenIn}
         </span>
       </div>
       <div className="flex gap-2 mb-2">

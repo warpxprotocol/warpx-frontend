@@ -177,7 +177,7 @@ export default function TradeInputLimit({
       <div className="text-[11px] text-gray-400 flex justify-between">
         <span>Available</span>
         <span className="text-white font-medium">
-          {formatBalance(availableBalance, decimals)} {baseToken}
+          {formatBalance(availableBalance, decimals)} {tokenIn}
         </span>
       </div>
       {/* Price 입력 */}

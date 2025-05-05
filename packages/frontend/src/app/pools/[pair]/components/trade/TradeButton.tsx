@@ -9,7 +9,6 @@ import {
 export interface TradeButtonProps {
   orderType: OrderType;
   side: TradeSide;
-  poolId: number;
   assetInId: number;
   assetOutId: number;
   amount: string;
@@ -117,7 +116,7 @@ export default function TradeButton({
 
   return (
     <button
-      className="bg-gray-800 text-[11px] font-medium text-white p-1.5 w-full hover:bg-gray-700 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed transition"
+      className="bg-teal-500 text-[11px] font-medium text-black p-1.5 w-full hover:bg-teal-600 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed transition"
       onClick={onSubmit || handleSubmit}
       disabled={
         !apiSupportsTrading ||

@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { OrderType, TradeSide } from '@/app/features/trade/useTradeOperations';
@@ -57,14 +57,24 @@ export default function TradeSection({
 
   // Get pair from URL
   const params = useParams();
+  const searchParams = useSearchParams();
   const pair = params?.pair as string;
 
+  // 쿼리 파라미터에서 읽어올 때는 변수명 다르게!
+  const baseAssetIdParam = searchParams.get('baseId');
+  const quoteAssetIdParam = searchParams.get('quoteId');
+
+  // 실제 사용할 id
+  const baseAssetIdFinal =
+    baseAssetId ?? (baseAssetIdParam ? Number(baseAssetIdParam) : undefined);
+  const quoteAssetIdFinal =
+    quoteAssetId ?? (quoteAssetIdParam ? Number(quoteAssetIdParam) : undefined);
+
   // Decoded token information
-  const [tokenIn, setTokenIn] = useState('USDC');
-  const [tokenOut, setTokenOut] = useState('WBTC');
-  const [assetInId, setAssetInId] = useState(1);
-  const [assetOutId, setAssetOutId] = useState(2);
-  const [poolId, setPoolId] = useState(0);
+  const [tokenIn, setTokenIn] = useState<string>();
+  const [tokenOut, setTokenOut] = useState<string>();
+  const [assetInId, setAssetInId] = useState<number>();
+  const [assetOutId, setAssetOutId] = useState<number>();
 
   // Mock available balance
   const [availableBalance, setAvailableBalance] = useState<string>('0');
@@ -84,13 +94,16 @@ export default function TradeSection({
   // base/quote asset 구분
   const baseToken = side === 'buy' ? tokenOut : tokenIn;
   const quoteToken = side === 'buy' ? tokenIn : tokenOut;
-  const baseDecimals = poolMetadata?.baseDecimals ?? 9;
-  const quoteDecimals = poolMetadata?.quoteDecimals ?? 6;
+  const baseDecimals = poolMetadata?.baseDecimals;
+  const quoteDecimals = poolMetadata?.quoteDecimals;
 
   // base asset 기준 잔액, lotSize, min/max
   const baseDecimalsNum = Number(baseDecimals);
-  const lotSize = 10 ** (baseDecimals - (poolMetadata?.poolDecimals ?? 2));
-  const minUnit = lotSize / 10 ** baseDecimals;
+  const lotSize =
+    baseDecimals && poolMetadata?.poolDecimals
+      ? 10 ** (baseDecimals - poolMetadata.poolDecimals)
+      : undefined;
+  const minUnit = lotSize && baseDecimals ? lotSize / 10 ** baseDecimals : undefined;
 
   const fractionDigits = getFractionDigits(lotSize ?? 1, baseDecimalsNum);
 
@@ -115,7 +128,8 @@ export default function TradeSection({
       minimumFractionDigits: fractionDigits,
     });
   }, [lotSize, baseDecimals]);
-  const available = Number(availableBalance) / 10 ** baseDecimals;
+  const available =
+    lotSize && baseDecimals ? Number(availableBalance) / 10 ** baseDecimals : 0;
 
   // input → 슬라이더 연동 (base asset 기준)
   const handleInputChange = (value: string) => {
@@ -151,7 +165,6 @@ export default function TradeSection({
       try {
         setIsLoading(true);
 
-        // Parse pair information
         const decodedPair = decodeURIComponent(pair);
         const pairParts = decodedPair.split('/');
 
@@ -163,31 +176,22 @@ export default function TradeSection({
         const baseAsset = pairParts[0];
         const quoteAsset = pairParts[1];
 
-        console.log(`Processing trading pair: ${baseAsset}/${quoteAsset}`);
+        // 쿼리 파라미터에서 assetId 가져오기
+        const baseAssetId = searchParams.get('baseId');
+        const quoteAssetId = searchParams.get('quoteId');
 
-        setTokenOut(baseAsset);
-        setTokenIn(quoteAsset);
+        setAssetOutId(Number(baseAssetId));
+        setAssetInId(Number(quoteAssetId));
 
-        // In a real implementation, you would fetch asset IDs from an API
-        // For now we're using mock IDs based on the URL
-        const mockBaseAssetId = pairParts[0] === 'WARPBX' ? 2 : 1;
-        const mockQuoteAssetId = pairParts[1] === 'WARPA' ? 3 : 2;
-
-        // Would need to get real asset IDs from chain in production
-        setAssetOutId(mockBaseAssetId);
-        setAssetInId(mockQuoteAssetId);
-        setPoolId(1); // Default pool ID for now
-
-        // Store the asset pair information
         setAssetPair({
           baseAsset,
           quoteAsset,
-          baseAssetId: mockBaseAssetId,
-          quoteAssetId: mockQuoteAssetId,
+          baseAssetId: Number(baseAssetId),
+          quoteAssetId: Number(quoteAssetId),
         });
 
         console.log(
-          `Trading pair set - base: ${baseAsset}(${mockBaseAssetId}), quote: ${quoteAsset}(${mockQuoteAssetId})`,
+          `Trading pair set - base: ${baseAsset}(${baseAssetId}), quote: ${quoteAsset}(${quoteAssetId})`,
         );
       } catch (error) {
         console.error('Error parsing asset pair:', error);
@@ -197,13 +201,13 @@ export default function TradeSection({
     };
 
     parseAssetPair();
-  }, [pair, api, isApiLoading]);
+  }, [pair, api, isApiLoading, searchParams]);
 
   useEffect(() => {
     const fetchDecimals = async () => {
-      if (!api || !baseAssetId || !quoteAssetId) return;
-      const baseMeta = await api.query.assets.metadata(baseAssetId);
-      const quoteMeta = await api.query.assets.metadata(quoteAssetId);
+      if (!api || !baseAssetIdFinal || !quoteAssetIdFinal) return;
+      const baseMeta = await api.query.assets.metadata(baseAssetIdFinal);
+      const quoteMeta = await api.query.assets.metadata(quoteAssetIdFinal);
 
       const baseMetaHuman = baseMeta.toHuman();
       const quoteMetaHuman = quoteMeta.toHuman();
@@ -227,7 +231,7 @@ export default function TradeSection({
       setQuoteAssetDecimals(Number(quoteDecimals));
     };
     fetchDecimals();
-  }, [api, baseAssetId, quoteAssetId]);
+  }, [api, baseAssetIdFinal, quoteAssetIdFinal]);
 
   // Handle order type changes
   const handleOrderTypeChange = (type: OrderType) => {
@@ -304,7 +308,7 @@ export default function TradeSection({
         return;
       }
 
-      if (baseAssetId == null || quoteAssetId == null) {
+      if (baseAssetIdFinal == null || quoteAssetIdFinal == null) {
         alert('Asset IDs are not set');
         return;
       }
@@ -313,21 +317,21 @@ export default function TradeSection({
       if (orderType === 'market') {
         if (side === 'buy') {
           await submitMarketOrder({
-            baseAsset: baseAssetId,
-            quoteAsset: quoteAssetId,
+            baseAsset: baseAssetIdFinal,
+            quoteAsset: quoteAssetIdFinal,
             quantity: amount,
             isBid: true,
           });
         } else {
           await submitMarketOrder({
-            baseAsset: baseAssetId,
-            quoteAsset: quoteAssetId,
+            baseAsset: baseAssetIdFinal,
+            quoteAsset: quoteAssetIdFinal,
             quantity: amount,
             isBid: false,
           });
           console.log('DEBUG submitMarketOrder:', {
-            baseAsset: baseAssetId,
-            quoteAsset: quoteAssetId,
+            baseAsset: baseAssetIdFinal,
+            quoteAsset: quoteAssetIdFinal,
             quantity: amount,
             isBid: false,
           });
@@ -341,16 +345,16 @@ export default function TradeSection({
         return;
       }
       console.log('Submitting limit order with params:', {
-        baseAsset: baseAssetId,
-        quoteAsset: quoteAssetId,
+        baseAsset: baseAssetIdFinal,
+        quoteAsset: quoteAssetIdFinal,
         quantity: amount,
         isBid: side === 'buy',
         price,
         poolInfo,
       });
       await submitLimitOrder({
-        baseAsset: baseAssetId,
-        quoteAsset: quoteAssetId,
+        baseAsset: baseAssetIdFinal,
+        quoteAsset: quoteAssetIdFinal,
         quantity: amount,
         isBid: side === 'buy',
         price,
@@ -381,12 +385,16 @@ export default function TradeSection({
     });
   }, [api, selectedAccount, assetPair]);
 
-  const decimals = side === 'buy' ? quoteAssetDecimals : baseAssetDecimals;
+  const decimals =
+    side === 'buy' ? poolMetadata?.quoteDecimals : poolMetadata?.baseDecimals;
 
-  const minUnitStr = minUnit.toLocaleString(undefined, {
-    minimumFractionDigits: baseDecimalsNum,
-    maximumFractionDigits: baseDecimalsNum,
-  });
+  const minUnitStr =
+    minUnit !== undefined && baseDecimalsNum !== undefined
+      ? minUnit.toLocaleString(undefined, {
+          minimumFractionDigits: baseDecimalsNum,
+          maximumFractionDigits: baseDecimalsNum,
+        })
+      : '';
 
   useEffect(() => {
     console.log(
@@ -401,6 +409,13 @@ export default function TradeSection({
     );
   }, [isValid, amount, price, orderType]);
 
+  const tokenInDecimals =
+    side === 'buy' ? poolMetadata?.quoteDecimals : poolMetadata?.baseDecimals;
+
+  const tokenOutDecimals =
+    side === 'buy' ? poolMetadata?.baseDecimals : poolMetadata?.quoteDecimals;
+
+  // console.log('poolMetadata:', poolMetadata);
   return (
     <div
       className="bg-[#202027] flex flex-col min-w-0 h-full shadow-md p-3 max-w-[340px] mx-auto overflow-hidden"
@@ -413,8 +428,8 @@ export default function TradeSection({
           <TradeInput
             orderType={orderType}
             side={side}
-            tokenIn={tokenIn}
-            tokenOut={tokenOut}
+            tokenIn={tokenIn ?? ''}
+            tokenOut={tokenOut ?? ''}
             amount={amount}
             setAmount={setAmount}
             price={price}
@@ -438,32 +453,24 @@ export default function TradeSection({
             Minimum unit: {minUnit} {baseToken}
           </span>
         </div>
-        <div className="text-[11px] text-gray-400 mb-2 flex justify-between">
-          <span>Max {side === 'buy' ? 'Buying Power' : 'Selling Amount'}</span>
-          <span className="text-white font-medium">
-            {available.toLocaleString(undefined, { maximumFractionDigits: fractionDigits })}{' '}
-            {availableToken}
-          </span>
-        </div>
         {/* <TradeInfo /> */}
         <TradeButton
           orderType={orderType}
           side={side}
-          baseAsset={baseAssetId!}
-          quoteAsset={quoteAssetId!}
+          baseAsset={baseAssetIdFinal!}
+          quoteAsset={quoteAssetIdFinal!}
           quantity={amount}
           isBid={side === 'buy'}
           amount={amount}
           price={price}
           isValid={isValid}
-          tokenIn={tokenIn}
-          tokenOut={tokenOut}
+          tokenIn={tokenIn ?? ''}
+          tokenOut={tokenOut ?? ''}
           decimals={baseAssetDecimals ?? 6}
           onSubmit={handleTradeClick}
           isSubmitting={isSubmitting}
-          poolId={poolId}
-          assetInId={assetInId}
-          assetOutId={assetOutId}
+          assetInId={assetInId ?? 0}
+          assetOutId={assetOutId ?? 0}
         />
       </div>
       {showSummary && (
@@ -472,15 +479,15 @@ export default function TradeSection({
             orderType={orderType}
             side={side}
             amount={Number(amount)}
-            baseToken={baseToken}
-            quoteToken={quoteToken}
+            baseToken={baseToken ?? ''}
+            quoteToken={quoteToken ?? ''}
             price={
               orderType === 'market'
                 ? Number(poolInfo?.poolPrice) / 10 ** (poolInfo?.poolDecimals ?? 2)
                 : Number(price)
             }
-            lotSize={lotSize}
-            decimals={baseDecimalsNum}
+            lotSize={lotSize ?? 0}
+            decimals={baseDecimalsNum ?? 0}
             onClose={() => setShowSummary(false)}
             onSubmit={handleSubmit}
           />

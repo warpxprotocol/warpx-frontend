@@ -25,7 +25,16 @@ export const TxToastProvider = ({ children }: { children: ReactNode }) => {
         }
         toast.success(message, {
           ...toastOptions,
-          description: options?.txHash ? `Transaction Hash: ${options.txHash}` : undefined,
+          description: options?.txHash ? (
+            <a
+              href={`https://polkadot.js.org/apps/#/explorer/query/${options.txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#6b7280', textDecoration: 'underline' }}
+            >
+              View on Polkadot.js Explorer
+            </a>
+          ) : undefined,
         });
         return undefined;
       case 'error':

@@ -36,10 +36,19 @@ export default function OrderSummary({
   onSubmit,
   slippage,
   fee,
-}: OrderSummaryProps & { onClose: () => void; onSubmit: () => void }) {
+}: OrderSummaryProps & { onClose: () => void; onSubmit: () => Promise<void> }) {
   const isBuy = side === 'buy';
   const qty = amount;
   const orderValue = Number(amount) * Number(price);
+
+  const handleSubmit = async () => {
+    try {
+      await onSubmit();
+      onClose();
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
     <div className="bg-black px-6 py-3 rounded-xl shadow-2xl w-full max-w-[380px] mx-auto border border-gray-700">
@@ -97,7 +106,7 @@ export default function OrderSummary({
       </div>
       <div className="flex gap-2 mt-8 text-xs">
         <button
-          onClick={onSubmit}
+          onClick={handleSubmit}
           className="flex-1 py-2 rounded-lg transition bg-white text-black hover:bg-gray-200"
         >
           {side === 'sell' ? `Sell ${baseToken}` : `Buy ${baseToken}`}

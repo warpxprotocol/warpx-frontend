@@ -20,14 +20,14 @@ export function PoolRow({ pool }: { pool: Pool }) {
           {pool.name}
         </Link>
       </td>
-      <td className="py-3 px-4 text-gray-300">
+      {/* <td className="py-3 px-4 text-gray-300">
         <Link
           href={`/pools/${encodeURIComponent(pool.id)}?baseId=${pool.token0.id}&quoteId=${pool.token1.id}`}
           className="block"
         >
           {pool.protocol}
         </Link>
-      </td>
+      </td> */}
       <td className="py-3 px-4 text-gray-300">
         <Link
           href={`/pools/${encodeURIComponent(pool.id)}?baseId=${pool.token0.id}&quoteId=${pool.token1.id}`}
@@ -36,7 +36,7 @@ export function PoolRow({ pool }: { pool: Pool }) {
           {pool.feeTier}
         </Link>
       </td>
-      <td className="py-3 px-4 text-gray-300">
+      {/* <td className="py-3 px-4 text-gray-300">
         <Link
           href={`/pools/${encodeURIComponent(pool.id)}?baseId=${pool.token0.id}&quoteId=${pool.token1.id}`}
           className="block"
@@ -51,7 +51,7 @@ export function PoolRow({ pool }: { pool: Pool }) {
         >
           {pool.apr}
         </Link>
-      </td>
+      </td> */}
       {/* Add pool actions */}
       <td className="py-3 px-4 text-gray-300">
         <Button variant="ghost" className="text-gray-300" onClick={() => setIsOpen(true)}>

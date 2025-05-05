@@ -138,7 +138,7 @@ export default function PoolsPage() {
   }
 
   return (
-    <main className="max-w-4xl mx-auto py-12 px-4">
+    <main className="w-full py-12 px-12">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white mb-2">POOL LIST</h1>

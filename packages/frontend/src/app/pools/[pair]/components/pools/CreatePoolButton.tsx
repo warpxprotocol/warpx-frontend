@@ -367,7 +367,7 @@ export function CreatePoolButton({ className }: CreatePoolButtonProps) {
                   )}
 
                   <Button
-                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                    className="w-full mt-4 bg-gray-800 hover:bg-gray-700 text-white border border-gray-700"
                     size="lg"
                     disabled={!(selectedBaseAsset && selectedQuoteAsset) || isLoading}
                     onClick={createPoolWithInitialLiquidityHandler}

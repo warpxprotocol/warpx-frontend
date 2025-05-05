@@ -11,10 +11,7 @@ export function PoolList({ pools }: { pools: Pool[] }) {
         <thead>
           <tr className="bg-[#23232A] text-gray-400">
             <th className="py-3 px-4 text-left font-semibold">POOL</th>
-            <th className="py-3 px-4 text-left font-semibold">PROTOCOL</th>
             <th className="py-3 px-4 text-left font-semibold">FEE TIER</th>
-            <th className="py-3 px-4 text-left font-semibold">TVL</th>
-            <th className="py-3 px-4 text-left font-semibold">APR</th>
             <th className="py-3 px-4 text-left font-semibold">Actions</th>
           </tr>
         </thead>

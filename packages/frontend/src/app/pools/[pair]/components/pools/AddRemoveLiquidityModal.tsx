@@ -63,6 +63,9 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
   } | null>(null);
   const [poolInfo, setPoolInfo] = useState<any>(null);
   const [lpTokenPercentage, setLpTokenPercentage] = useState<number>(0);
+  const [decimals0, setDecimals0] = useState(0);
+  const [decimals1, setDecimals1] = useState(0);
+  const [reserveRatio, setReserveRatio] = useState<number | null>(null);
 
   // Add helper function to extract numeric ID consistently
   const extractId = (x: any): number => {
@@ -77,13 +80,15 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
 
   // 유틸리티 함수 - 여러 곳에서 재사용됨
   const extractBalance = (json: any): bigint => {
-    if (
-      json &&
-      typeof json === 'object' &&
-      'balance' in json &&
-      typeof json.balance === 'string'
-    ) {
-      return BigInt(json.balance);
+    if (json && typeof json === 'object' && 'balance' in json) {
+      if (typeof json.balance === 'string') {
+        // 콤마 제거 후 BigInt 변환
+        return BigInt(json.balance.replace(/,/g, ''));
+      }
+      if (typeof json.balance === 'number') {
+        // 숫자면 바로 BigInt 변환
+        return BigInt(json.balance);
+      }
     }
     return 0n;
   };
@@ -97,129 +102,87 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
     }
   }, [isOpen]);
 
+  // 잔액, decimal, 가격 등 직접 쿼리
   useEffect(() => {
-    async function fetchBalances() {
+    async function fetchTokenInfoAndPool() {
       if (!api || !selectedAccount) return;
 
-      try {
-        // Extract numeric IDs
-        const id0 = extractId(token0.id);
-        const id1 = extractId(token1.id);
+      const id0 = extractId(token0.id);
+      const id1 = extractId(token1.id);
 
-        // 토큰 메타데이터 조회
-        const meta0 = await api.query.assets.metadata(id0);
-        const meta1 = await api.query.assets.metadata(id1);
-        const humanMeta0 = meta0.toHuman();
-        const humanMeta1 = meta1.toHuman();
-        const decimals0 =
-          typeof humanMeta0 === 'object' && humanMeta0 !== null && 'decimals' in humanMeta0
-            ? Number(humanMeta0.decimals)
-            : 0;
-        const decimals1 =
-          typeof humanMeta1 === 'object' && humanMeta1 !== null && 'decimals' in humanMeta1
-            ? Number(humanMeta1.decimals)
-            : 0;
+      // 메타데이터 쿼리
+      const meta0 = await api.query.assets.metadata(id0);
+      const meta1 = await api.query.assets.metadata(id1);
+      const humanMeta0 = meta0.toHuman();
+      const humanMeta1 = meta1.toHuman();
 
-        // 잔액 조회
-        const balance0 = await api.query.assets.account(id0, selectedAccount);
-        const balance1 = await api.query.assets.account(id1, selectedAccount);
+      const decimals0Val =
+        typeof humanMeta0 === 'object' && humanMeta0 !== null && 'decimals' in humanMeta0
+          ? Number(humanMeta0.decimals)
+          : 0;
+      const symbol0 =
+        typeof humanMeta0 === 'object' && humanMeta0 !== null && 'symbol' in humanMeta0
+          ? String(humanMeta0.symbol)
+          : '';
 
-        const bal0 = extractBalance(balance0.toJSON());
-        const bal1 = extractBalance(balance1.toJSON());
+      const decimals1Val =
+        typeof humanMeta1 === 'object' && humanMeta1 !== null && 'decimals' in humanMeta1
+          ? Number(humanMeta1.decimals)
+          : 0;
+      const symbol1 =
+        typeof humanMeta1 === 'object' && humanMeta1 !== null && 'symbol' in humanMeta1
+          ? String(humanMeta1.symbol)
+          : '';
 
-        // LP 토큰 잔액 조회 - 실패해도 계속 진행
-        try {
-          const lpBalance = await getLpTokenBalance(id0, id1, selectedAccount);
-          console.log('[DEBUG] getLpTokenBalance result:', lpBalance);
+      setDecimals0(decimals0Val);
+      setDecimals1(decimals1Val);
 
-          if (lpBalance > 0n) {
-            // LP 토큰 메타데이터 (심볼, 소수점 등) 조회
-            const poolInfo = await getPoolQueryRpc(id0, id1);
+      // poolInfo 쿼리
+      const poolInfo = await getPoolQueryRpc(id0, id1);
 
-            if (poolInfo && poolInfo.poolExists && poolInfo.lpTokenId) {
-              const lpTokenMeta = await api.query.assets.metadata(poolInfo.lpTokenId);
-              const lpTokenMetaHuman = lpTokenMeta.toHuman();
-              const lpTokenDecimals =
-                typeof lpTokenMetaHuman === 'object' &&
-                lpTokenMetaHuman !== null &&
-                'decimals' in lpTokenMetaHuman
-                  ? Number(lpTokenMetaHuman.decimals)
-                  : 18; // Default LP token decimals
+      const baseReserve = poolInfo?.data?.baseReserve
+        ? BigInt(poolInfo.data.baseReserve.replace(/,/g, ''))
+        : 0n;
+      const quoteReserve = poolInfo?.data?.quoteReserve
+        ? BigInt(poolInfo.data.quoteReserve.replace(/,/g, ''))
+        : 0n;
+      const poolPrice = poolInfo?.data?.poolPrice
+        ? Number(poolInfo.data.poolPrice.replace(/,/g, ''))
+        : 0;
 
-              // LP 토큰 심볼 추출
-              const lpTokenSymbol =
-                typeof lpTokenMetaHuman === 'object' &&
-                lpTokenMetaHuman !== null &&
-                'symbol' in lpTokenMetaHuman
-                  ? String(lpTokenMetaHuman.symbol)
-                  : 'LP';
-
-              // 보기 좋게 형식화된 잔액
-              const formattedLpBalance = (
-                Number(lpBalance) / Math.pow(10, lpTokenDecimals)
-              ).toLocaleString(undefined, {
-                maximumFractionDigits: lpTokenDecimals,
-              });
-
-              // LP 보유량의 풀 내 지분 비율 계산
-              // (예시: 상세 계산은 체인/UI 요구사항에 따라 달라질 수 있음)
-              let lpPercentage = 0;
-
-              // ... (추가 LP 지분 계산 로직)
-
-              // LP 토큰 정보 저장
-              setLpTokenBalance({
-                lpTokenId: poolInfo.lpTokenId,
-                rawBalance: lpBalance.toString(),
-                humanReadableBalance: Number(lpBalance) / Math.pow(10, lpTokenDecimals),
-                lpTokenSymbol,
-                lpTokenDecimals,
-                baseAssetId: id0,
-                quoteAssetId: id1,
-              });
-
-              setLpTokenPercentage(lpPercentage);
-            }
-          }
-        } catch (err) {
-          console.warn('LP token balance fetch failed, but continuing:', err);
-          // Silent failure for LP token - this allows the modal to work for new pools
-        }
-
-        // 사용자 친화적인 형식으로 잔액 표시
-        setDisplayBalance0(
-          (Number(bal0) / Math.pow(10, decimals0)).toLocaleString(undefined, {
-            maximumFractionDigits: decimals0,
-          }),
-        );
-        setDisplayBalance1(
-          (Number(bal1) / Math.pow(10, decimals1)).toLocaleString(undefined, {
-            maximumFractionDigits: decimals1,
-          }),
-        );
-
-        return { bal0, bal1 };
-      } catch (error) {
-        console.error('잔액 및 풀 정보 조회 중 오류:', error);
-        // Show user-friendly balances even on error
-        setDisplayBalance0('0');
-        setDisplayBalance1('0');
-        return { bal0: 0n, bal1: 0n };
+      // reserveRatio 계산
+      let ratio = 1;
+      if (Number(quoteReserve) > 0) {
+        ratio =
+          Number(baseReserve) /
+          Math.pow(10, decimals0Val) /
+          (Number(quoteReserve) / Math.pow(10, decimals1Val));
       }
+      setReserveRatio(ratio);
+
+      // 기존 잔액/decimal 처리
+      const balance0 = await api.query.assets.account(id0, selectedAccount);
+      const balance1 = await api.query.assets.account(id1, selectedAccount);
+      const bal0 = extractBalance(balance0.toJSON());
+      const bal1 = extractBalance(balance1.toJSON());
+
+      setDisplayBalance0(
+        (Number(bal0) / Math.pow(10, decimals0Val)).toLocaleString(undefined, {
+          maximumFractionDigits: decimals0Val,
+        }),
+      );
+      setDisplayBalance1(
+        (Number(bal1) / Math.pow(10, decimals1Val)).toLocaleString(undefined, {
+          maximumFractionDigits: decimals1Val,
+        }),
+      );
+      // 필요하다면 setPoolInfo(poolInfo) 등 상태 저장도 추가
     }
 
     if (isOpen) {
-      fetchBalances();
+      fetchTokenInfoAndPool();
     }
-  }, [
-    isOpen,
-    api,
-    selectedAccount,
-    token0.id,
-    token1.id,
-    getPoolQueryRpc,
-    getLpTokenBalance,
-  ]);
+  }, [isOpen, api, selectedAccount, token0.id, token1.id, getPoolQueryRpc]);
 
   useEffect(() => {
     async function fetchPriceRatio() {
@@ -265,11 +228,11 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
 
   const handleAmount0Change = (value: string) => {
     setAmount0(value);
-    if (priceRatio && value) {
+    if (reserveRatio && value) {
       try {
         const parsedValue = parseFloat(value);
         if (!isNaN(parsedValue)) {
-          const calculated = parsedValue * priceRatio;
+          const calculated = parsedValue / reserveRatio;
           setAmount1(calculated.toFixed(6));
         }
       } catch (error) {
@@ -280,11 +243,11 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
 
   const handleAmount1Change = (value: string) => {
     setAmount1(value);
-    if (priceRatio && value) {
+    if (reserveRatio && value) {
       try {
         const parsedValue = parseFloat(value);
         if (!isNaN(parsedValue)) {
-          const calculated = parsedValue / priceRatio;
+          const calculated = parsedValue * reserveRatio;
           setAmount0(calculated.toFixed(6));
         }
       } catch (error) {
@@ -375,16 +338,16 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
       const meta1 = await api.query.assets.metadata(id1);
       const humanMeta0 = meta0.toHuman();
       const humanMeta1 = meta1.toHuman();
-      const decimals0 =
+      const decimals0Val =
         typeof humanMeta0 === 'object' && humanMeta0 !== null && 'decimals' in humanMeta0
-          ? Number(humanMeta0.decimals)
+          ? Number((humanMeta0 as any).decimals)
           : 0;
-      const decimals1 =
+      const decimals1Val =
         typeof humanMeta1 === 'object' && humanMeta1 !== null && 'decimals' in humanMeta1
-          ? Number(humanMeta1.decimals)
+          ? Number((humanMeta1 as any).decimals)
           : 0;
-      const rawAmount0 = toRawAmount(amount0, decimals0);
-      const rawAmount1 = toRawAmount(amount1, decimals1);
+      const rawAmount0 = toRawAmount(amount0, decimals0Val);
+      const rawAmount1 = toRawAmount(amount1, decimals1Val);
       if (rawAmount0 === '0' || rawAmount1 === '0') {
         throw new Error('Amount too small. Please enter a larger value.');
       }
@@ -392,17 +355,6 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
       // 1. 잔고 조회
       const balance0 = await api.query.assets.account(id0, selectedAccount);
       const balance1 = await api.query.assets.account(id1, selectedAccount);
-      function extractBalance(json: any): bigint {
-        if (
-          json &&
-          typeof json === 'object' &&
-          'balance' in json &&
-          typeof json.balance === 'string'
-        ) {
-          return BigInt(json.balance);
-        }
-        return 0n;
-      }
       const bal0 = extractBalance(balance0.toJSON());
       const bal1 = extractBalance(balance1.toJSON());
       // 2. min 값 99%로 설정
@@ -499,20 +451,19 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
 
   if (!isOpen) return null;
 
-  const usd0 = amount0
-    ? (parseFloat(amount0) * token0.usdPrice).toLocaleString('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 2,
-      })
-    : 'US$0';
-  const usd1 = amount1
-    ? (parseFloat(amount1) * token1.usdPrice).toLocaleString('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 2,
-      })
-    : 'US$0';
+  const safeUsd = (amount: string, usdPrice: number | undefined) => {
+    const n = Number(amount);
+    const price = typeof usdPrice === 'number' && !isNaN(usdPrice) ? usdPrice : 0;
+    if (isNaN(n) || !isFinite(n) || !isFinite(price)) return 'US$0';
+    return (n * price).toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 2,
+    });
+  };
+
+  const usd0 = safeUsd(amount0, token0.usdPrice);
+  const usd1 = safeUsd(amount1, token1.usdPrice);
 
   // LP 토큰 잔액 표시를 위한 포맷팅
   const formattedLpBalance = lpTokenBalance
@@ -521,6 +472,44 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
       })
     : '0';
 
+  const safeNumber = (val: any) => {
+    const n = Number(val);
+    return isNaN(n) ? 0 : n;
+  };
+
+  const parsedAmount0 = safeNumber(amount0);
+  const parsedAmount1 = safeNumber(amount1);
+  const safePriceRatio = priceRatio ?? 1;
+
+  const id0 = extractId(token0.id);
+  const id1 = extractId(token1.id);
+
+  let baseToken, quoteToken, baseAmount, quoteAmount, baseDecimals, quoteDecimals;
+
+  if (poolInfo?.baseAssetId === id0 && poolInfo?.quoteAssetId === id1) {
+    baseToken = token0;
+    quoteToken = token1;
+    baseAmount = amount0;
+    quoteAmount = amount1;
+    baseDecimals = decimals0;
+    quoteDecimals = decimals1;
+  } else if (poolInfo?.baseAssetId === id1 && poolInfo?.quoteAssetId === id0) {
+    baseToken = token1;
+    quoteToken = token0;
+    baseAmount = amount1;
+    quoteAmount = amount0;
+    baseDecimals = decimals1;
+    quoteDecimals = decimals0;
+  } else {
+    // fallback: 기본 순서
+    baseToken = token0;
+    quoteToken = token1;
+    baseAmount = amount0;
+    quoteAmount = amount1;
+    baseDecimals = decimals0;
+    quoteDecimals = decimals1;
+  }
+
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center ${
@@ -528,13 +517,13 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
       }`}
     >
       <div className="fixed inset-0 bg-black opacity-70" onClick={onClose}></div>
-      <div className="z-10 bg-[#151516] rounded-2xl p-6 max-w-md w-full shadow-2xl">
+      <div className="z-10 bg-[#18181b] rounded-2xl p-6 max-w-md w-full shadow-2xl">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-white">
             {type === 'add' ? 'Add Liquidity' : 'Remove Liquidity'} - {poolName}
           </h2>
           <button
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-gray-200 transition-colors"
             onClick={onClose}
           >
             <svg
@@ -562,22 +551,22 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
                 type="number"
                 min="0"
                 step="any"
-                className="w-3/5 bg-transparent border-none text-3xl text-white font-semibold focus:outline-none placeholder-gray-600"
+                className="w-3/5 bg-transparent border-none text-3xl text-white font-semibold focus:outline-none placeholder-gray-500"
                 placeholder="0"
                 value={amount0}
                 onChange={(e) => handleAmount0Change(e.target.value)}
               />
-              <div className="flex items-center bg-[#2B2B33] rounded-lg px-3 py-2">
-                <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-bold mr-2">
+              <div className="flex items-center rounded-lg px-3 py-2">
+                <div className="w-7 h-7 rounded-full border border-gray-600 flex items-center justify-center text-white text-sm font-bold mr-2 bg-transparent">
                   {token0.symbol.charAt(0)}
                 </div>
-                <span className="text-base font-medium text-white">{token0.symbol}</span>
+                <span className="text-base font-medium text-gray-200">{token0.symbol}</span>
               </div>
             </div>
             <div className="flex justify-between items-center">
-              <div className="text-gray-400 text-xs">{usd0}</div>
-              <div className="text-xs text-gray-400">
-                Balance: {displayBalance0} {token0.symbol}
+              <div className="text-xs text-gray-400 text-right w-full">
+                Balance: <span className="text-gray-200">{displayBalance0}</span>{' '}
+                {token0.symbol}
               </div>
             </div>
           </div>
@@ -589,27 +578,27 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
                 type="number"
                 min="0"
                 step="any"
-                className="w-3/5 bg-transparent border-none text-3xl text-white font-semibold focus:outline-none placeholder-gray-600"
+                className="w-3/5 bg-transparent border-none text-3xl text-white font-semibold focus:outline-none placeholder-gray-500"
                 placeholder="0"
                 value={amount1}
                 onChange={(e) => handleAmount1Change(e.target.value)}
               />
-              <div className="flex items-center bg-[#2B2B33] rounded-lg px-3 py-2">
-                <div className="w-7 h-7 rounded-full bg-purple-500 flex items-center justify-center text-white text-sm font-bold mr-2">
+              <div className="flex items-center rounded-lg px-3 py-2">
+                <div className="w-7 h-7 rounded-full border border-gray-600 flex items-center justify-center text-white text-sm font-bold mr-2 bg-transparent">
                   {token1.symbol.charAt(0)}
                 </div>
-                <span className="text-base font-medium text-white">{token1.symbol}</span>
+                <span className="text-base font-medium text-gray-200">{token1.symbol}</span>
               </div>
             </div>
             <div className="flex justify-between items-center">
-              <div className="text-gray-400 text-xs">{usd1}</div>
-              <div className="flex space-x-2 items-center">
-                <div className="text-xs text-gray-400">
-                  Balance: {displayBalance1} {token1.symbol}
+              <div className="flex space-x-2 items-center w-full justify-end">
+                <div className="text-xs text-gray-400 text-right">
+                  Balance: <span className="text-gray-200">{displayBalance1}</span>{' '}
+                  {token1.symbol}
                 </div>
                 <button
                   onClick={() => handleAmount1Change(displayBalance1.replace(/,/g, ''))}
-                  className="text-xs text-blue-400 hover:text-blue-300"
+                  className="text-xs text-gray-400 hover:text-gray-200"
                 >
                   Max
                 </button>
@@ -620,9 +609,9 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
 
         {/* Pool/LP 존재 여부 안내 */}
         {isLoading ? (
-          <div className="text-blue-400 text-center my-4">Loading pool information...</div>
+          <div className="text-gray-400 text-center my-4">Loading pool information...</div>
         ) : poolInfo && !poolInfo.poolExists ? (
-          <div className="text-yellow-500 text-center my-4">
+          <div className="text-yellow-400 text-center my-4">
             No liquidity pool exists for this token pair yet.
             <br />
             You will be creating a new pool with your first deposit.
@@ -652,7 +641,7 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
 
         {/* 버튼 */}
         <Button
-          className="w-full py-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium rounded-xl text-lg transition-all duration-200 border-none"
+          className="w-full py-4 mt-4 bg-[#232326] hover:bg-[#2a2a2f] text-white font-medium rounded-xl text-lg transition-all duration-200 border-none"
           onClick={handleSubmit}
           disabled={
             isLoading ||

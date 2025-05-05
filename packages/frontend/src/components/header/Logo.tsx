@@ -3,10 +3,15 @@
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function Logo() {
+  const pathname = usePathname();
+  const isPoolPair = /^\/pools\/[^/]+$/.test(pathname);
+  const logoHref = isPoolPair ? '/pools' : '/';
+
   return (
-    <Link href="/" className="flex items-center">
+    <Link href={logoHref} className="flex items-center">
       <div
         style={{
           width: '140px',

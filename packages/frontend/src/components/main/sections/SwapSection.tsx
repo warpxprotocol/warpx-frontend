@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 
 import { Reveal } from '@/components/Reveal';
 import { albertSans, unbounded } from '@/styles/font';
@@ -57,7 +58,7 @@ export const SwapSection: React.FC = () => {
                             md:text-base
                             xs:h-12`}
             >
-              Swap
+              <Link href="/pools/DOT%2FUSDT?baseId=1&quoteId=2">Swap</Link>
             </span>
           </Reveal>
         </div>

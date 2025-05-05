@@ -396,19 +396,6 @@ export default function TradeSection({
         })
       : '';
 
-  useEffect(() => {
-    console.log(
-      'isValid:',
-      isValid,
-      'amount:',
-      amount,
-      'price:',
-      price,
-      'orderType:',
-      orderType,
-    );
-  }, [isValid, amount, price, orderType]);
-
   const tokenInDecimals =
     side === 'buy' ? poolMetadata?.quoteDecimals : poolMetadata?.baseDecimals;
 

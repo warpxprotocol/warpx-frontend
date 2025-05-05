@@ -331,11 +331,13 @@ function OrderbookTable() {
   const visibleAsks = [...asks].reverse().slice(0, VISIBLE_ROWS);
   const visibleBids = bids.slice(0, VISIBLE_ROWS);
 
-  // 부족한 행은 빈 값으로 채우기
+  // asks: 부족한 행을 위에 채우기
   const paddedAsks = [
-    ...visibleAsks,
     ...Array(VISIBLE_ROWS - visibleAsks.length).fill(null),
+    ...visibleAsks,
   ];
+
+  // bids: 기존과 동일 (아래에 부족한 행 추가)
   const paddedBids = [
     ...visibleBids,
     ...Array(VISIBLE_ROWS - visibleBids.length).fill(null),
@@ -360,12 +362,12 @@ function OrderbookTable() {
 
       <div className="flex-1 grid grid-rows-[1fr_auto_1fr] gap-2 h-full px-2 pb-2">
         {/* asks */}
-        <div className={`grid grid-rows-${VISIBLE_ROWS} gap-[1px]`}>
+        <div className={`grid grid-rows-${VISIBLE_ROWS} gap-px`}>
           {paddedAsks.map((ask, i) =>
             ask ? (
               <div
                 key={i}
-                className="relative flex text-xs text-red-400 h-5 items-center w-full"
+                className="relative flex text-xs text-red-400 h-full items-center w-full"
               >
                 <div
                   className="absolute left-0 top-0 h-full bg-red-500 opacity-20"
@@ -380,7 +382,10 @@ function OrderbookTable() {
                 </div>
               </div>
             ) : (
-              <div key={i} /> // 빈 행
+              <div
+                key={i}
+                className="relative flex h-full items-center w-full opacity-0 pointer-events-none"
+              />
             ),
           )}
         </div>
@@ -391,12 +396,12 @@ function OrderbookTable() {
         </div>
 
         {/* bids */}
-        <div className={`grid grid-rows-${VISIBLE_ROWS} gap-[1px]`}>
+        <div className={`grid grid-rows-${VISIBLE_ROWS} gap-px`}>
           {paddedBids.map((bid, i) =>
             bid ? (
               <div
                 key={i}
-                className="relative flex text-xs text-green-400 h-5 items-center w-full"
+                className="relative flex text-xs text-green-400 h-full items-center w-full"
               >
                 <div
                   className="absolute left-0 top-0 h-full bg-green-500 opacity-20"
@@ -411,7 +416,10 @@ function OrderbookTable() {
                 </div>
               </div>
             ) : (
-              <div key={i} /> // 빈 행
+              <div
+                key={i}
+                className="relative flex h-full items-center w-full opacity-0 pointer-events-none"
+              />
             ),
           )}
         </div>

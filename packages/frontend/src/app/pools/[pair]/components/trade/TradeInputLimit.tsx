@@ -55,16 +55,6 @@ export default function TradeInputLimit({
   // tickSize를 poolDecimals로부터 직접 계산
   const tickSize = 1 / Math.pow(10, poolDecimals);
 
-  // 콘솔로 확인
-  console.log(
-    'tickSize(계산):',
-    tickSize,
-    'poolDecimals:',
-    poolDecimals,
-    'poolMetadata:',
-    poolMetadata,
-  );
-
   const realPoolPrice = poolInfo?.poolPrice
     ? Number(poolInfo.poolPrice) / 10 ** poolDecimals
     : 0;

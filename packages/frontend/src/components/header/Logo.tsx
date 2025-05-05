@@ -12,31 +12,7 @@ export default function Logo() {
 
   return (
     <Link href={logoHref} className="flex items-center">
-      <div
-        style={{
-          width: '140px',
-          height: '40px',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'transparent',
-        }}
-      >
-        <img
-          src="/images/logo.png"
-          alt="WarpX Logo"
-          style={{
-            width: '120%',
-            height: '120%',
-            objectFit: 'cover',
-            objectPosition: 'center',
-            marginLeft: '-10%',
-            marginRight: '-10%',
-            display: 'block',
-          }}
-        />
-      </div>
+      <span className="text-2xl font-bold font-MyFont text-white opacity-80">warp(x)</span>
     </Link>
   );
 }

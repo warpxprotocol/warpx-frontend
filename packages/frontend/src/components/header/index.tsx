@@ -27,7 +27,7 @@ export default function Header() {
 
   return (
     <>
-      <header className="w-full bg-[#09090B]/90 backdrop-blur-md border-b border-gray-800 py-2 px-6 flex justify-between items-center fixed top-0 left-0 right-0 z-50">
+      <header className="w-full bg-[#09090B]/90 backdrop-blur-md border-b border-gray-800 py-4 px-8 flex justify-between items-center fixed top-0 left-0 right-0 z-50">
         <Logo />
         {/* <Navigation onDexClick={() => setIsDexModalOpen(true)} /> */}
         {pathname === '/' ? <LaunchAppButton /> : <DynamicWalletConnector />}

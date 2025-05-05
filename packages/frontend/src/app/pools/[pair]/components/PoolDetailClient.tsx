@@ -26,11 +26,9 @@ export default function PoolDetailClient({
   baseAssetId,
   quoteAssetId,
 }: PoolDetailClientProps) {
-
-
   return (
     <>
-      <main className="w-full h-full min-h-[calc(100vh-64px)] bg-[#0f0f0f] p-0 grid grid-rows-1 grid-cols-1 xl:grid-cols-[3fr_1fr_1fr] gap-2 xl:gap-4">
+      <main className="w-full h-full min-h-[calc(100vh-64px)] bg-[#0f0f0f] p-0 grid grid-rows-1 grid-cols-1 xl:grid-cols-[3fr_1fr_1fr] gap-2 xl:gap-4 pt-4 px-2">
         <div className="row-start-1 row-span-2 col-start-1 col-span-1 xl:col-span-1">
           <ChartSection pair={pair} baseAssetId={baseAssetId} quoteAssetId={quoteAssetId} />
         </div>

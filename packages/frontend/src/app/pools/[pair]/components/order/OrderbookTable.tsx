@@ -347,7 +347,7 @@ function OrderbookTable() {
   }
 
   return (
-    <div className="bg-[#18181C] border border-gray-800 w-full h-full max-w-md mx-auto rounded-none flex flex-col">
+    <div className="bg-[#0f0f0f] border border-gray-800 w-full h-full max-w-md mx-auto rounded-none flex flex-col">
       {/* 테이블 헤더 */}
       <div
         className="flex text-xs text-gray-400 w-full flex-shrink-0"

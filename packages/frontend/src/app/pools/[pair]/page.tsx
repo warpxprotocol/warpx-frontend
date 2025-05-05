@@ -4,25 +4,23 @@ import React from 'react';
 import PoolDetailClient from './components/PoolDetailClient';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     pair: string;
-  };
-  searchParams: {
+  }>;
+  searchParams: Promise<{
     baseId?: string;
     quoteId?: string;
-  };
+  }>;
 }
 
-// This is a server component
 export default async function PoolDetailPage(props: PageProps) {
   const { params, searchParams } = props;
+  const { pair } = await params;
+  const { baseId = '', quoteId = '' } = await searchParams;
 
-  const pairString = decodeURIComponent(params?.pair ?? '');
-  const baseIdRaw = searchParams?.baseId ?? '';
-  const quoteIdRaw = searchParams?.quoteId ?? '';
-
-  const baseAssetId = parseInt(baseIdRaw, 10);
-  const quoteAssetId = parseInt(quoteIdRaw, 10);
+  const pairString = decodeURIComponent(pair ?? '');
+  const baseAssetId = parseInt(baseId, 10);
+  const quoteAssetId = parseInt(quoteId, 10);
 
   if (isNaN(baseAssetId) || isNaN(quoteAssetId)) {
     console.error('Missing or invalid asset IDs in URL params');

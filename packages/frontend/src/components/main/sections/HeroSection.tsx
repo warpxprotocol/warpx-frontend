@@ -68,13 +68,6 @@ export const HeroSection: React.FC = () => {
               style={{ marginTop: 8 }}
             />
             <Image
-              src="/images/tanssi.png"
-              alt="Tanssi"
-              width={152}
-              height={47}
-              className="object-contain"
-            />
-            <Image
               src="/images/w3f.png"
               alt="Web3 Foundation"
               width={119}

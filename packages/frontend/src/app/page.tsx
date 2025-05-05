@@ -7,7 +7,7 @@ export default function HomePage() {
   return (
     <div className="w-full flex flex-col">
       <Header />
-      <div className="pt-[72px]">
+      <div className="pt-1">
         <HeroSection />
         <HybridSection />
         <SwapSection />

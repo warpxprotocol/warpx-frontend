@@ -388,23 +388,24 @@ export function usePoolDataFetcher() {
   const fetchMetadata = useCallback(async () => {
     if (!api || !baseIdFromUrl || !quoteIdFromUrl) return;
 
-    // 토큰 메타데이터
-    const [baseMeta, quoteMeta] = await Promise.all([
-      api.query.assets.metadata(baseIdFromUrl),
-      api.query.assets.metadata(quoteIdFromUrl),
-    ]);
+    try {
+      const poolMetadata = await getPoolMetadata(baseIdFromUrl, quoteIdFromUrl);
 
-    // 풀 메타데이터 (여기서 feeRate 등 추출)
-    const poolMeta = await getPoolMetadata(baseIdFromUrl, quoteIdFromUrl);
-
-    setMetadata({
-      baseDecimals: poolMeta.baseDecimals,
-      quoteDecimals: poolMeta.quoteDecimals,
-      feeRate: extractFeeRate(poolMeta),
-      lotSize: poolMeta.lotSize,
-      tickSize: poolMeta.tickSize,
-      poolDecimals: poolMeta.poolDecimals,
-    });
+      setMetadata({
+        baseDecimals: poolMetadata.baseDecimals,
+        quoteDecimals: poolMetadata.quoteDecimals,
+        feeRate: extractFeeRate(poolMetadata),
+        lotSize: poolMetadata.lotSize,
+        tickSize: poolMetadata.tickSize,
+        poolDecimals: poolMetadata.poolDecimals,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message === 'API not connected') {
+        // 개발 환경에서만 로그를 남기거나, 그냥 무시
+        return;
+      }
+      // 그 외 에러는 따로 처리
+    }
   }, [api, baseIdFromUrl, quoteIdFromUrl, setMetadata, getPoolMetadata]);
 
   // 최초 1회만 메타데이터 fetch

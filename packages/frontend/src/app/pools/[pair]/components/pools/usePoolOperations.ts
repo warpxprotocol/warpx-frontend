@@ -10,8 +10,7 @@ import { usePoolQueries } from './poolQueries';
 
 export const usePoolOperations = () => {
   // 각 특화된 훅들 불러오기
-  const { findPoolIndexByPair, getPoolInfo, getPoolInfoByPair, getPoolPriceRatio } =
-    usePoolQueries();
+  const { findPoolIndexByPair, getPoolQueryRpc } = usePoolQueries();
 
   const { findLpTokenId, getLpTokenBalance } = useLpTokenOperations();
 
@@ -23,9 +22,7 @@ export const usePoolOperations = () => {
   return {
     // 풀 쿼리 기능
     findPoolIndexByPair,
-    getPoolInfo,
-    getPoolInfoByPair,
-    getPoolPriceRatio,
+    getPoolQueryRpc,
 
     // LP 토큰 기능
     findLpTokenId,

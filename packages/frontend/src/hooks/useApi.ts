@@ -1,7 +1,7 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import { useEffect, useState } from 'react';
 
-const WS_URL = 'ws://127.0.0.1:9988'; // WarpX 파라체인 노드 (charlie)
+const WS_URL = process.env.NEXT_PUBLIC_POLKADOT_WARPX_WS || 'ws://127.0.0.1:9988';
 
 export function isApiReady(
   api: ApiPromise | null,

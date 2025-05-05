@@ -418,7 +418,7 @@ export default function TradeSection({
   // console.log('poolMetadata:', poolMetadata);
   return (
     <div
-      className="bg-[#202027] flex flex-col min-w-0 h-full shadow-md p-3 max-w-[340px] mx-auto overflow-hidden"
+      className="bg-[#0f0f0f] flex flex-col min-w-0 h-full shadow-md p-3 max-w-[340px] mx-auto overflow-hidden border border-gray-800"
       style={{ height: '100%' }}
     >
       <div className="flex flex-col gap-2 flex-1">

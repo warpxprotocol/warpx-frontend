@@ -13,6 +13,10 @@ import {
   subscribeToAssetTransfers,
 } from '@/services/features/assets/quries';
 
+export const dynamic = 'error';
+
+('use client');
+
 interface NetworkEvent {
   type: string;
   data: {
@@ -39,7 +43,7 @@ interface TestAccount {
   }>;
 }
 
-export default function TestPage() {
+function TestPage() {
   const { api, isConnected } = useApi();
   const [events, setEvents] = useState<NetworkEvent[]>([]);
   const [isDexModalOpen, setIsDexModalOpen] = useState(false);

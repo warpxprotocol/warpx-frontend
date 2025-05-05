@@ -41,14 +41,8 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
     console.warn('Token information missing');
     return null;
   }
-  const {
-    addLiquidity,
-    getPoolPriceRatio,
-    getLpTokenBalance,
-    getPoolInfo,
-    getPoolInfoByPair,
-    removeLiquidity,
-  } = usePoolOperations();
+  const { addLiquidity, getLpTokenBalance, removeLiquidity, getPoolQueryRpc } =
+    usePoolOperations();
   const { selectedAccount } = useWalletStore();
   const [amount0, setAmount0] = useState('');
   const [amount1, setAmount1] = useState('');
@@ -140,7 +134,7 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
 
           if (lpBalance > 0n) {
             // LP 토큰 메타데이터 (심볼, 소수점 등) 조회
-            const poolInfo = await getPoolInfoByPair(id0, id1);
+            const poolInfo = await getPoolQueryRpc(id0, id1);
 
             if (poolInfo && poolInfo.poolExists && poolInfo.lpTokenId) {
               const lpTokenMeta = await api.query.assets.metadata(poolInfo.lpTokenId);
@@ -223,7 +217,7 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
     selectedAccount,
     token0.id,
     token1.id,
-    getPoolInfoByPair,
+    getPoolQueryRpc,
     getLpTokenBalance,
   ]);
 
@@ -236,9 +230,9 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
         const id0 = extractId(token0.id);
         const id1 = extractId(token1.id);
 
-        // Use getPoolPriceRatio function to fetch price ratio
+        // Use getPoolQueryRpc function to fetch price ratio
         // This function handles cases where pools don't exist
-        const ratio = await getPoolPriceRatio(id0, id1);
+        const ratio = await getPoolQueryRpc(id0, id1);
 
         if (ratio === 1) {
           console.log('[fetchPriceRatio] 대체 비율 사용:', ratio);
@@ -267,7 +261,7 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
     if (isOpen && token0 && token1 && api) {
       fetchPriceRatio();
     }
-  }, [isOpen, token0, token1, api, getPoolPriceRatio]);
+  }, [isOpen, token0, token1, api, getPoolQueryRpc]);
 
   const handleAmount0Change = (value: string) => {
     setAmount0(value);
@@ -319,7 +313,7 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
         const id1 = extractId(token1.id);
 
         // 그루핑을 위해 풀 정보 가져오기
-        const poolInfo = await getPoolInfoByPair(id0, id1);
+        const poolInfo = await getPoolQueryRpc(id0, id1);
         if (!poolInfo.poolExists) {
           throw new Error('Pool does not exist');
         }

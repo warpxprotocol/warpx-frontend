@@ -1,24 +1,13 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
 
-export type NetworkType = 'mainnet' | 'testnet' | 'warpx';
-export type EndpointType = 'ws' | 'http' | 'explorer';
+export type NetworkType = 'warpx';
+export type EndpointType = 'ws';
 
 type NetworkEndpoints = Record<NetworkType, Partial<Record<EndpointType, string>>>;
 
 const NETWORK_ENDPOINTS: NetworkEndpoints = {
-  mainnet: {
-    ws: process.env.NEXT_PUBLIC_POLKADOT_MAINNET_WS || 'wss://rpc.polkadot.io',
-    explorer: 'https://polkadot.subscan.io',
-  },
-  testnet: {
-    ws: process.env.NEXT_PUBLIC_POLKADOT_TESTNET_WS || 'wss://westend-rpc.polkadot.io',
-    explorer: 'https://westend.subscan.io',
-  },
   warpx: {
     ws: process.env.NEXT_PUBLIC_POLKADOT_WARPX_WS || 'ws://127.0.0.1:9988',
-    http: process.env.NEXT_PUBLIC_POLKADOT_WARPX_HTTP || 'http://127.0.0.1:9000',
-    explorer:
-      process.env.NEXT_PUBLIC_POLKADOT_WARPX_EXPLORER || 'http://localhost:3000/explorer',
   },
 };
 

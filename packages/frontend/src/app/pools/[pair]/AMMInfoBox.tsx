@@ -66,7 +66,7 @@ function AMMInfoBox() {
   // URL에 페어 정보가 없는 경우 처리
   if (!pairParam) {
     return (
-      <div className="relative bg-[#18181C] rounded-xl px-4 py-3 flex flex-col gap-2 min-w-[260px] w-full">
+      <div className="relative bg-[#0f0f0f] rounded-xl px-4 py-3 flex flex-col gap-2 min-w-[260px] w-full">
         <div className="text-gray-400 text-sm">Select a pool to view details</div>
       </div>
     );
@@ -74,7 +74,7 @@ function AMMInfoBox() {
 
   // 메인 렌더링
   return (
-    <div className="relative bg-[#18181C] rounded-xl px-2 py-1 flex flex-col gap-1 w-full">
+    <div className="relative bg-[#0f0f0f] rounded-xl px-2 py-1 flex flex-col gap-1 w-full">
       {/* 상단: PRICE / DEPTH */}
       <div className="flex w-full justify-between items-center mb-0.5">
         <span className="text-gray-400 text-[10px] font-medium tracking-widest">PRICE</span>

@@ -1,8 +1,8 @@
 'use client';
 
 import { Option } from '@polkadot/types-codec';
+import type { Codec } from '@polkadot/types-codec/types';
 import { ITuple } from '@polkadot/types-codec/types';
-import type { FrameSupportTokensFungibleUnionOfNativeOrWithId } from '@warpx/sdk/interfaces/custom-exports';
 import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
 
@@ -27,6 +27,18 @@ const CreatePoolButton = dynamic(
   { ssr: false },
 );
 
+type Enum = any; // 실제 Enum 타입 import 또는 선언
+type u32 = any; // 실제 u32 타입 import 또는 선언
+
+interface FrameSupportTokensFungibleUnionOfNativeOrWithId extends Enum {
+  readonly isNative: boolean;
+  readonly isWithId: boolean;
+  readonly asWithId: u32;
+  readonly type: 'Native' | 'WithId';
+}
+
+type Asset = { isWithId: boolean; asWithId: { toNumber(): number } };
+
 export default function PoolsPage() {
   const { api, isLoading, error } = useApi();
   const [pools, setPools] = useState<Pool[]>([]);
@@ -47,12 +59,7 @@ export default function PoolsPage() {
 
         const formattedPools = await Promise.all(
           poolsData.map(async ([key, value]) => {
-            const poolId = key.args[0] as ITuple<
-              [
-                FrameSupportTokensFungibleUnionOfNativeOrWithId,
-                FrameSupportTokensFungibleUnionOfNativeOrWithId,
-              ]
-            >;
+            const poolId = key.args[0] as ITuple<[Codec, Codec]>;
             const poolOption = value as Option<any>;
 
             if (!poolOption.isSome) {
@@ -62,7 +69,7 @@ export default function PoolsPage() {
             const poolInfo = poolOption.unwrap();
 
             // 풀의 자산 정보 가져오기
-            const [baseAsset, quoteAsset] = poolId;
+            const [baseAsset, quoteAsset] = poolId as unknown as [Asset, Asset];
             const baseAssetId = baseAsset.isWithId ? baseAsset.asWithId.toNumber() : 0;
             const quoteAssetId = quoteAsset.isWithId ? quoteAsset.asWithId.toNumber() : 0;
 

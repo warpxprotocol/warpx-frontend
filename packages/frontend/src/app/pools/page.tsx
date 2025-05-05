@@ -39,6 +39,50 @@ interface FrameSupportTokensFungibleUnionOfNativeOrWithId extends Enum {
 
 type Asset = { isWithId: boolean; asWithId: { toNumber(): number } };
 
+function LoadingSkeleton() {
+  return (
+    <div className="w-full py-12 px-12">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <div className="h-8 w-32 bg-gray-700/50 rounded animate-pulse mb-2" />
+          <div className="h-4 w-64 bg-gray-700/50 rounded animate-pulse" />
+        </div>
+        <div className="h-10 w-32 bg-gray-700/50 rounded animate-pulse" />
+      </div>
+      <div className="overflow-x-auto rounded-lg border border-gray-800 bg-[#18181B] mt-8">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="bg-[#23232A] text-gray-400">
+              <th className="py-3 px-4 text-left font-semibold">POOL</th>
+              <th className="py-3 px-4 text-left font-semibold">FEE TIER</th>
+              <th className="py-3 px-4 text-left font-semibold">TVL</th>
+              <th className="py-3 px-4 text-left font-semibold">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...Array(5)].map((_, index) => (
+              <tr key={index} className="border-b border-gray-800">
+                <td className="py-3 px-4">
+                  <div className="h-6 w-32 bg-gray-700/50 rounded animate-pulse" />
+                </td>
+                <td className="py-3 px-4">
+                  <div className="h-6 w-20 bg-gray-700/50 rounded animate-pulse" />
+                </td>
+                <td className="py-3 px-4">
+                  <div className="h-6 w-24 bg-gray-700/50 rounded animate-pulse" />
+                </td>
+                <td className="py-3 px-4">
+                  <div className="h-8 w-16 bg-gray-700/50 rounded animate-pulse" />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function PoolsPage() {
   const { api, isLoading, error } = useApi();
   const [pools, setPools] = useState<Pool[]>([]);
@@ -122,11 +166,7 @@ export default function PoolsPage() {
   }, [api, isMounted]);
 
   if (isLoading) {
-    return (
-      <main className="max-w-4xl mx-auto py-12 px-4">
-        <div className="text-white">Loading pools...</div>
-      </main>
-    );
+    return <LoadingSkeleton />;
   }
 
   if (error) {
@@ -143,7 +183,7 @@ export default function PoolsPage() {
         <div>
           <h1 className="text-2xl font-bold text-white mb-2">POOL LIST</h1>
           <p className="text-gray-400">
-            Check various information such as TVL, APR at a glance.
+            Check various information such as TVL at a glance.
           </p>
         </div>
         <CreatePoolButton />

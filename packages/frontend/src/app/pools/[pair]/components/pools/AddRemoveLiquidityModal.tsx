@@ -266,7 +266,6 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
         }
 
         if (!amount0 || !amount1 || Number(amount0) <= 0 || Number(amount1) <= 0) {
-          alert('제거할 수량을 입력하세요.');
           setIsLoading(false);
           return;
         }
@@ -363,7 +362,6 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
 
       // Prevent 0 or empty supply
       if (!amount0 || !amount1 || Number(amount0) <= 0 || Number(amount1) <= 0) {
-        alert('공급량을 올바르게 입력하세요.');
         setIsLoading(false);
         return;
       }
@@ -416,7 +414,6 @@ export const AddRemoveLiquidityModal: React.FC<AddRemoveLiquidityModalProps> = (
       }
       if (!poolExists) {
         setIsLoading(false);
-        alert('해당 토큰 쌍의 풀이 존재하지 않습니다. 먼저 풀을 생성하세요.');
         return;
       }
       // 어떤 순서로 풀 공급을 시도할지 poolOrder 값에 따라 결정

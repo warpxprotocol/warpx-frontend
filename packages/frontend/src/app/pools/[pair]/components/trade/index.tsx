@@ -154,9 +154,6 @@ export default function TradeSection({
   const marketPrice = poolInfo?.poolPrice ? Number(poolInfo.poolPrice) : 0;
   const orderValue = Number(amount) * marketPrice;
 
-  // Show summary state
-  const [showSummary, setShowSummary] = useState(false);
-
   // Parse asset information from the pair parameter
   useEffect(() => {
     if (!pair || !api || isApiLoading) return;
@@ -298,7 +295,7 @@ export default function TradeSection({
   }, [side, assetPair]);
 
   const handleTradeClick = () => {
-    setShowSummary(true);
+    // This function is no longer used
   };
 
   const handleSubmit = async () => {
@@ -441,27 +438,7 @@ export default function TradeSection({
           </span>
         </div>
         {/* <TradeInfo /> */}
-        <TradeButton
-          orderType={orderType}
-          side={side}
-          baseAsset={baseAssetIdFinal!}
-          quoteAsset={quoteAssetIdFinal!}
-          quantity={amount}
-          isBid={side === 'buy'}
-          amount={amount}
-          price={price}
-          isValid={isValid}
-          tokenIn={tokenIn ?? ''}
-          tokenOut={tokenOut ?? ''}
-          decimals={baseAssetDecimals ?? 6}
-          onSubmit={handleTradeClick}
-          isSubmitting={isSubmitting}
-          assetInId={assetInId ?? 0}
-          assetOutId={assetOutId ?? 0}
-        />
-      </div>
-      {showSummary && (
-        <Modal>
+        <div className="mt-2">
           <OrderSummary
             orderType={orderType}
             side={side}
@@ -475,11 +452,27 @@ export default function TradeSection({
             }
             lotSize={lotSize ?? 0}
             decimals={baseDecimalsNum ?? 0}
-            onClose={() => setShowSummary(false)}
-            onSubmit={handleSubmit}
           />
-        </Modal>
-      )}
+        </div>
+        <TradeButton
+          orderType={orderType}
+          side={side}
+          baseAsset={baseAssetIdFinal!}
+          quoteAsset={quoteAssetIdFinal!}
+          quantity={amount}
+          isBid={side === 'buy'}
+          amount={amount}
+          price={price}
+          isValid={isValid}
+          tokenIn={tokenIn ?? ''}
+          tokenOut={tokenOut ?? ''}
+          decimals={baseAssetDecimals ?? 6}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          assetInId={assetInId ?? 0}
+          assetOutId={assetOutId ?? 0}
+        />
+      </div>
     </div>
   );
 }

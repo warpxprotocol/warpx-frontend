@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import React from 'react';
 
-const ChartSection = dynamic(() => import('../ChartSection'), { ssr: false });
+const ChartSection = dynamic(() => import('../../../chart/ChartSection'), { ssr: false });
 const FundsActionSection = dynamic(() => import('../FundsActionSection'), { ssr: false });
 const OrderTableSection = dynamic(() => import('./order/OrderTableSection'), {
   ssr: false,

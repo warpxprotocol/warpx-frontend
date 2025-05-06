@@ -451,7 +451,9 @@ export default function TradeSection({
                 : Number(price)
             }
             lotSize={lotSize ?? 0}
-            decimals={baseDecimalsNum ?? 0}
+            decimals={
+              Number.isFinite(baseDecimalsNum) && baseDecimalsNum >= 0 ? baseDecimalsNum : 0
+            }
           />
         </div>
         <TradeButton

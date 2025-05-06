@@ -148,7 +148,7 @@ export function PoolRow({ pool, reserve }: { pool: Pool; reserve?: any }) {
         {tvl === null ? (
           <span className="inline-block h-5 w-16 bg-gray-700 rounded animate-pulse" />
         ) : (
-          tvl
+          <span>$ {tvl}</span>
         )}
       </td>
       <td className="py-3 px-4 text-gray-300">

@@ -7,11 +7,11 @@ import { unbounded } from '@/styles/font';
 
 export const HybridSection: React.FC = () => {
   return (
-    <div className="my-[170px] pl-0 pr-5 w-full flex justify-center items-center z-0 md:flex-col md:gap-5 md:px-0">
+    <div className="my-[170px] pl-0 pr-5 w-full flex justify-center items-center z-0 gap-5">
       <div
         className="w-[696px] h-[529px] relative z-0 transition-all duration-200 ease-in-out 
                     lg:scale-[0.85] lg:-my-4 lg:-mr-5
-                    sm:scale-[0.6] sm:-my-[100px]"
+                    sm:scale-[0.6] sm:-my-[100px] flex flex-col-reverse sm:flex-row"
       >
         <Reveal>
           <Image
@@ -43,8 +43,8 @@ export const HybridSection: React.FC = () => {
       </div>
       <Reveal delay={600}>
         <h2
-          className={`text-white text-right text-[32px] font-normal leading-normal ${unbounded.className}
-                       md:text-center sm:text-[24px]`}
+          className={`text-white text-right text-[80px] font-normal leading-normal ${unbounded.className}
+                       lg:text-center sm:text-[28px]`}
         >
           Hybrid Exchange <br />
           Using Both AMM <br />& Orderbook

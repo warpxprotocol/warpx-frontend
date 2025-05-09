@@ -11,7 +11,6 @@
     "@emotion/core": "^11.0.0",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
-    "@heroicons/react": "^2.2.0",
     "@polkadot/extension-dapp": "^0.58.8",
     "@radix-ui/react-dialog": "^1.1.11",
     "@radix-ui/react-label": "^2.1.4",
@@ -34,12 +33,7 @@
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.2.0",
     "tailwindcss-animate": "^1.0.7",
-    "zustand": "^5.0.3",
-    "@polkadot/api": "^10.11.2",
-    "@polkadot/keyring": "^12.6.2",
-    "@polkadot/types": "^10.11.2",
-    "@polkadot/types-codec": "^10.13.1",
-    "@polkadot/extension-inject": "^0.58.8"
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^15.3.1",

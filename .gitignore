@@ -2,6 +2,9 @@ node_modules
 .env.local
 .env.development
 
+./packages/frontend/.env.local
+./packages/frontend/.env.production
+
 .idea
 
 .vercel

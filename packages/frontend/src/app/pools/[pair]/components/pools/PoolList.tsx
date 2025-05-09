@@ -10,28 +10,24 @@ import { usePoolOperations } from './usePoolOperations';
 export function PoolList({ pools }: { pools: Pool[] }) {
   const { getPoolQueryRpc } = usePoolOperations();
   const [reserves, setReserves] = useState<{ [poolId: string]: any }>({});
-  const [loading, setLoading] = useState(false);
-
-  const fetchReserves = async () => {
-    setLoading(true);
-    const results: { [poolId: string]: any } = {};
-    await Promise.all(
-      pools.map(async (pool) => {
-        try {
-          const reserve = await getPoolQueryRpc(pool.token0.id, pool.token1.id);
-          results[pool.id] = reserve;
-        } catch (e) {
-          results[pool.id] = null;
-        }
-      }),
-    );
-    setReserves(results);
-    setLoading(false);
-  };
 
   useEffect(() => {
+    // 모든 풀의 reserve를 비동기로 가져오기
+    async function fetchReserves() {
+      const results: { [poolId: string]: any } = {};
+      await Promise.all(
+        pools.map(async (pool) => {
+          try {
+            const reserve = await getPoolQueryRpc(pool.token0.id, pool.token1.id); // pool.id 또는 필요한 파라미터
+            results[pool.id] = reserve;
+          } catch (e) {
+            results[pool.id] = null;
+          }
+        }),
+      );
+      setReserves(results);
+    }
     fetchReserves();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pools, getPoolQueryRpc]);
 
   return (
@@ -48,7 +44,11 @@ export function PoolList({ pools }: { pools: Pool[] }) {
         </thead>
         <tbody>
           {pools.map((pool) => (
-            <PoolRow key={pool.id} pool={pool} reserve={reserves[pool.id]} />
+            <PoolRow
+              key={pool.id}
+              pool={pool}
+              reserve={reserves[pool.id]} // reserve 정보 전달
+            />
           ))}
         </tbody>
       </table>

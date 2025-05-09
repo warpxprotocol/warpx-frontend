@@ -32,6 +32,9 @@ importers:
       '@polkadot/types':
         specifier: ^10.11.2
         version: 10.13.1
+      '@polkadot/types-codec':
+        specifier: ^10.13.1
+        version: 10.13.1
       '@radix-ui/react-dialog':
         specifier: ^1.1.11
         version: 1.1.11(@types/react-dom@19.1.2(@types/react@19.1.2))(@types/react@19.1.2)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)

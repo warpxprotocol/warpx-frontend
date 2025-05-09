@@ -11,6 +11,7 @@
     "@emotion/core": "^11.0.0",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
+    "@heroicons/react": "^2.2.0",
     "@polkadot/extension-dapp": "^0.58.8",
     "@radix-ui/react-dialog": "^1.1.11",
     "@radix-ui/react-label": "^2.1.4",

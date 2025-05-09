@@ -3,7 +3,8 @@
     // this is specific with augmented overrides
     "paths": {
       "@polkadot/api/augment": ["src/interfaces/augment-api.ts"],
-      "@polkadot/types/augment": ["src/interfaces/augment-types.ts"]
+      "@polkadot/types/augment": ["src/interfaces/augment-types.ts"],
+      "@polkadot/types/lookup": ["src/interfaces/types-lookup.ts"]
     },
     // some other options, whatever you want for your environment
     "target": "esnext",
@@ -19,7 +20,7 @@
     "esModuleInterop": true,
     "baseUrl": ".",
     "skipLibCheck": true,
-    "typeRoots": ["./node_modules/@types"]
+    "typeRoots": ["./node_modules/@types", "./src/interfaces"]
   },
   "exclude": ["build/**/*", "node_modules"]
 }

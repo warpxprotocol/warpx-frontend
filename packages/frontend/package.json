@@ -38,7 +38,8 @@
     "@polkadot/api": "^10.11.2",
     "@polkadot/keyring": "^12.6.2",
     "@polkadot/types": "^10.11.2",
-    "@polkadot/types-codec": "^10.13.1"
+    "@polkadot/types-codec": "^10.13.1",
+    "@polkadot/extension-inject": "^0.58.8"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^15.3.1",

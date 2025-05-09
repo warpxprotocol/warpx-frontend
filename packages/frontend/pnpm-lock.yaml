@@ -26,6 +26,9 @@ importers:
       '@polkadot/extension-dapp':
         specifier: ^0.58.8
         version: 0.58.8(@polkadot/api@10.13.1)(@polkadot/util-crypto@12.6.2(@polkadot/util@12.6.2))(@polkadot/util@12.6.2)
+      '@polkadot/extension-inject':
+        specifier: ^0.58.8
+        version: 0.58.8(@polkadot/api@10.13.1)(@polkadot/util@12.6.2)
       '@polkadot/keyring':
         specifier: ^12.6.2
         version: 12.6.2(@polkadot/util-crypto@12.6.2(@polkadot/util@12.6.2))(@polkadot/util@12.6.2)

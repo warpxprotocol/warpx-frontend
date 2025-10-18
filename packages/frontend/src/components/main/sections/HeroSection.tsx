@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import Image from 'next/image';
+import { motion } from "framer-motion";
+import Image from "next/image";
 
-import { Reveal } from '@/components/Reveal';
-import { albertSans, unbounded } from '@/styles/font';
+import { Reveal } from "@/components/Reveal";
+import { albertSans, unbounded } from "@/styles/font";
 
 export const HeroSection: React.FC = () => {
   return (
@@ -17,13 +17,13 @@ export const HeroSection: React.FC = () => {
         className="w-[1150px] min-w-[1150px] h-[838px] min-h-[838px] absolute top-[-120px]"
       />
       <motion.div
-        style={{ display: 'flex', zIndex: -1 }}
+        style={{ display: "flex", zIndex: -1 }}
         initial={{ transform: `translate3d(0, -80px, 0)` }}
         animate={{ transform: `translate3d(0, -50px, 0)` }}
         transition={{
-          ease: 'linear',
+          ease: "linear",
           repeat: Infinity,
-          repeatType: 'mirror',
+          repeatType: "mirror",
           duration: 3,
         }}
       >
@@ -45,10 +45,10 @@ export const HeroSection: React.FC = () => {
         <p
           className={`mt-5 text-[#a1a1aa] text-center text-[20px] font-normal leading-[130%] ${albertSans.className} max-[700px]:text-base max-[700px]:leading-[145%]`}
         >
-          Settle <span className="inline-block">Lightning-Fast</span>{' '}
-          <span className="inline-block">Onchain Trades</span>{' '}
+          Settle <span className="inline-block">Lightning-Fast</span>{" "}
+          <span className="inline-block">Onchain Trades</span>{" "}
           <span className="inline-block">with Top-Tier Prices.</span> <br />
-          WarpX, the Cutting Edge Decentralized Exchange{' '}
+          WarpX, the Cutting Edge Decentralized Exchange{" "}
           <span className="inline-block">and AppChain.</span>
         </p>
 
@@ -66,13 +66,6 @@ export const HeroSection: React.FC = () => {
               height={47}
               className="object-contain mt-2"
               style={{ marginTop: 8 }}
-            />
-            <Image
-              src="/images/w3f.png"
-              alt="Web3 Foundation"
-              width={119}
-              height={47}
-              className="object-contain"
             />
           </div>
         </div>

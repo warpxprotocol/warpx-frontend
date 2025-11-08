@@ -13,9 +13,26 @@ warp(x) enables users to:
 - Visualize live **orderbook and liquidity data**
 - Execute **fully on-chain transactions** with real-time feedback
 
----
+## 📚 Documentation
 
-## 🚀 How to Run
+이 프로젝트는 GitHub Spec Kit 구조를 따릅니다:
+
+- **[Spec Kit Constitution](.specify/memory/constitution.md)** - 프로젝트 원칙 및 개발 철학
+- **[Spec Kit Project Specification](.specify/memory/project-spec.md)** - 프로젝트 상세 명세
+- **[Cursor AI Guide](cursor.md)** - Cursor AI 협업 가이드
+- **[Claude AI Guide](claude.md)** - Claude AI 협업 가이드
+- **[.cursorrules](.cursorrules)** - Cursor AI 규칙 파일
+
+### Spec Kit 명령어 사용법
+
+Cursor에서 다음 명령어를 사용할 수 있습니다:
+- `/speckit.constitution` - 프로젝트 원칙 생성/업데이트
+- `/speckit.specify` - 기능 명세 작성
+- `/speckit.plan` - 구현 계획 수립
+- `/speckit.tasks` - 작업 목록 생성
+- `/speckit.implement` - 구현 실행
+
+---
 
 Make sure the local Substrate node is running before launching the frontend.
 

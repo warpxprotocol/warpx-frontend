@@ -1,0 +1,200 @@
+# WarpX Frontend - Cursor Rules
+
+You are an expert TypeScript and React developer working on the WarpX Frontend project, a Polkadot-based hybrid DEX (AMM + Orderbook) application.
+
+## Project Context
+
+- **Framework**: Next.js 15 (App Router) with React 19
+- **Language**: TypeScript 5.4.5 (strict mode enabled)
+- **Styling**: Tailwind CSS + shadcn/ui components
+- **Blockchain**: Polkadot.js API with custom Substrate runtime
+- **State Management**: Zustand (global state) + React Query (server state)
+- **Monorepo**: Yarn Workspaces (`packages/frontend`, `packages/sdk`)
+
+## Code Style & Conventions
+
+### TypeScript
+- Always use strict TypeScript with explicit types
+- Use path aliases: `@/*` for `src/*`, `@warpx/sdk/*` for SDK types
+- Never use `any` - use proper types or `unknown`
+- SDK types are auto-generated - never manually edit `packages/sdk/src/interfaces/`
+
+### React Components
+- Use App Router structure (`src/app/` directory)
+- Add `'use client'` directive for client components
+- Use PascalCase for component names (e.g., `TradeInput.tsx`)
+- Place components:
+  - Page-specific: `app/[feature]/components/`
+  - Shared: `components/`
+  - UI primitives: `components/ui/` (shadcn/ui)
+
+### Hooks
+- Use camelCase with `use` prefix (e.g., `useTradeOperations.ts`)
+- Always handle loading and error states
+- Use React Query for server state: `useQuery`, `useMutation`
+- Use Zustand for global app state: `store/` directory
+- Follow existing hook patterns from `hooks/` directory
+
+### Styling
+- Use Tailwind utility classes
+- Reuse shadcn/ui components from `components/ui/`
+- Use CSS variables from `globals.css` for theming
+- Emotion is configured for styled components if needed
+
+### File Naming
+- Components: PascalCase (e.g., `TradeInput.tsx`)
+- Hooks: camelCase with `use` prefix (e.g., `useTradeOperations.ts`)
+- Utilities: camelCase (e.g., `utils.ts`)
+- Types: PascalCase (e.g., `types.ts`)
+
+## Architecture Patterns
+
+### State Management
+- **Zustand**: Global app state (`store/wallet.ts`, `store/app.ts`)
+- **React Query**: Server state and caching (`services/features/*/queries.ts`)
+- **Local State**: `useState`, `useReducer` for simple component state
+
+### API Integration
+- Use `useApi()` hook from `hooks/useApi.ts` for Polkadot API access
+- Always check `api` is ready before use: `isApiReady(api, isConnected, isReady)`
+- Use React Query for data fetching with proper error handling
+- Transaction handling: Use `hooks/useExtrinsic.ts`
+- Toast notifications: Use `components/toast/useTxToast.ts`
+
+### Component Patterns
+- Always define explicit prop types
+- Handle loading states with React Query's `isLoading`, `isError`
+- Provide user-friendly error messages
+- Consider accessibility (ARIA attributes, keyboard navigation)
+
+### Error Handling
+- Always wrap async operations in try-catch
+- Provide meaningful error messages to users
+- Use toast notifications for transaction feedback
+- Handle network errors gracefully
+
+## Development Guidelines
+
+### Adding New Features
+1. Create feature directory: `app/features/[feature]/` or page-specific `components/`
+2. Define types in `types.ts` within the feature directory
+3. Create queries in `services/features/[feature]/queries.ts`
+4. Create custom hooks: `use[Feature].ts`
+5. Build components following existing patterns
+6. Connect to pages/routes
+
+### Transaction Handling
+- Always use `useExtrinsic` hook for blockchain transactions
+- Show loading state during transaction submission
+- Display success/error feedback via toast notifications
+- Reset forms after successful transactions
+
+### Testing
+- Jest is configured with `@testing-library/react`
+- Test files: `__test/` directory or `*.test.tsx`
+- Test user interactions and error scenarios
+
+## Critical Constraints
+
+### Never Do
+- ❌ Manually edit `packages/sdk/src/interfaces/` files (auto-generated)
+- ❌ Change monorepo structure (`packages/` directory)
+- ❌ Violate Next.js App Router rules
+- ❌ Disable TypeScript strict mode
+- ❌ Use `any` type without justification
+
+### Always Do
+- ✅ Use SDK types from `@warpx/sdk/*`
+- ✅ Run `yarn workspace @warpx/sdk codegen` when SDK types need regeneration
+- ✅ Use workspace scripts: `yarn workspace @warpx/...`
+- ✅ Follow existing code patterns and conventions
+- ✅ Handle errors gracefully with user feedback
+
+## Common Patterns
+
+### Component Example
+```typescript
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+import { Button } from '@/components/ui/button'
+import { useApi } from '@/hooks/useApi'
+
+export function MyComponent() {
+  const { api, isLoading, error } = useApi()
+  
+  if (isLoading) return <div>Loading...</div>
+  if (error) return <div>Error: {error.message}</div>
+  
+  // Component logic
+}
+```
+
+### Hook Example
+```typescript
+import { useQuery } from '@tanstack/react-query'
+import { useApi } from '@/hooks/useApi'
+import type { ApiPromise } from '@polkadot/api'
+
+export function useMyQuery() {
+  const { api } = useApi()
+  
+  return useQuery({
+    queryKey: ['myQuery'],
+    queryFn: async () => {
+      if (!api) throw new Error('API not initialized')
+      // Query logic
+    },
+    enabled: !!api,
+  })
+}
+```
+
+### Zustand Store Example
+```typescript
+'use client'
+
+import { create } from 'zustand'
+
+interface MyState {
+  value: string
+  setValue: (value: string) => void
+}
+
+export const useMyStore = create<MyState>((set) => ({
+  value: '',
+  setValue: (value) => set({ value }),
+}))
+```
+
+## Scripts Reference
+- `yarn format` - Format code with Prettier
+- `yarn workspace @warpx/frontend dev` - Start dev server
+- `yarn workspace @warpx/frontend build` - Production build
+- `yarn workspace @warpx/sdk codegen` - Generate Polkadot types
+
+## Troubleshooting
+
+### SDK Type Errors
+- Run `yarn workspace @warpx/sdk codegen`
+- Ensure local node is running on RPC port 9988
+
+### Build Errors
+- Run `yarn install` again
+- Delete `.next` folder and rebuild
+
+### Wallet Connection Issues
+- Check Polkadot.js Extension is installed
+- Check browser console for errors
+
+### WebSocket Connection Failures
+- Verify node RPC endpoint in `services/config/polkadot.ts`
+- Check network configuration
+
+## References
+- [Spec Kit Constitution](./.specify/memory/constitution.md) - Project principles and development philosophy
+- [Spec Kit Project Specification](./.specify/memory/project-spec.md) - Detailed project specification
+- [cursor.md](./cursor.md) - Detailed project documentation
+- [claude.md](./claude.md) - Claude AI collaboration guidelines
+- [README.md](./README.md) - Project overview and setup
+
